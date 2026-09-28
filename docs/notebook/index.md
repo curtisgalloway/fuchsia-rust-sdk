@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T18:37-07:00
+Updated: 2026-09-27T19:13-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -38,6 +38,18 @@ Outcome: complete — `resolve_pins.py` + `overlay.lock.json` for 33.20260927.4.
 - Review (before checkpoint): git inherited user config (C1); now isolated, tested with a hostile HOME
 - `read(amt)` accepts truncated HTTP bodies; `digest` checks Content-Length
 
+### [M2 — Bazel workspace and Fuchsia Rust toolchains](M2.md)
+Entries: 2026-09-27T18:40-07:00 through 2026-09-27T19:13-07:00
+Outcome: open — implemented and verified (both configs link from a clean output base); review pending
+- Lock gains rust_host_std (host package has no host std) and clang; resolve_pins checks one Rust pin
+- Dead end: Bazel 8.1.0 (sdk-samples/drivers) can't analyze this SDK's cc_import; 8.5.1 = fuchsia.git's pin
+- Two extensions: lock_repos (CIPD by instance ID, IDK by SHA-256) then fuchsia_repos (rules_fuchsia's own rules)
+- Bare rust_binary needs --override_fuchsia_api_level; host-only targets need os:linux constraint
+- Disk: IDK extracts to 13 GB; Bazel caches ~20 GB; 9 GB free left for M3
+
 ## Threads
 - **Release → revision pinning:** [I1](I1.md) found the method; [M1](M1.md) implements it in `resolve_pins.py`
   and keeps the builds-agree check (live: `20.20240404.1.1` is rejected).
+- **Bazel SDK and toolchain pins:** [I1](I1.md) found no fuchsia-bazel-rules instance for the
+  release; [M1](M1.md) pinned the IDK + rules_fuchsia; [M2](M2.md) generates @fuchsia_sdk from
+  that IDK and adds clang and host-std pins.

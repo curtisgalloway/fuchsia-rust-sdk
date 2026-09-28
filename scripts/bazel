@@ -6,8 +6,9 @@
 # GitHub release and checking it against scripts/bazel.sha256 (the format of GitHub's
 # own bazel-<v>-linux-x86_64.sha256 file). Build host is linux-amd64 only (design C5).
 #
-# The version matches the Bazel that sdk-samples/drivers used for this release (see
-# docs/evidence/M2.md); regenerating for a new release refreshes both files.
+# The version is the Bazel that fuchsia.git itself pins at the lock's fuchsia_revision
+# (manifests/jiri.lock, fuchsia/third_party/3pp/bazel); see docs/evidence/M2.md.
+# Regenerating for a new release refreshes .bazelversion and scripts/bazel.sha256.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
