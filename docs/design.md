@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 # Rust drivers out of tree (the overlay) — Design
 
 Revision: 2026-09-27, draft 1 — approved by the owner 2026-09-27, including D6;
-amended 2026-09-27 per owner direction and M2/M3 findings (C4, C6, A2, R1, R2, §4.1, §4.2 toolchain, Rust rules and third-party crates)
+amended 2026-09-27 per owner direction and M2–M6b findings (C4, C6, A2, R1, R2, R4, §4.1, §4.2 toolchain, Rust rules and third-party crates)
 
 Source brief: [`brief.md`](brief.md), copied from `curtisgalloway/fuchsia-ci` at `b061204`
 (`docs/drivers/rust-driver-oot-plan.md`) (the
@@ -185,9 +185,12 @@ Facts found for this design (local tree at `b5274053`, 2026-09-27):
   `#[cfg(fuchsia_api_level_at_least = "HEAD")]` compiles the `HEAD` branch.
 - **R4. Third-party crates.** Every crates.io crate in the closure builds at the
   version in the release's `Cargo.lock`, including the locally patched ones
-  (`byteorder`, `memchr`, `libc`, `tokio`, taken from `third_party/rust_crates/`
-  at the release revision). *Check:* each builds for both targets; proc-macro
-  crates build for the host.
+  (for pilot 1: `byteorder`, `memchr`, `libc`, `zeroize`, taken from
+  `third_party/rust_crates/` at the release revision). *Check:* each crate builds
+  in the configuration it is used in (Fuchsia target, or exec for proc macros and
+  build-time crates) for both Fuchsia targets, and every crate builds for the host
+  (amended after M6b: upstream's per-platform features make some build-time crates
+  unbuildable as Fuchsia targets, and proc macros cannot link as Fuchsia `.so`).
 - **R5. FIDL Rust bindings, both flavors.** A rule generates `rust` and
   `rust_next` bindings from IDK FIDL sources with the IDK's `fidlc`. *Check:*
   bindings for every FIDL library in the pilots' closures compile for both
