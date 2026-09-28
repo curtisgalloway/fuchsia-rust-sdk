@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T08:25-07:00
+Updated: 2026-09-28T08:30-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -183,6 +183,10 @@ Outcome: complete — pilot 1 binds to `PCI0.bus.00_06_0.00_06_0` on the first r
 - `scripts/emu driver`'s reboot path works (reboot, re-register, bound)
 - `device_categories` blocks nothing; `vfs` statics not observed; new: two Rust `std` copies per driver host (same libc heap)
 - Review: land after fixes (3 minor, 4 nits, fixed); scratch path removed from the opening entry in place (disclosed)
+
+### [G1 — Milestone 1 gate](G1.md)
+Entries: 2026-09-28T08:30-07:00 through 2026-09-28T08:30-07:00
+Outcome: open
 
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
