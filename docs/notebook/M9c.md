@@ -109,3 +109,46 @@ tests). `//tests/vendor/...` on arm64: 29 + 1 skipped. pytest 448; reuse 1714/17
 `regen.py --check` clean; `check_sdk_files` 0 missing (x64 18,976, arm64 19,150, host
 15,782); `MODULE.bazel.lock` hash unchanged; disk Bazel 11.47 of 15 GiB, total 12.39 of
 25 GiB, 17.29 GiB free (M9c: +0.11 GiB).
+
+## 2026-09-28T12:56+00:00 — attempt: the pilot driver's source compiles against fdf_component (scratch)
+Review focus "fdf_component provides what examples/drivers/simple/rust uses": a throwaway
+package `vendor/fuchsia/examples/m9c_scratch` (inside upstream's `examples` visibility;
+deleted afterwards, `regen.py --check` clean) compiled the driver's `src/lib.rs` at
+`b5274053` as an rlib with GN's deps, the bind library `fuchsia.test_rust` stubbed by one
+constant. First with the overlay's lints (x64, arm64): exit 1 only on
+`unused_crate_dependencies` (`anyhow`, `fdf`, `zx`: GN lists them, `src/lib.rs` does
+not use them); the Bazel wrapper failed before that once on my `unset HOME` (my error).
+With `vendored = True` (cap-lints allow): exit 0 on both; `nm` shows
+`D __fuchsia_driver_registration__`. So every fdf_component item the driver names
+(`Driver`, `DriverContext`, `DriverError`, `Node`, `NodeBuilder`, `driver_register!`,
+`take_node`, `add_owned_child`, `add_property`) resolves.
+
+## 2026-09-28T12:56+00:00 — surprise: the pilot driver's GN deps fail the overlay's unused-crate lint
+GN's `fuchsia_rust_driver("driver")` lists `anyhow`, `//sdk/lib/driver/runtime/rust` (fdf)
+and `zx`, which `src/lib.rs` never names; under `//rules`' lints
+(`unused_crate_dependencies` + deny warnings, M4) the driver does not compile as GN lists
+it. M10's choice (drop the three deps, or build the driver with GN's effective lint level);
+recorded in the plan backlog.
+
+## 2026-09-28T12:59+00:00 — correction of the unused-crate surprise above: GN allows it for Rust drivers
+`build/drivers/fuchsia_driver.gni` at `b5274053`: `set_defaults("fuchsia_rust_driver")` adds
+`//build/config/rust/lints:allow_unused_crate_dependencies` ("if unused crates are removed
+at call sites" TODO), so GN builds the driver with those deps. M10's rule should default to
+the same (`rules/lints` already has an allow variant, used by the FIDL macros); no dep need
+be dropped. (A `git grep` over the blobless clone to find the template was stopped at once:
+it would have fetched every blob; the path was found with `ls-tree` instead, clone still 5.4 MB.)
+
+## 2026-09-28T13:01+00:00 — correction of the 12:48 entry's pair count
+"136 OK lines: 2 Fuchsia configs × 67 + host proc macros" is wrong arithmetic: 66 Fuchsia
+targets × 2 + 4 proc macros on host = 136 (the log has 4 `[host]` lines).
+
+## 2026-09-28T13:01+00:00 — correction of the 13:01 entry's heading
+It names "the 12:48 entry"; the entry with the wrong count is the 12:50 `--all` attempt.
+
+## 2026-09-28T13:02+00:00 — checkpoint
+State: in progress (review pending). Implementation and all project checks done; evidence
+written (all but Review), plan updated (check commands, status `in_progress`, M9c entry
+moved to the evidence, two backlog items for M10, next session), index row added. Next: a
+`wip` commit, then stop for the orchestrator's review before the checkpoint commit.
+Stamps: several entries share a stamp because they were written in one command at that
+minute (12:40 ×3, 12:50 ×2, 12:56 ×2), not batched from different times.

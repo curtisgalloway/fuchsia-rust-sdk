@@ -446,3 +446,15 @@ evidence already noted that upstream Bazel and GN can name a crate's target diff
 Fix belongs in: agent habit; possibly `gn_crosscheck.py` or `regen.py` (a load-time check
 that overlay labels resolve would need Bazel, so the build is the check today)
 Status: open
+
+## 2026-09-28T12:59+00:00 — failed command: `git grep` over the blobless fuchsia.git clone
+Chapter: [M9c](notebook/M9c.md)
+What happened: to find the `fuchsia_rust_driver` template, `git grep <rev> -- build` ran on
+the depth-1 `--filter=blob:none` clone; it lazily fetches every blob it reads, and hit the
+2-minute tool timeout. Stopped at once; nothing was fetched (clone still 5.4 MB). Earlier in
+the same stretch `unset HOME` in one command broke `scripts/bazel` (`HOME: unbound variable`).
+Cost: two wasted commands, about 3 minutes.
+Prevention: on a blobless clone use `ls-tree` to locate files and `cat-file` for single
+blobs; set `HOME` per git command (`HOME=… git …`) rather than exporting/unsetting it.
+Fix belongs in: agent habit (the `regen.py` git source's docstring could say it)
+Status: open
