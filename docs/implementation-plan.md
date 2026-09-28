@@ -88,7 +88,7 @@ in the cloud.
 | M9b | 28 upstream-Bazel in-tree crates + 7 overlays (incl. `fuchsia-component`) (R6) | M9a | cloud | complete |
 | M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | complete |
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | complete |
-| I3 | Emulator bind target for pilot 1 confirmed at this release; pilot builds with it | M3 | cloud (emulator) | complete (review pending) |
+| I3 | Emulator bind target for pilot 1 confirmed at this release; pilot builds with it | M3 | cloud (emulator) | in review |
 | M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | pending |
 | G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone | M11 | cloud (emulator) | pending |
 | I4 | Method to replace the in-tree `aml-saradc` on the VIM3 | — | **lab** | pending |
@@ -581,8 +581,7 @@ unchanged and needs no change to bind (it keeps `fuchsia.test_rust` for its chil
 property). Also fixed: M10's `elf_test` SIGPIPE flake (`readelf | grep -q` under
 `pipefail`).
 **Design coverage:** I3 (blocks R8a's "binds"). **Dependencies:** M3.
-**Status:** complete, review pending (the orchestrator's reviewer runs before the
-checkpoint). The detailed entry is in the evidence file.
+**Status:** in review (the orchestrator's reviewer runs before the checkpoint). The detailed entry is in the evidence file.
 **Evidence:** [I3](evidence/I3.md) · **Notebook:** [I3](notebook/I3.md)
 **Open limitations:** binding on the target is M11's; `ffx driver static-checks` flags
 upstream's manifest for no `device_categories` (not a bind input). **For M11:** step 1's
@@ -594,7 +593,8 @@ bind rule is already applied; register only the pilot (`qemu_edu` would compete)
 
 **Design coverage:** R8a. **Dependencies:** M10, I3, M3.
 **In scope:**
-- The I3 `.bind` in `drivers/simple_rust`.
+- The I3 `.bind` in `drivers/simple_rust` (already applied by I3: composite, `pci`
+  primary + `acpi` optional; `meta/simple_rust.bind`, checked by `:bind_test`).
 - Any change to the driver's `Start` needed for a composite parent. It is recorded as
   a patch-like diff against upstream source, in the evidence.
 - `scripts/emu driver //drivers/simple_rust:pkg`.
@@ -602,15 +602,18 @@ bind rule is already applied; register only the pilot (`qemu_edu` would compete)
 **Out of scope:** device I/O; the pilot only needs to bind and log.
 
 ### Implementation steps
-1. Apply the I3 bind rule, rebuild and register (`ffx driver register`; the harness
-   reboots before re-registering, per `fuchsia-cloud-dev` workaround 6).
+1. The I3 bind rule is already applied (composite: `pci` primary + `acpi` optional).
+   Rebuild and register the driver (`ffx driver register`; the harness reboots before
+   re-registering, per `fuchsia-cloud-dev` workaround 6), then observe the bind.
 2. Check `ffx driver list`, `ffx driver list-devices -v` and `ffx log`.
 3. Record the full command sequence in the evidence so G1 can replay it.
 
 ### Acceptance criteria
 - [ ] `ffx driver list` shows the overlay's package URL loaded.
-- [ ] `ffx driver list-devices -v` shows it bound to the edu node (or the node I3
-  chose).
+- [ ] `ffx driver list-devices -v` shows it bound to the composite child of the edu
+  device's spec `00_06_0`, expected to be `PCI0.bus.00_06_0.00_06_0` (not the edu PCI
+  node `PCI0.bus.00_06_0` itself, which stays a parent); `ffx driver composite show
+  00_06_0` names the driver.
 - [ ] The driver's start log line appears in `ffx log`.
 - [ ] Emulator and package come from the same `sdk_version` (C3), shown in the evidence.
 
@@ -1195,7 +1198,7 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **I3 complete, review pending.** Branch `ms/I3` from
+- Current milestone and status: **I3 in review.** Branch `ms/I3` from
   `2a63354`; `wip` commits (chapter, rule and bind test, the `elf_test` fix, the bind test
   rule, evidence, plan), then, after the orchestrator's review and fixes, the checkpoint
   commit `overlay: I3 — Emulator bind target for pilot 1`.
