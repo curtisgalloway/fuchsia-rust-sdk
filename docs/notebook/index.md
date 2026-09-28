@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T22:20-07:00
+Updated: 2026-09-27T22:50-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -78,8 +78,13 @@ Outcome: complete — `regen.py vendor`/`--check`; `zx-types`, `zx-sys`, `zx-sta
 - Git: depth-1 blobless fetch, then one by-ID fetch of the needed blobs (~16 s per run)
 
 ### [M6 — Pilot 1 closure and its crates.io crates](M6.md)
-Entries: 2026-09-27T22:23-07:00 through 2026-09-27T22:23-07:00
-Outcome: open
+Entries: 2026-09-27T22:23-07:00 through 2026-09-27T22:50-07:00
+Outcome: open — split; M6a (walker + `pilot1.json`) implemented, review pending; M6b (crates build) planned
+- Brief's regex walker misses bazel2gn variable deps, relative labels, proc_macro_deps: GN is now evaluated (`gn_eval.py`)
+- Pilot 1: 66 in-tree (vfs via rustc_dylib), 45 direct crates.io (1 under a build arg), 124 transitive (5 patched), 24 FIDL
+- Conditions per toolchain context + build-arg defaults: only 2 UNKNOWN left (fuchsia-sync lock-cycle arg)
+- `zx` not cheap (needs the patched-crate mechanism): moved to M6b
+- Dead end: `git grep` / `ls-tree -l` in a blobless clone fetch every blob (twice)
 
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
@@ -87,6 +92,7 @@ Outcome: open
   emulator bucket (0.5 GiB; total 8.8 GiB, clean-slate peak about 9.6 GiB).
   [M4](M4.md) adds 0.06 GiB (total 8.82 GiB).
   [M5](M5.md) adds 0.17 GiB (`@rust_crates` and builds; total 8.99 GiB).
+  [M6](M6.md) adds nothing (no Bazel input changed; total 8.99 GiB).
 - **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
   Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
   [M4](M4.md) derives the Rust cfgs from that file and asserts the HEAD branch at build time.
@@ -96,3 +102,6 @@ Outcome: open
 - **Fuchsia license name:** [M2](M2.md) added Fuchsia's LICENSE as BSD-3-Clause and
   M3/M4 followed; the [M5](M5.md) review found it is the 2-clause text and M5 relabelled
   the repo (design C4 to amend).
+- **Closure size (D8):** the brief measured 67/44/34 for dw-spi with a regex walker;
+  [M6](M6.md) evaluates GN and measures pilot 1 at 66/45/24 (124 crates.io
+  transitively), which split M6 into M6a/M6b.
