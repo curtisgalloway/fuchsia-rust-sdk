@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+# Every vendored crate is built with --cap-lints=allow (regen.py adds vendored = True to
+# each rustc_* call it copies; milestone M5, after the M4 review): upstream code built at
+# HEAD, with the overlay's lints, is not ours to fix.
+
+load("//tests/api_level:cap_lints_test.bzl", "cap_lints_test")
+
+_VENDORED = [
+    "//vendor/fuchsia/sdk/rust/zx-status",
+    "//vendor/fuchsia/sdk/rust/zx-status-ext",
+    "//vendor/fuchsia/sdk/rust/zx-sys",
+    "//vendor/fuchsia/sdk/rust/zx-types",
+]
+
+[
+    cap_lints_test(
+        name = "cap_lints_allow_" + target.split("/")[-1].replace("-", "_") + "_test",
+        expected = "allow",
+        target_under_test = target,
+    )
+    for target in _VENDORED
+]

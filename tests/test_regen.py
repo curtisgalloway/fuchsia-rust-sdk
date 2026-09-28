@@ -242,7 +242,7 @@ def test_vendored_added_to_every_rustc_macro():
 
 
 def test_vendored_already_set_is_an_error():
-    with pytest.raises(regen.RegenError, match="already sets vendored"):
+    with pytest.raises(regen.RegenError, match="already sets vendored; regen.py adds it, so write an overlay"):
         regen.add_vendored('rustc_library(\n    name = "l",\n    vendored = False,\n)\n', "f")
 
 
@@ -413,8 +413,11 @@ def test_a_patch_may_touch_only_its_own_crate(env, capsys):
 @pytest.mark.parametrize("edit, message", [
     (lambda up, repo: (repo / "vendor/crates.txt").write_text("sdk/rust/a upstream\n"),
      "sdk/rust/b is not listed in vendor/crates.txt"),
-    (lambda up, repo: (repo / "vendor/crates.txt").write_text("sdk/rust/a upstream\nsdk/rust/b upstream\n"),
+    (lambda up, repo: ((repo / "vendor/crates.txt").write_text("sdk/rust/a upstream\nsdk/rust/b upstream\n"),
+                       (repo / "overlays/sdk/rust/b/BUILD.bazel").unlink()),
      "sdk/rust/b is 'upstream', but upstream has no BUILD.bazel"),
+    (lambda up, repo: (repo / "vendor/crates.txt").write_text("sdk/rust/a upstream\nsdk/rust/b upstream\n"),
+     "overlays/sdk/rust/b/BUILD.bazel exists, but vendor/crates.txt says 'upstream'"),
     (lambda up, repo: (repo / "overlays/sdk/rust/b/BUILD.bazel").unlink(),
      "overlays/sdk/rust/b/BUILD.bazel does not exist"),
     (lambda up, repo: _write(repo, "overlays/sdk/rust/a/BUILD.bazel", B_OVERLAY),
@@ -428,6 +431,10 @@ def test_a_patch_may_touch_only_its_own_crate(env, capsys):
      "has no alias 'foo'"),
     (lambda up, repo: (repo / "vendor/crates.txt").write_text("sdk/rust/a upstream\nsdk/rust/b overlay\nsdk/x upstream\n"),
      "sdk/x: no such directory"),
+    (lambda up, repo: _write(repo, "overlays/sdk/rust/c/BUILD.bazel", B_OVERLAY),
+     "overlays/sdk/rust/c/BUILD.bazel: sdk/rust/c is not listed in vendor/crates.txt"),
+    (lambda up, repo: _write(repo, "patches/fuchsia/sdk/rust/c/0001-x.patch", _patch("1", "2")),
+     "patches/fuchsia/sdk/rust/c/0001-x.patch: sdk/rust/c is not listed in vendor/crates.txt"),
 ])
 def test_input_errors_name_the_input(env, capsys, edit, message):
     upstream, repo, run = env

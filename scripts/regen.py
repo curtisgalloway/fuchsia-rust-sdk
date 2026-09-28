@@ -370,8 +370,8 @@ def add_vendored(text: str, where: str) -> str:
     for pos in reversed(inserts):
         close = _matching_paren(text, pos - 1)
         if re.search(r"\bvendored\s*=", text[pos:close]):
-            raise RegenError(f"{where}: a rustc_* call already sets vendored; remove it upstream "
-                             "of regen.py (patches/fuchsia/) or use an overlay")
+            raise RegenError(f"{where}: a rustc_* call already sets vendored; regen.py adds it, "
+                             f"so write an overlay ({OVERLAYS}/<path>/BUILD.bazel) instead")
         line_start = text.rfind("\n", 0, pos) + 1
         indent = re.match(r"[ \t]*", text[line_start:]).group(0)
         if text[pos:pos + 1] == "\n":
@@ -390,7 +390,7 @@ def _matching_paren(text: str, open_pos: int) -> int:
             depth -= 1
             if depth == 0:
                 return open_pos + m.start()
-    raise RegenError("unbalanced parentheses")
+    raise RegenError(f"unbalanced parentheses after offset {open_pos}")
 
 
 def check_overlay_build(text: str, where: str) -> None:
@@ -547,6 +547,22 @@ def apply_patches(root: Path, vendor_dir: Path, crates: list[Crate], home: Path)
     return applied
 
 
+def _check_orphans(root: Path, crates: list[Crate]) -> None:
+    """Overlays and patches must belong to a listed crate, or they would be ignored."""
+    overlay_crates = {c.path for c in crates if c.build == "overlay"}
+    listed = {c.path for c in crates}
+    for f in sorted((root / OVERLAYS).rglob("BUILD.bazel")) if (root / OVERLAYS).is_dir() else []:
+        path = f.parent.relative_to(root / OVERLAYS).as_posix()
+        if path in listed and path not in overlay_crates:
+            raise RegenError(f"{OVERLAYS}/{path}/BUILD.bazel exists, but {VENDOR_LIST} says 'upstream'")
+        if path not in listed:
+            raise RegenError(f"{OVERLAYS}/{path}/BUILD.bazel: {path} is not listed in {VENDOR_LIST}")
+    for f in sorted((root / PATCHES).rglob("*.patch")) if (root / PATCHES).is_dir() else []:
+        path = f.parent.relative_to(root / PATCHES).as_posix()
+        if path not in listed:
+            raise RegenError(f"{f.relative_to(root).as_posix()}: {path} is not listed in {VENDOR_LIST}")
+
+
 def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home: Path) -> None:
     """Write every output tree (OUTPUTS) under `out`, from `source` and the repo's inputs."""
     crates = read_vendor_list((root / VENDOR_LIST).read_text())
@@ -554,6 +570,7 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
         raise RegenError(f"{VENDOR_LIST}: lists no crates")
     rev = source.revision
     vendored = {c.path for c in crates}
+    _check_orphans(root, crates)
     vendor = out / VENDOR_OUT
     vendor.mkdir(parents=True)
 
@@ -578,9 +595,6 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
                 raise RegenError(f"{VENDOR_LIST}: {crate.path} is 'upstream', but upstream has no "
                                  f"BUILD.bazel there; write {OVERLAYS}/{crate.path}/BUILD.bazel "
                                  "and list it as 'overlay'")
-            if overlay.exists():
-                raise RegenError(f"{OVERLAYS}/{crate.path}/BUILD.bazel exists, but {VENDOR_LIST} "
-                                 "says 'upstream'")
             text = rewrite_upstream_build(contents[build].decode(), build, vendored)
             text = _header(rev, build, "labels rewritten, vendored = True added") + text
         else:
