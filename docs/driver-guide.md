@@ -93,8 +93,9 @@ scripts/emu ffx driver composite show 00_06_0     # a spec's parents and their b
 ```
 
 A PCI device on `core.x64` is published as a **composite node spec** with two parents,
-the PCI device (`pci`) and its ACPI node (`acpi`); its unbound PCI node shows `Driver :
-None` and a spec named after it. A driver for it must be a composite rule: a plain rule
+the PCI device (`pci`) and its ACPI node (`acpi`); the spec is named after the device
+(`00_06_0`) and `composite show` prints `Driver : None` until a driver binds it. A driver
+for it must be a composite rule: a plain rule
 on the PCI node registers but never binds. The copied rule binds QEMU's `edu` device
 (VID 0x1234, DID 0x11e8), which `scripts/emu start` adds:
 
@@ -147,8 +148,9 @@ index matched the rule to a spec.
 
 **One driver per node.** Registrations are ephemeral, and the first driver registered for
 a spec keeps it until the target reboots. If another driver (the pilot, or an older copy)
-is already bound to the node, the new one registers but does not bind. Start from a fresh
-boot: `scripts/emu stop`, `scripts/emu start`, then register only the driver you want.
+is already bound to the node, the new one registers but does not bind (`ffx` says "No new
+nodes were bound to the driver being registered."). Start from a fresh boot:
+`scripts/emu stop`, `scripts/emu start`, then register only the driver you want.
 
 **Reloading after a rebuild.** The driver index keeps the first registration of a URL
 until reboot, so when the URL is already registered, `scripts/emu driver` reboots the target
