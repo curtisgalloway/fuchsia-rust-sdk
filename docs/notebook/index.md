@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T08:58-07:00
+Updated: 2026-09-28T09:14-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -185,12 +185,13 @@ Outcome: complete — pilot 1 binds to `PCI0.bus.00_06_0.00_06_0` on the first r
 - Review: land after fixes (3 minor, 4 nits, fixed); scratch path removed from the opening entry in place (disclosed)
 
 ### [G1 — Milestone 1 gate](G1.md)
-Entries: 2026-09-28T08:30-07:00 through 2026-09-28T08:58-07:00
-Outcome: open (in review) — all six checks pass from a simulated fresh container; driver guide followed literally binds a renamed copy
+Entries: 2026-09-28T08:30-07:00 through 2026-09-28T09:14-07:00
+Outcome: complete — milestone 1 declared; all six checks pass from a simulated fresh container; driver guide followed literally binds a renamed copy
 - Fresh container = caches deleted + GitHub clone; cold x64 6 min 8 s, Bazel peak 12.42 GiB (IDK archive + extraction)
 - M11 replay verbatim, no change needed; ffx prints a symbol-server WARN first in `log`
 - A second driver for a bound spec registers but does not bind ("No new nodes were bound"); guide: stop/start first
 - Guide fixes from the literal run: host skips `bind_test` too; two wording fixes
+- Review: land after fixes (4 minor, 7 nits). Guide `cd ../..` was missing (my run used absolute paths). SSH keys and ffx state survived the "fresh" reset
 
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);

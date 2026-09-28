@@ -606,3 +606,29 @@ Prevention: time with `date +%s` stamps or bash's `time` keyword; check `command
 tools outside the project's contract.
 Fix belongs in: agent habit
 Status: open
+
+## 2026-09-28T09:14-07:00 — instruction not followed: "follow the guide literally" run with absolute paths
+Chapter: [G1](notebook/G1.md)
+What happened: I checked the driver guide in G1 by running its commands, but each Bash
+call started with an absolute `cd` into the clone. The guide's own `cd
+drivers/my_driver` therefore never carried over to sections 5–7. The reviewer, running
+them in one shell, got `scripts/bazel: No such file or directory`.
+Cost: one minor review finding, and a guide fix after the review.
+Prevention: when verifying a document "literally", run its command blocks as one shell
+script in one working directory, with nothing prepended.
+Fix belongs in: agent habit (and the orchestrator's G1-style instructions could say "as
+one script")
+Status: open
+
+## 2026-09-28T09:14-07:00 — surprise: a simulated fresh container keeps ssh and ffx state
+Chapter: [G1](notebook/G1.md)
+What happened: the cache list I was given (and deleted) did not include
+`~/.ssh/fuchsia_*`, `~/.local/share/Fuchsia/ffx` or `~/.fuchsia`, nor the
+harness-installed `openssh-client`. The reviewer found them, and the Deviations had to
+name them.
+Cost: one minor review finding.
+Prevention: before simulating a fresh machine, list every path the tools write
+(`scripts/emu env`, ffx's defaults, `dpkg.log` since boot) and either delete each one or
+name it as kept.
+Fix belongs in: project instructions (a "fresh container" recipe for gates)
+Status: open
