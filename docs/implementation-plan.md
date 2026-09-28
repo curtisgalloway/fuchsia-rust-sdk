@@ -909,8 +909,8 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   before re-registering), but there is no driver package before M10; M11 exercises it.
   **Done in M11:** both paths run with pilot 1 (first registration: 15 s; with the URL
   already registered: reboot, re-register, bound again in 1 min 46 s under TCG). `ffx
-  target wait` prints a harmless ssh retry message and empty backtrace on stderr while
-  the target reboots.
+  target wait` may print (intermittent) a harmless ssh retry message and empty backtrace
+  on stderr while the target reboots.
 - **`fuchsia-cloud-dev` overlap.** `fuchsia-cloud-dev` already solves emulator bring-up
   in cloud containers. After M3, consider whether its `dev` tool and this repo's
   harness should share code. Not needed for milestone 1.
@@ -1144,7 +1144,9 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   M11: no.** The pilot's driver host (`vmaps`) maps only the bootfs `libdriver_runtime.so`
   (`459cee0a…`) and the other bootfs libraries; `driver_host` itself needs the runtime,
   so the driver's `DT_NEEDED` resolves to the loaded modules by soname and the package's
-  `lib/` copies are never loaded (fallback only; `virtio-gpu-display` behaves the same).
+  `lib/` copies are never loaded (fallback only; the pilot's packaged copy is a different
+  blob, `59bb96ec…`, and is not mapped; `virtio-gpu-display` is only consistent with this,
+  since its packaged copy is the host's blob).
   `host show -r` lists the pilot's dispatchers in the host's runtime. Kept as M10 made it.
 - **bindgen golden checks not translated (found in M9a; for M16).** `libasync_sys` and
   `fdf_sys` compile checked-in `bindings.rs`; GN also validates them against bindgen
@@ -1161,7 +1163,8 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   pilot 1). M10: the three pure-Rust `core.x64` drivers need `libvfs_rust.so` (and
   `libstd-<hash>.so`); pilot 1 needs neither. M11: not observed; pilot 1 links no `vfs`
   code (its host shows only its dispatcher threads); the `libvfs_rust.so` in its driver
-  host is `driver_host`'s own. Still open for a driver that uses `vfs`.
+  host is `driver_host`'s own. Still open: first driver using `vfs`; check at M12's
+  closure (`aml-saradc`).
 - **`syslog/client.shard.cml` check dropped (found in M9b; for M10) — done in M10.**
   `diagnostics_log` depends on `//sdk/lib/syslog:client_includes`, an empty stub in
   upstream Bazel and in GN an `expect_includes` that makes dependents' manifests include
@@ -1218,15 +1221,19 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 - **`device_categories` missing from pilot 1's manifest (found in I3; for M11).**
   `ffx driver static-checks` on the package fails "Device categories are valid"
   (upstream's `.cml` has none; FHCP metadata). Not a bind input; M11 records whether it
-  matters. **M11: it does not block registering, binding or `Start`** (`static-checks`
-  still fails that check, exit 0). A CI gate running `static-checks` on upstream's
-  manifest would fail; the manifest stays upstream's.
+  matters. **Answered in M11: blocks nothing** (registering, binding and `Start`
+  succeed; `static-checks` still fails that check, exit 0). The manifest stays
+  upstream's. Follow-up trigger: if a CI gate runs `static-checks` (M16/M17).
 - **Two Rust `std` copies in a driver host (found in M11; for M12 and later drivers).**
   `driver_host` loads `libstd-<hash>.so`; the overlay's drivers link `std` statically
   (rules_rust), so the process has two `std` copies with separate statics (panic hook,
-  thread-local keys). Harmless for pilot 1, which passes no `std` types across the
-  boundary; GN links `std` dynamically for in-tree Rust drivers. Watch it if a driver
-  shows panic-hook or TLS surprises.
+  thread-local keys). Checked in M11: both allocate through the process's one `libc.so`
+  (`malloc`, scudo heap), and no `std` type crosses the driver/host boundary in pilot 1
+  (C ABI registration symbol and driver runtime only). Remedy: link the release's
+  `libstd-<hash>.so` dynamically, as GN does; obstacle: that needs a toolchain build that
+  matches it exactly (compiler build, `std` flags, crate hash), unverified for the lock's
+  `rust_target`. Revisit if a driver shows panic-hook or thread-local surprises or passes
+  `std` types across an FFI boundary with the host.
 
 ## Next session
 

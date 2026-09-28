@@ -568,3 +568,10 @@ Cost: one extra Read call.
 Prevention: read a file with Read (even a few lines) before the first Edit of it.
 Fix belongs in: agent habit
 Status: open
+
+## 2026-09-28T08:23-07:00 — instruction gap: an absolute scratch path in an append-only entry
+Chapter: [M11](notebook/M11.md)
+Status: fixed in the M11 chapter by an in-place edit of the opening entry (owner-side
+decision in the M11 review, consistent with I3), disclosed in a correction entry. The
+prevention (a "no absolute paths" line in the lab-notebook skill, or a pre-commit grep)
+stays open for the owner's review.
