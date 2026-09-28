@@ -4,12 +4,12 @@
 #
 # SPDX-FileCopyrightText: 2025 The Fuchsia Authors
 # SPDX-FileCopyrightText: 2026 Curtis Galloway
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copied from fuchsia.git build/config/rust/lints/BUILD.bazel at the lock's
 # fuchsia_revision (b5274053cc0f); the rustc_* macros in //rules:rustc.bzl use these as
 # their lint_config defaults, as upstream's do. The Fuchsia LICENSE is
-# LICENSES/BSD-3-Clause.txt. The only change is marked "Overlay:"; the LINT.IfChange
+# LICENSES/BSD-2-Clause.txt. The only change is marked "Overlay:"; the LINT.IfChange
 # markers name upstream paths.
 
 load("@rules_rust//rust:defs.bzl", "rust_lint_config")

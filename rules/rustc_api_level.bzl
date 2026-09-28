@@ -4,10 +4,10 @@
 #
 # SPDX-FileCopyrightText: 2026 The Fuchsia Authors
 # SPDX-FileCopyrightText: 2026 Curtis Galloway
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Ported from fuchsia.git build/bazel/versioning/rustc_api_level.bzl at the lock's
-# fuchsia_revision (b5274053cc0f). The Fuchsia LICENSE is LICENSES/BSD-3-Clause.txt.
+# fuchsia_revision (b5274053cc0f). The Fuchsia LICENSE is LICENSES/BSD-2-Clause.txt.
 # Changes from upstream, all marked "Overlay:" below:
 #   - The levels come from @fuchsia_api_levels//:args.bzl, which toolchain/api_levels.bzl
 #     generates from the IDK's version_history.json; upstream reads the same two names

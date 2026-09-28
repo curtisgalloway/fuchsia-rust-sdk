@@ -36,17 +36,24 @@ Outputs, generated and committed (D6); never edit them by hand:
                            the @rust_crates repository; the build downloads each crate
                            by that checksum and resolves nothing.
 
-Label rewriting for upstream BUILD.bazel files (strings only, comments untouched):
-  //build/bazel/rules/rust:defs.bzl        -> //rules:rustc.bzl
+Rewriting upstream BUILD.bazel files (parsed with Python's ast; comments untouched):
+  load("//build/bazel/rules/rust:defs.bzl", ...)  -> load("//rules:rustc.bzl", ...)
+                                           (rustc_library/_binary/_proc_macro only)
+  load("@rules_rust//rust:defs.bzl", "rust_proc_macro")
+      -> load("//rules:rustc.bzl", rust_proc_macro = "rustc_proc_macro")
+                                           (rust_library/_binary/_proc_macro only)
+  load of @rules_license rules             -> unchanged; any other load fails
   //build/config/rust/lints:<x>            -> //rules/lints:<x>
-  //:license                               -> //vendor/fuchsia:license
+  //:license, //:__subpackages__, //:__pkg__  -> //vendor/fuchsia:<same>
   //third_party/rust_crates/vendor:<x>     -> @rust_crates//vendor:<x>
   //<path>[:<t>], <path> listed            -> //vendor/fuchsia/<path>[:<t>]
-Every rustc_library/rustc_binary/rustc_proc_macro call gets `vendored = True`: the
-overlay builds upstream code at HEAD, which upstream builds at PLATFORM, so its lints
-are upstream's concern (M4 review). Any other //-label fails the run and names the file,
-the label and why (for example a patched crate from third_party/rust_crates/forks,
-which is milestone M6).
+  //<path>:__pkg__ / :__subpackages__      -> //vendor/fuchsia/<path>:<same> (visibility)
+Every call of one of those Rust rules gets `vendored = True`: the overlay builds
+upstream code at HEAD, which upstream builds at PLATFORM, so its lints are upstream's
+concern (M4 review). The rewriter fails closed, naming file:line: any other //-label
+(for example a patched crate from third_party/rust_crates/forks, which is milestone
+M6), a label that is not a plain double-quoted string, a rust_*/rustc_* call it cannot
+mark, or a Rust rule that already sets `vendored`.
 
 Git access (C1): one depth-1, blobless fetch of the revision into a scratch directory,
 then one fetch of exactly the blobs needed, by object ID, with git isolated from user
@@ -56,6 +63,7 @@ and system configuration (resolve_pins.isolated_git). Nothing is fetched at buil
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -286,36 +294,159 @@ def read_lock(root: Path) -> tuple[str, str]:
 
 
 # --- BUILD file rewriting ---------------------------------------------------------
+#
+# BUILD files are parsed with Python's `ast` (Starlark's BUILD dialect is a subset of
+# Python's syntax), so strings, calls and loads are found structurally; comments are
+# never touched. The rewriter fails closed: a load it has no mapping for, a Rust rule
+# it cannot mark `vendored = True`, or a label written other than as a plain
+# double-quoted string stops the run and names file:line.
 
-# A comment, or a double-quoted string. Upstream BUILD files are buildifier-formatted,
-# which writes every string with double quotes.
-_TOKENS = re.compile(r'(#[^\n]*)|("(?:[^"\\\n]|\\.)*")')
-_RUSTC_CALL = re.compile(r"\b(" + "|".join(RUSTC_MACROS) + r")\(")
-_RUSTC_LOAD = re.compile(r'load\(\s*"//rules:rustc\.bzl"((?:\s*,\s*"[^"]*")*)\s*,?\s*\)')
-
-
-def _code_spans(text: str) -> list[tuple[int, int]]:
-    """Spans of `text` outside comments and strings."""
-    spans, pos = [], 0
-    for m in _TOKENS.finditer(text):
-        spans.append((pos, m.start()))
-        pos = m.end()
-    spans.append((pos, len(text)))
-    return spans
-
-
-def _map_strings(text: str, fn) -> str:
-    """Replace each string literal's contents with fn(contents); comments are kept."""
-    def sub(m: re.Match) -> str:
-        if m.group(1) is not None:
-            return m.group(1)
-        return '"' + fn(m.group(2)[1:-1]) + '"'
-    return _TOKENS.sub(sub, text)
+# Loads kept as they are in upstream in-tree BUILD files.
+_KEEP_LOADS = ("@rules_license//rules:license.bzl", "@rules_license//rules:package_info.bzl")
+_UPSTREAM_RUST_RULES = "//build/bazel/rules/rust:defs.bzl"
+# rules_rust rules an upstream BUILD file calls directly (e.g. src/lib/fuchsia-async-macro
+# uses rust_proc_macro). Decision (M5 review): map them to the overlay's wrappers, which
+# inherit every rules_rust attribute, so they get vendored = True (--cap-lints=allow)
+# like the rest of vendor/. The load is rewritten with aliases, so call sites keep their
+# names: load("//rules:rustc.bzl", rust_proc_macro = "rustc_proc_macro").
+_RULES_RUST_DEFS = "@rules_rust//rust:defs.bzl"
+_RULES_RUST_TO_WRAPPER = {
+    "rust_binary": "rustc_binary",
+    "rust_library": "rustc_library",
+    "rust_proc_macro": "rustc_proc_macro",
+}
+_RUST_CALL_NAME = re.compile(r"rustc?_")
+_PLAIN_STRING = re.compile(r'"(?:[^"\\\n]|\\.)*"')
 
 
-def _strings(text: str) -> list[str]:
-    """The contents of every string literal outside comments."""
-    return [m.group(2)[1:-1] for m in _TOKENS.finditer(text) if m.group(2) is not None]
+class _Source:
+    """Text with (line, UTF-8 column) -> character offset conversion for ast positions."""
+
+    def __init__(self, text: str, where: str):
+        self.text = text
+        self.where = where
+        self.lines = text.splitlines(keepends=True)
+        self.starts = [0]
+        for line in self.lines:
+            self.starts.append(self.starts[-1] + len(line))
+        try:
+            self.tree = ast.parse(text, filename=where)
+        except SyntaxError as e:
+            raise RegenError(f"{where}:{e.lineno}: cannot parse: {e.msg}") from None
+
+    def offset(self, lineno: int, col: int) -> int:
+        line = self.lines[lineno - 1]
+        return self.starts[lineno - 1] + len(line.encode()[:col].decode())
+
+    def span(self, node: ast.AST) -> tuple[int, int]:
+        return (self.offset(node.lineno, node.col_offset),
+                self.offset(node.end_lineno, node.end_col_offset))
+
+    def segment(self, node: ast.AST) -> str:
+        start, end = self.span(node)
+        return self.text[start:end]
+
+    def fail(self, node: ast.AST, message: str) -> RegenError:
+        return RegenError(f"{self.where}:{node.lineno}: {message}")
+
+
+def _loads(src: _Source) -> list[tuple[ast.Call, str, list[tuple[str, str]]]]:
+    """Each load(): (call, file, [(local name, loaded name)])."""
+    out = []
+    for node in ast.walk(src.tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "load":
+            args = node.args
+            if not args or not isinstance(args[0], ast.Constant) or not isinstance(args[0].value, str):
+                raise src.fail(node, "load() without a file string")
+            symbols = []
+            for a in args[1:]:
+                if not isinstance(a, ast.Constant) or not isinstance(a.value, str):
+                    raise src.fail(node, "load() symbol is not a string")
+                symbols.append((a.value, a.value))
+            for k in node.keywords:
+                if k.arg is None or not isinstance(k.value, ast.Constant) or not isinstance(k.value.value, str):
+                    raise src.fail(node, "load() alias is not name = \"symbol\"")
+                symbols.append((k.arg, k.value.value))
+            out.append((node, args[0].value, symbols))
+    return out
+
+
+def _string_edits(src: _Source, label, skip: set[int]) -> list[tuple[int, int, str]]:
+    """Edits replacing each label-like string with label(value).
+
+    Strings inside nodes whose id() is in `skip` (load statements) are left alone. A
+    label-like string ("//..." or "@...") must be a plain double-quoted literal.
+    """
+    skipped: set[int] = set()
+    for node in ast.walk(src.tree):
+        if id(node) in skip:
+            skipped.update(id(n) for n in ast.walk(node))
+    edits = []
+    for node in ast.walk(src.tree):
+        if id(node) in skipped or not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+            continue
+        value = node.value
+        if not value.startswith(("//", "@")):
+            continue
+        seg = src.segment(node)
+        if not _PLAIN_STRING.fullmatch(seg):
+            raise src.fail(node, f"label {value!r} is not a plain double-quoted string ({seg})")
+        new = label(value, node)
+        if new != value:
+            start, end = src.span(node)
+            edits.append((start, end, json.dumps(new)))
+    return edits
+
+
+def _apply(text: str, edits: list[tuple[int, int, str]]) -> str:
+    for start, end, new in sorted(edits, reverse=True):
+        text = text[:start] + new + text[end:]
+    return text
+
+
+def _wrapper_calls(src: _Source, wrappers: dict[str, str]) -> list[ast.Call]:
+    """Calls of loaded wrapper macros; any other rust_*/rustc_* call fails."""
+    calls = []
+    for node in ast.walk(src.tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else None
+        if isinstance(func, ast.Name) and name in wrappers:
+            calls.append(node)
+        elif name and _RUST_CALL_NAME.match(name):
+            raise src.fail(node, f"{name}() is not loaded from a rules file regen.py maps; "
+                                 f"write an overlay ({OVERLAYS}/<path>/BUILD.bazel)")
+    return calls
+
+
+def _vendored_edits(src: _Source, calls: list[ast.Call]) -> list[tuple[int, int, str]]:
+    edits = []
+    for call in calls:
+        if any(k.arg == "vendored" for k in call.keywords):
+            raise src.fail(call, "a Rust rule already sets vendored; regen.py adds it, so write "
+                                 f"an overlay ({OVERLAYS}/<path>/BUILD.bazel) instead")
+        pos = src.offset(call.func.end_lineno, call.func.end_col_offset)
+        paren = src.text.index("(", pos)
+        line_start = src.text.rfind("\n", 0, paren) + 1
+        indent = re.match(r"[ \t]*", src.text[line_start:]).group(0)
+        if src.text[paren + 1:paren + 2] == "\n":
+            new = f"\n{indent}    vendored = True,  # {GENERATED_BY}"
+        else:
+            new = "vendored = True, "
+        edits.append((paren + 1, paren + 1, new))
+    return edits
+
+
+def _check_all_vendored(text: str, where: str) -> None:
+    """Every wrapper call in `text` must pass vendored = True (checked after rewriting)."""
+    src = _Source(text, where)
+    wrappers = {local: name for call, f, syms in _loads(src) if f == "//rules:rustc.bzl"
+                for local, name in syms}
+    for call in _wrapper_calls(src, wrappers):
+        if not any(k.arg == "vendored" and isinstance(k.value, ast.Constant) and k.value.value is True
+                   for k in call.keywords):
+            raise src.fail(call, f"{call.func.id} call without vendored = True")
 
 
 def _split_label(label: str) -> tuple[str, str]:
@@ -327,79 +458,75 @@ def _split_label(label: str) -> tuple[str, str]:
 
 def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str]) -> str:
     """Rewrite an upstream in-tree BUILD.bazel for vendor/fuchsia/ (see module doc)."""
+    src = _Source(text, where)
+    edits: list[tuple[int, int, str]] = []
+    wrappers: dict[str, str] = {}
+    load_nodes: set[int] = set()
+    for call, file, symbols in _loads(src):
+        load_nodes.add(id(call))
+        if file == _UPSTREAM_RUST_RULES:
+            for local, name in symbols:
+                if name not in RUSTC_MACROS:
+                    raise src.fail(call, f"loads {name} from {file}; the overlay's //rules:rustc.bzl "
+                                         f"provides only {', '.join(RUSTC_MACROS)} (rustc_test is M16)")
+                wrappers[local] = name
+            start, end = src.span(call.args[0])
+            edits.append((start, end, '"//rules:rustc.bzl"'))
+        elif file == _RULES_RUST_DEFS:
+            parts = []
+            for local, name in symbols:
+                if name not in _RULES_RUST_TO_WRAPPER:
+                    raise src.fail(call, f"loads {name} from {file}; regen.py maps only "
+                                         f"{', '.join(_RULES_RUST_TO_WRAPPER)} (to the overlay's wrappers)")
+                wrappers[local] = _RULES_RUST_TO_WRAPPER[name]
+                parts.append(f'{local} = "{_RULES_RUST_TO_WRAPPER[name]}"')
+            start, end = src.span(call)
+            edits.append((start, end, 'load("//rules:rustc.bzl", ' + ", ".join(parts) + ")"))
+        elif file not in _KEEP_LOADS:
+            raise src.fail(call, f"load of {file}: regen.py has no mapping for it; add one or "
+                                 f"write an overlay ({OVERLAYS}/<path>/BUILD.bazel)")
 
-    def label(s: str) -> str:
-        if not s.startswith("//") or s.startswith(_BUILTIN_PREFIXES):
+    def label(s: str, node: ast.AST) -> str:
+        if s.startswith(_BUILTIN_PREFIXES) or not s.startswith("//"):
             return s
         pkg, target = _split_label(s)
-        if s == "//build/bazel/rules/rust:defs.bzl":
-            return "//rules:rustc.bzl"
-        if pkg == "build/config/rust/lints" and target:
+        if s == "//build/config/rust/lints" or (pkg == "build/config/rust/lints" and target):
             return "//rules/lints" + target
-        if s == "//:license":
-            return f"//{VENDOR_OUT}:license"
+        if pkg == "" and target in (":license", ":__subpackages__", ":__pkg__"):
+            return f"//{VENDOR_OUT}{target}"
         if pkg == RUST_CRATES_VENDOR and target:
             return f"@{CRATES_REPO}//vendor" + target
         if pkg == RUST_CRATES or pkg.startswith(RUST_CRATES + "/"):
-            raise RegenError(f"{where}: {s}: only crates.io crates from {RUST_CRATES_VENDOR} "
-                             "are supported; patched and forked crates come in milestone M6")
-        if pkg in vendored_paths:
+            raise src.fail(node, f"{s}: only crates.io crates from {RUST_CRATES_VENDOR} "
+                                 "are supported; patched and forked crates come in milestone M6")
+        if pkg in vendored_paths or (pkg and target in (":__pkg__", ":__subpackages__")):
+            # Visibility may name packages that are not vendored; it needs no target.
             return f"//{VENDOR_OUT}/{pkg}{target}"
-        if pkg.startswith("build/"):
-            raise RegenError(f"{where}: {s}: no overlay mapping for this build label")
-        raise RegenError(f"{where}: depends on {s}, but {pkg} is not listed in {VENDOR_LIST}")
+        if pkg.startswith("build/") or pkg == "":
+            raise src.fail(node, f"{s}: no overlay mapping for this label")
+        raise src.fail(node, f"depends on {s}, but {pkg} is not listed in {VENDOR_LIST}")
 
-    out = _map_strings(text, label)
-
-    for m in _RUSTC_LOAD.finditer(out):
-        names = re.findall(r'"([^"]*)"', m.group(1))
-        unsupported = [n for n in names if n not in RUSTC_MACROS]
-        if unsupported:
-            raise RegenError(f"{where}: loads {', '.join(unsupported)} from //rules:rustc.bzl, "
-                             f"which provides only {', '.join(RUSTC_MACROS)}")
-    return add_vendored(out, where)
-
-
-def add_vendored(text: str, where: str) -> str:
-    """Insert `vendored = True` as the first argument of every rustc_* call."""
-    spans = _code_spans(text)
-    inserts: list[int] = []
-    for start, end in spans:
-        for m in _RUSTC_CALL.finditer(text, start, end):
-            inserts.append(m.end())
-    for pos in reversed(inserts):
-        close = _matching_paren(text, pos - 1)
-        if re.search(r"\bvendored\s*=", text[pos:close]):
-            raise RegenError(f"{where}: a rustc_* call already sets vendored; regen.py adds it, "
-                             f"so write an overlay ({OVERLAYS}/<path>/BUILD.bazel) instead")
-        line_start = text.rfind("\n", 0, pos) + 1
-        indent = re.match(r"[ \t]*", text[line_start:]).group(0)
-        if text[pos:pos + 1] == "\n":
-            text = text[:pos] + f"\n{indent}    vendored = True,  # {GENERATED_BY}" + text[pos:]
-        else:
-            text = text[:pos] + "vendored = True, " + text[pos:]
-    return text
-
-
-def _matching_paren(text: str, open_pos: int) -> int:
-    depth = 0
-    for m in re.finditer(r'(#[^\n]*)|("(?:[^"\\\n]|\\.)*")|([()])', text[open_pos:]):
-        if m.group(3) == "(":
-            depth += 1
-        elif m.group(3) == ")":
-            depth -= 1
-            if depth == 0:
-                return open_pos + m.start()
-    raise RegenError(f"unbalanced parentheses after offset {open_pos}")
+    edits += _string_edits(src, label, load_nodes)
+    edits += _vendored_edits(src, _wrapper_calls(src, wrappers))
+    out = _apply(text, edits)
+    _check_all_vendored(out, where)
+    return out
 
 
 def check_overlay_build(text: str, where: str) -> None:
-    """Overlay BUILD files are ours: every rustc_* call must say `vendored = True`."""
-    for start, end in _code_spans(text):
-        for m in _RUSTC_CALL.finditer(text, start, end):
-            close = _matching_paren(text, m.end() - 1)
-            if not re.search(r"\bvendored\s*=\s*True\b", text[m.end():close]):
-                raise RegenError(f"{where}: {m.group(1)} call without vendored = True")
+    """Overlay BUILD files are ours: Rust rules come from //rules:rustc.bzl, vendored = True."""
+    src = _Source(text, where)
+    for call, file, _ in _loads(src):
+        if file.startswith("@rules_rust//"):
+            raise src.fail(call, f"loads from {file}; overlays use the wrappers in //rules:rustc.bzl")
+    _string_edits(src, lambda s, n: s, set())  # labels must be plain double-quoted strings
+    _check_all_vendored(text, where)
+
+
+def build_strings(text: str, where: str) -> list[str]:
+    """Every string constant in a BUILD file."""
+    return [n.value for n in ast.walk(_Source(text, where).tree)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)]
 
 
 def rewrite_crate_build(text: str, where: str) -> tuple[str, set[str]]:
@@ -408,10 +535,11 @@ def rewrite_crate_build(text: str, where: str) -> tuple[str, set[str]]:
     Returns the text and the crate directories (third_party/rust_crates/vendor/<dir>)
     its labels name, so the caller can follow the closure.
     """
+    src = _Source(text, where)
     deps: set[str] = set()
 
-    def label(s: str) -> str:
-        if not s.startswith("//") or s.startswith(_BUILTIN_PREFIXES):
+    def label(s: str, node: ast.AST) -> str:
+        if s.startswith(_BUILTIN_PREFIXES) or not s.startswith("//"):
             return s
         pkg, target = _split_label(s)
         prefix = RUST_CRATES_VENDOR + "/"
@@ -419,11 +547,11 @@ def rewrite_crate_build(text: str, where: str) -> tuple[str, set[str]]:
             deps.add(pkg[len(prefix):])
             return "//vendor/" + pkg[len(prefix):] + target
         if pkg.startswith(RUST_CRATES):
-            raise RegenError(f"{where}: {s}: only crates.io crates from {RUST_CRATES_VENDOR} "
-                             "are supported; patched and forked crates come in milestone M6")
-        raise RegenError(f"{where}: {s}: unexpected label in a crate_universe BUILD file")
+            raise src.fail(node, f"{s}: only crates.io crates from {RUST_CRATES_VENDOR} "
+                                 "are supported; patched and forked crates come in milestone M6")
+        raise src.fail(node, f"{s}: unexpected label in a crate_universe BUILD file")
 
-    return _map_strings(text, label), deps
+    return _apply(text, _string_edits(src, label, set())), deps
 
 
 _ALIAS = re.compile(r'alias\(\s*name = "([^"]+)",\s*actual = "([^"]+)",(?:\s*tags = \[[^\]]*\],)?\s*\)')
@@ -460,21 +588,27 @@ def _header(revision: str, upstream: str, what: str) -> str:
             f"# ({what}). Do not edit: change {OVERLAYS}/ or {PATCHES}/ and rerun it.\n")
 
 
+def _crate_header(revision: str, upstream: str, what: str) -> str:
+    return (f"# {GENERATED_BY} from fuchsia.git {revision}:{upstream}\n"
+            f"# ({what}).\n"
+            f"# Do not edit: the crate set follows the deps of the vendored BUILD files, and the\n"
+            f"# pins follow overlay.lock.json; change those and rerun regen.py.\n")
+
+
+# No SPDX header: this is upstream's license target, so REUSE.toml's vendor/fuchsia/**
+# annotation (BSD-2-Clause, the Fuchsia Authors) is the only one that applies to it.
 _VENDOR_ROOT_BUILD = """\
-# SPDX-FileCopyrightText: 2026 Curtis Galloway
-# SPDX-License-Identifier: Apache-2.0
+# {generated} from fuchsia.git {revision}:build/bazel/toplevel.BUILD.bazel
+# (its license target, unchanged). Do not edit.
 #
-# {generated}. Do not edit.
-#
-# The license of everything under vendor/fuchsia/, which upstream BUILD files name as
-# //:license (fuchsia.git build/bazel/toplevel.BUILD.bazel). Overlay: upstream's kind is
-# BSD-2-Clause; its LICENSE text is BSD-3-Clause (LICENSES/BSD-3-Clause.txt).
+# The license of everything under vendor/fuchsia/: upstream BUILD files name it as
+# //:license, which regen.py rewrites to //vendor/fuchsia:license.
 
 load("@rules_license//rules:license.bzl", "license")
 
 license(
     name = "license",
-    license_kinds = ["@rules_license//licenses/spdx:BSD-3-Clause"],
+    license_kinds = ["@rules_license//licenses/spdx:BSD-2-Clause"],
     license_text = "LICENSE",
     visibility = ["//visibility:public"],
 )
@@ -548,19 +682,29 @@ def apply_patches(root: Path, vendor_dir: Path, crates: list[Crate], home: Path)
 
 
 def _check_orphans(root: Path, crates: list[Crate]) -> None:
-    """Overlays and patches must belong to a listed crate, or they would be ignored."""
+    """Every file under overlays/ and patches/fuchsia/ must be used, or it would be ignored.
+
+    overlays/ may hold only <path>/BUILD.bazel for a crate listed 'overlay';
+    patches/fuchsia/ only <path>/*.patch for a listed crate.
+    """
     overlay_crates = {c.path for c in crates if c.build == "overlay"}
     listed = {c.path for c in crates}
-    for f in sorted((root / OVERLAYS).rglob("BUILD.bazel")) if (root / OVERLAYS).is_dir() else []:
+    for f in sorted(p for p in (root / OVERLAYS).rglob("*") if not p.is_dir()) if (root / OVERLAYS).is_dir() else []:
+        rel = f.relative_to(root).as_posix()
         path = f.parent.relative_to(root / OVERLAYS).as_posix()
+        if f.name != "BUILD.bazel":
+            raise RegenError(f"{rel}: not an overlay (only {OVERLAYS}/<path>/BUILD.bazel is used)")
         if path in listed and path not in overlay_crates:
-            raise RegenError(f"{OVERLAYS}/{path}/BUILD.bazel exists, but {VENDOR_LIST} says 'upstream'")
+            raise RegenError(f"{rel} exists, but {VENDOR_LIST} says 'upstream'")
         if path not in listed:
-            raise RegenError(f"{OVERLAYS}/{path}/BUILD.bazel: {path} is not listed in {VENDOR_LIST}")
-    for f in sorted((root / PATCHES).rglob("*.patch")) if (root / PATCHES).is_dir() else []:
+            raise RegenError(f"{rel}: {path} is not listed in {VENDOR_LIST}")
+    for f in sorted(p for p in (root / PATCHES).rglob("*") if not p.is_dir()) if (root / PATCHES).is_dir() else []:
+        rel = f.relative_to(root).as_posix()
         path = f.parent.relative_to(root / PATCHES).as_posix()
+        if f.suffix != ".patch":
+            raise RegenError(f"{rel}: not a patch (only {PATCHES}/<path>/*.patch is applied)")
         if path not in listed:
-            raise RegenError(f"{f.relative_to(root).as_posix()}: {path} is not listed in {VENDOR_LIST}")
+            raise RegenError(f"{rel}: {path} is not listed in {VENDOR_LIST}")
 
 
 def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home: Path) -> None:
@@ -579,7 +723,7 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
     everything = source.read(list(ROOT_FILES) + sorted(f for fs in crate_files.values() for f in fs))
     for name in ROOT_FILES:
         _write(vendor, name, everything[name])
-    _write(vendor, "BUILD.bazel", _VENDOR_ROOT_BUILD.format(generated=GENERATED_BY).encode())
+    _write(vendor, "BUILD.bazel", _VENDOR_ROOT_BUILD.format(generated=GENERATED_BY, revision=rev).encode())
 
     for crate in crates:
         files = crate_files[crate.path]
@@ -613,7 +757,7 @@ def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: 
     """third_party/crates/: the crates.io closure of @rust_crates labels under `vendor`."""
     prefix = f"@{CRATES_REPO}//vendor:"
     roots = {s[len(prefix):] for build in vendor.rglob("BUILD.bazel")
-             for s in _strings(build.read_text()) if s.startswith(prefix)}
+             for s in build_strings(build.read_text(), str(build)) if s.startswith(prefix)}
     out.mkdir(parents=True)
     rev = source.revision
     header_note = "labels rewritten for the @rust_crates repository"
@@ -657,7 +801,7 @@ def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: 
                     raise RegenError(f"{upstream}: {name} {version} is not a crates.io package in {CARGO_LOCK}")
                 text, deps = rewrite_crate_build(raw, upstream)
                 build_file = f"BUILD.{d}.bazel"
-                _write(out, build_file, (_header(rev, upstream, header_note) + text).encode())
+                _write(out, build_file, (_crate_header(rev, upstream, header_note) + text).encode())
                 entries.append({
                     "build_file": build_file,
                     "name": name,
@@ -670,7 +814,7 @@ def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: 
                 nxt |= deps
             frontier = sorted(nxt - seen)
         entries.sort(key=lambda e: e["path"])
-        aliases_text = (_header(rev, alias_file, "only the aliases vendored crates use; " + header_note)
+        aliases_text = (_crate_header(rev, alias_file, "only the aliases vendored crates use; " + header_note)
                         + '\npackage(default_visibility = ["//visibility:public"])\n\n'
                         + "\n".join(alias_blocks))
         _write(out, "BUILD.vendor.bazel", aliases_text.encode())

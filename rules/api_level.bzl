@@ -5,7 +5,7 @@
 # SPDX-FileCopyrightText: 2023 The Fuchsia Authors
 # SPDX-FileCopyrightText: 2025 The Fuchsia Authors
 # SPDX-FileCopyrightText: 2026 Curtis Galloway
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Ported from fuchsia.git at the lock's fuchsia_revision (b5274053cc0f):
 #   - get_integer_for_api_level(): build/bazel/versioning/api_level.bzl, unchanged except
@@ -20,7 +20,7 @@
 #       - Special levels are checked by name and by their integer value, not by position:
 #         the IDK copy sorts them too (HEAD, NEXT, PLATFORM), which fails upstream's
 #         positional assertion.
-# The Fuchsia LICENSE is LICENSES/BSD-3-Clause.txt.
+# The Fuchsia LICENSE is LICENSES/BSD-2-Clause.txt.
 
 """Functions related to the Fuchsia API level."""
 

@@ -5,12 +5,12 @@
 # SPDX-FileCopyrightText: 2025 The Fuchsia Authors
 # SPDX-FileCopyrightText: 2026 The Fuchsia Authors
 # SPDX-FileCopyrightText: 2026 Curtis Galloway
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Ported from fuchsia.git build/bazel/rules/rust/ at the lock's fuchsia_revision
 # (b5274053cc0f): common.bzl, rustc_library.bzl, rustc_binary.bzl, rustc_proc_macro.bzl
 # and defs.bzl, in one file (design §4.1: rules/rustc.bzl). The Fuchsia LICENSE is
-# LICENSES/BSD-3-Clause.txt. Changes from upstream, all marked "Overlay:" below:
+# LICENSES/BSD-2-Clause.txt. Changes from upstream, all marked "Overlay:" below:
 #   - The API-level cfgs are not here: as upstream, the Rust toolchains add them
 #     (toolchain/rust.BUILD.bazel, rules/rustc_api_level.bzl).
 #   - --cap-lints uses GN's default for rust_cap_lints ("deny", build/rust/config.gni)
