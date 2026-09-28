@@ -76,3 +76,9 @@ register_toolchains("@fuchsia_clang//:all")
 # arm64 Fuchsia. Registered by the root module, so they take precedence over the default
 # toolchains rules_rust registers (which download from static.rust-lang.org).
 register_toolchains("@fuchsia_rust_toolchain//:all")
+
+# crates.io crates that vendored Fuchsia code depends on (@rust_crates), from
+# third_party/crates/, which scripts/regen.py generates: each crate is downloaded by the
+# SHA-256 the release's Cargo.lock gives it.
+crates = use_extension("//toolchain:crates.bzl", "crates")
+use_repo(crates, "rust_crates")

@@ -1,0 +1,64 @@
+{
+  "aliases": [
+    "zerocopy"
+  ],
+  "cargo_lock": "https://fuchsia.googlesource.com/fuchsia b5274053cc0f1ba03cd0902a3da575ac9c31c152:third_party/rust_crates/Cargo.lock",
+  "cargo_lock_sha256": "691ef394eb82571dd18eb489c5526b00b236aa33aecc5baf91a5358286ab3a20",
+  "crates": [
+    {
+      "build_file": "BUILD.proc-macro2-1.0.107.bazel",
+      "name": "proc-macro2",
+      "path": "vendor/proc-macro2-1.0.107",
+      "sha256": "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9",
+      "strip_prefix": "proc-macro2-1.0.107",
+      "url": "https://static.crates.io/crates/proc-macro2/proc-macro2-1.0.107.crate",
+      "version": "1.0.107"
+    },
+    {
+      "build_file": "BUILD.quote-1.0.47.bazel",
+      "name": "quote",
+      "path": "vendor/quote-1.0.47",
+      "sha256": "1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001",
+      "strip_prefix": "quote-1.0.47",
+      "url": "https://static.crates.io/crates/quote/quote-1.0.47.crate",
+      "version": "1.0.47"
+    },
+    {
+      "build_file": "BUILD.syn-2.0.119.bazel",
+      "name": "syn",
+      "path": "vendor/syn-2.0.119",
+      "sha256": "872831b642d1a07999a962a351ed35b955ea2cfc8f3862091e2a240a84f17297",
+      "strip_prefix": "syn-2.0.119",
+      "url": "https://static.crates.io/crates/syn/syn-2.0.119.crate",
+      "version": "2.0.119"
+    },
+    {
+      "build_file": "BUILD.unicode-ident-1.0.19.bazel",
+      "name": "unicode-ident",
+      "path": "vendor/unicode-ident-1.0.19",
+      "sha256": "f63a545481291138910575129486daeaf8ac54aee4387fe7906919f7830c7d9d",
+      "strip_prefix": "unicode-ident-1.0.19",
+      "url": "https://static.crates.io/crates/unicode-ident/unicode-ident-1.0.19.crate",
+      "version": "1.0.19"
+    },
+    {
+      "build_file": "BUILD.zerocopy-0.8.48.bazel",
+      "name": "zerocopy",
+      "path": "vendor/zerocopy-0.8.48",
+      "sha256": "eed437bf9d6692032087e337407a86f04cd8d6a16a37199ed57949d415bd68e9",
+      "strip_prefix": "zerocopy-0.8.48",
+      "url": "https://static.crates.io/crates/zerocopy/zerocopy-0.8.48.crate",
+      "version": "0.8.48"
+    },
+    {
+      "build_file": "BUILD.zerocopy-derive-0.8.48.bazel",
+      "name": "zerocopy-derive",
+      "path": "vendor/zerocopy-derive-0.8.48",
+      "sha256": "70e3cd084b1788766f53af483dd21f93881ff30d7320490ec3ef7526d203bad4",
+      "strip_prefix": "zerocopy-derive-0.8.48",
+      "url": "https://static.crates.io/crates/zerocopy-derive/zerocopy-derive-0.8.48.crate",
+      "version": "0.8.48"
+    }
+  ],
+  "vendor_build_file": "BUILD.vendor.bazel"
+}

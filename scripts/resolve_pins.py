@@ -136,6 +136,34 @@ class Upstream(Protocol):
 _GIT_ENV_KEEP = ("GIT_SSL_CAINFO", "GIT_SSL_CAPATH")
 
 
+def isolated_git(gitdir: Path, home: Path, *args: str, stdin: bytes | None = None,
+                 extra_env: dict[str, str] | None = None) -> bytes:
+    """Run `git -C gitdir args...` isolated from user and system configuration (C1).
+
+    No system or global config, HOME and XDG_CONFIG_HOME set to `home` (so curl does not
+    read ~/.netrc), no credential helper, cookie file or askpass, and no inherited GIT_*
+    variables except CA trust. `extra_env` adds variables after that scrub (regen.py
+    uses it for GIT_CEILING_DIRECTORIES). Returns stdout; raises FetchError on failure.
+    """
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "SSH_ASKPASS"}
+    env.update({k: os.environ[k] for k in _GIT_ENV_KEEP if k in os.environ})
+    env.update({
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_TERMINAL_PROMPT": "0",
+        "HOME": str(home),
+        "XDG_CONFIG_HOME": str(home),
+    })
+    env.update(extra_env or {})
+    cmd = ["git", "-c", "credential.helper=", "-c", "http.cookieFile=", "-c", "core.askPass=",
+           "-c", "protocol.version=2", "-C", str(gitdir), *args]
+    p = subprocess.run(cmd, env=env, capture_output=True, input=stdin)
+    if p.returncode != 0:
+        err = p.stderr.decode("utf-8", "replace").strip().splitlines()
+        raise FetchError(f"git {' '.join(args)}: {err[-1] if err else f'exit {p.returncode}'}")
+    return p.stdout
+
+
 class LiveUpstream:
     """Anonymous HTTPS (urllib) and git (subprocess). Sends no credentials (C1).
 
@@ -197,22 +225,7 @@ class LiveUpstream:
         return self._request(urllib.request.Request(url, headers=self.HEADERS), consume)
 
     def _git(self, gitdir: Path, home: Path, *args: str) -> bytes:
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "SSH_ASKPASS"}
-        env.update({k: os.environ[k] for k in _GIT_ENV_KEEP if k in os.environ})
-        env.update({
-            "GIT_CONFIG_NOSYSTEM": "1",
-            "GIT_CONFIG_GLOBAL": os.devnull,
-            "GIT_TERMINAL_PROMPT": "0",
-            "HOME": str(home),
-            "XDG_CONFIG_HOME": str(home),
-        })
-        cmd = ["git", "-c", "credential.helper=", "-c", "http.cookieFile=", "-c", "core.askPass=",
-               "-c", "protocol.version=2", "-C", str(gitdir), *args]
-        p = subprocess.run(cmd, env=env, capture_output=True)
-        if p.returncode != 0:
-            err = p.stderr.decode("utf-8", "replace").strip().splitlines()
-            raise FetchError(f"git {' '.join(args)}: {err[-1] if err else f'exit {p.returncode}'}")
-        return p.stdout
+        return isolated_git(gitdir, home, *args)
 
     def _commit(self, repo: str, revision: str) -> tuple[Path, Path]:
         """A depth-1, blobless fetch of one commit, done once per (repo, revision).

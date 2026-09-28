@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+#
+# overlays/<path>/BUILD.bazel are inputs to scripts/regen.py, copied to
+# vendor/fuchsia/<path>/; they are not packages where they are.
+overlays
