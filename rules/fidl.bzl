@@ -14,7 +14,8 @@
 # scripts/regen.py rewrites upstream's sdk/fidl/<library>/BUILD.bazel files to load
 # fidl_library from here, with the same arguments. Changes from upstream, all marked
 # "Overlay:" below:
-#   - Only the IR and the Rust bindings are built (//rules:fidl_rust.bzl). The C++,
+#   - Only the IR and the Rust bindings are built (//rules:fidl_rust.bzl, and
+#     //rules:fidl_rust_next.bzl for rust_next since M8b). The C++,
 #     HLCPP, Zither and Banjo backends, the IDK atom, the API summary and the
 #     compatibility tests are not: their arguments are accepted and ignored, so upstream
 #     BUILD files load unchanged. fidl-lint and the IR JSON-schema validation are not
@@ -33,6 +34,7 @@
 load("@fuchsia_api_levels//:args.bzl", "runtime_supported_api_levels")
 load("@rules_fuchsia//fuchsia/private:fuchsia_api_level.bzl", "FuchsiaAPILevelInfo")
 load(":fidl_rust.bzl", "fidl_rust_library")
+load(":fidl_rust_next.bzl", "fidl_rust_next_library")
 
 visibility("public")
 
@@ -462,8 +464,17 @@ def _fidl_library_impl(
 
     if enable_rust_next:
         # TODO(https://fxbug.dev/454452299): Implement next-generation Rust bindings and conversions.
-        # Overlay: milestone M8b (M9 for the contains_drivers libraries).
-        pass
+        # Overlay: the rust_next flavor from GN (fidl.gni, fidl_rust_next.gni; milestone
+        # M8b); the contains_drivers libraries follow in M9. Conversion crates are not built.
+        fidl_rust_next_library(
+            name = name,
+            fidl_library_name = library_name,
+            fidl_ir_json = fidl_ir_target_name,
+            deps = deps,
+            contains_drivers = contains_drivers,
+            testonly = testonly,
+            visibility = visibility,
+        )
 
 _fidl_library = macro(
     doc = """Declares a FIDL library.

@@ -1191,3 +1191,146 @@ def test_build_arguments_are_noted_in_the_header():
     regen.rewrite_upstream_build('load("@fuchsia_build_info//:args.bzl", "fuchsia_sync_detect_lock_cycles")\n',
                                  "f", set(), notes)
     assert "build arguments from //rules:build_info.bzl" in notes
+
+
+# --- rust_next (milestone M8b) --------------------------------------------------------
+
+NEXT_CRATE = _HDR + '''\
+load("//build/bazel/rules/rust:defs.bzl", "rustc_library")
+load("//build/rust:fidl_rust_next.bzl", "fidl_rust_next_allowlist")
+
+rustc_library(
+    name = "a_internal",
+    srcs = ["src/lib.rs"],
+    test_deps = [
+        "//sdk/rust/b",
+        "//third_party/rust_crates:futures",
+    ],
+)
+
+alias(
+    name = "a",
+    actual = ":a_internal",
+    visibility = fidl_rust_next_allowlist,
+)
+'''
+
+UPSTREAM_ALLOWLIST = '''\
+# Copyright 2026 The Fuchsia Authors. All rights reserved.
+fidl_rust_next_allowlist = [
+    "//examples:__subpackages__",
+    "//sdk/fidl:__subpackages__",
+    "//tools/fidl:__pkg__",
+]
+# LINT.ThenChange(fidl_rust_next.gni)
+'''
+
+OVERLAY_ALLOWLIST = '''\
+_UPSTREAM_ALLOWLIST = [
+    "//vendor/fuchsia/examples:__subpackages__",
+    "//vendor/fuchsia/sdk/fidl:__subpackages__",
+    "//vendor/fuchsia/tools/fidl:__pkg__",
+]
+fidl_rust_next_allowlist = _UPSTREAM_ALLOWLIST + ["//rules:__subpackages__"]
+'''
+
+
+def test_fidl_rust_next_allowlist_load_maps_to_the_overlay():
+    notes = []
+    out = regen.rewrite_upstream_build(NEXT_CRATE, "f", {"sdk/rust/b"}, notes, provisional=[])
+    assert 'load("//rules:fidl_rust_next.bzl", "fidl_rust_next_allowlist")' in out
+    assert "visibility = fidl_rust_next_allowlist," in out
+    assert "rust_next allowlist from //rules:fidl_rust_next.bzl" in notes
+
+
+def test_fidl_rust_next_load_of_another_symbol_fails():
+    with pytest.raises(regen.RegenError) as e:
+        regen.rewrite_upstream_build('load("//build/rust:fidl_rust_next.bzl", "other")\n', "f", set())
+    assert "f:1: loads other from //build/rust:fidl_rust_next.bzl" in str(e.value)
+
+
+def test_unmappable_test_dep_is_provisional():
+    provisional = []
+    out = regen.rewrite_upstream_build(NEXT_CRATE, "sdk/rust/a/BUILD.bazel", {"sdk/rust/b"},
+                                       provisional=provisional)
+    assert '"//vendor/fuchsia/sdk/rust/b",\n        "//third_party/rust_crates:futures",' in out
+    assert provisional == [("sdk/rust/a/BUILD.bazel:13", "//third_party/rust_crates:futures")]
+    # Outside test_deps, or without the provisional list, the label still fails.
+    with pytest.raises(regen.RegenError) as e:
+        regen.rewrite_upstream_build(NEXT_CRATE, "f", {"sdk/rust/b"})
+    assert "f:13: //third_party/rust_crates:futures:" in str(e.value)
+    with pytest.raises(regen.RegenError):
+        regen.rewrite_upstream_build(NEXT_CRATE.replace("test_deps", "deps"), "f", {"sdk/rust/b"},
+                                     provisional=[])
+
+
+def _next_env(env):
+    upstream, repo, run = env
+    _write(upstream, "sdk/rust/a/BUILD.bazel", NEXT_CRATE)
+    _write(upstream, "build/rust/fidl_rust_next.bzl", UPSTREAM_ALLOWLIST)
+    _write(repo, "rules/fidl_rust_next.bzl", OVERLAY_ALLOWLIST)
+    return upstream, repo, run
+
+
+def _drop_test_deps_patch(path="sdk/rust/a/BUILD.bazel"):
+    notes = ["labels rewritten", "vendored = True added", "rust_next allowlist from //rules:fidl_rust_next.bzl"]
+    before = (regen._header(REV, path, ", ".join(notes))
+              + regen.rewrite_upstream_build(NEXT_CRATE, path, {"sdk/rust/a", "sdk/rust/b"}, provisional=[]))
+    after = before.replace('test_deps = [\n        "//vendor/fuchsia/sdk/rust/b",\n'
+                           '        "//third_party/rust_crates:futures",\n    ],', "test_deps = [],")
+    assert after != before
+    return "".join(difflib.unified_diff(before.splitlines(keepends=True), after.splitlines(keepends=True),
+                                        f"a/{path}", f"b/{path}"))
+
+
+def test_an_unmappable_test_dep_left_after_the_patches_fails(env, capsys):
+    _next_env(env)
+    _, _, run = env
+    assert run("vendor") == 2
+    assert ("sdk/rust/a/BUILD.bazel:13: test_deps names //third_party/rust_crates:futures, which "
+            "regen.py cannot map; remove it with a patch under patches/fuchsia/sdk/rust/a/ (unit tests "
+            "are milestone M16)") in capsys.readouterr().err
+
+
+def test_a_patch_dropping_the_test_deps_passes_and_the_allowlist_matches(env):
+    _, repo, run = _next_env(env)
+    _write(repo, "patches/fuchsia/sdk/rust/a/0001-drop-test-deps.patch", _drop_test_deps_patch())
+    assert run("vendor") == 0
+    out = (repo / "vendor/fuchsia/sdk/rust/a/BUILD.bazel").read_text()
+    assert "test_deps = []," in out
+    assert "rust_next allowlist from //rules:fidl_rust_next.bzl" in out
+    assert run("--check") == 0
+
+
+@pytest.mark.parametrize("edit, message", [
+    (lambda s: s.replace('    "//vendor/fuchsia/tools/fidl:__pkg__",\n', ""),
+     "missing ['//vendor/fuchsia/tools/fidl:__pkg__'], not upstream's none"),
+    (lambda s: s.replace("tools/fidl:__pkg__", "tools/fidl:__subpackages__"),
+     "missing ['//vendor/fuchsia/tools/fidl:__pkg__'], not upstream's ['//vendor/fuchsia/tools/fidl:__subpackages__']"),
+    (lambda s: s.replace('    "//vendor/fuchsia/examples:__subpackages__",\n', "")
+                .replace('__subpackages__",\n    "//vendor/fuchsia/tools', '__subpackages__",\n'
+                         '    "//vendor/fuchsia/examples:__subpackages__",\n    "//vendor/fuchsia/tools'),
+     "missing none, not upstream's none, order differs"),
+    (lambda s: s.replace("_UPSTREAM_ALLOWLIST", "_OTHER"), "no top-level _UPSTREAM_ALLOWLIST = [...]"),
+])
+def test_the_overlay_allowlist_must_equal_upstreams(env, capsys, edit, message):
+    _, repo, run = _next_env(env)
+    _write(repo, "patches/fuchsia/sdk/rust/a/0001-drop-test-deps.patch", _drop_test_deps_patch())
+    _write(repo, "rules/fidl_rust_next.bzl", edit(OVERLAY_ALLOWLIST))
+    assert run("vendor") == 2
+    err = capsys.readouterr().err
+    assert message in err, err
+
+
+def test_an_upstream_allowlist_entry_regen_cannot_map_fails(env, capsys):
+    upstream, repo, run = _next_env(env)
+    _write(repo, "patches/fuchsia/sdk/rust/a/0001-drop-test-deps.patch", _drop_test_deps_patch())
+    _write(upstream, "build/rust/fidl_rust_next.bzl", UPSTREAM_ALLOWLIST.replace("//tools/fidl:__pkg__", "//tools/fidl:x"))
+    assert run("vendor") == 2
+    assert "entry '//tools/fidl:x' is not //<path>:__pkg__ or //<path>:__subpackages__" in capsys.readouterr().err
+
+
+def test_the_overlays_allowlist_copy_parses():
+    text = (ROOT / regen.OVERLAY_FIDL_RUST_NEXT_FILE).read_text()
+    copy = regen._string_list(text, "f", "_UPSTREAM_ALLOWLIST")
+    assert copy and all(s.startswith("//vendor/fuchsia/") for s in copy)

@@ -84,3 +84,59 @@ def test_fuchsia_only_patches_are_for_crates_used_only_on_fuchsia():
         assert contexts[path] == {"fuchsia"}, path
         build = (ROOT / regen.VENDOR_OUT / path / "BUILD.bazel").read_text()
         assert 'target_compatible_with = ["@platforms//os:fuchsia"],' in build, path
+
+
+# --- rust_next (milestone M8b) --------------------------------------------------------
+
+# rust_next's driver dep (fidl_rust_next.gni with contains_drivers; milestone M9).
+NEXT_DRIVER_TRANSPORT = {"//sdk/lib/driver/runtime/rust/fidl"}
+
+
+def _rust_next_libraries_without_drivers() -> list[str]:
+    return sorted(f["library"] for f in CLOSURE["fidl"]
+                  if "rust_next" in f["flavors"] and not f["contains_drivers"])
+
+
+def test_rust_next_test_list_is_the_closures_without_drivers():
+    text = (ROOT / "tests/fidl/BUILD.bazel").read_text()
+    block = text.split("_RUST_NEXT_LIBRARIES = [", 1)[1].split("]", 1)[0]
+    libs = re.findall(r'"([^"]+)"', block)
+    assert libs == _rust_next_libraries_without_drivers()
+    assert len(libs) == 17
+    # Every rust_next library the closure has uses rust_next_common too.
+    assert all("rust_next_common" in f["flavors"] for f in CLOSURE["fidl"] if "rust_next" in f["flavors"])
+
+
+def test_crate_names_next_names_both_crates_of_each_library():
+    text = (ROOT / "tests/fidl/src/crate_names_next.rs").read_text()
+    used = re.findall(r"^pub use (\w+);$", text, re.M)
+    want = [n for lib in _rust_next_libraries_without_drivers()
+            for n in (f"fidl_next_{lib.replace('.', '_')}", f"fidl_next_common_{lib.replace('.', '_')}")]
+    assert used == want
+    # The names the closure's GN targets give these crates (fidl_rust_next.gni).
+    assert "fidl_next_fuchsia_io" in used and "fidl_next_common_fuchsia_io" in used
+
+
+def test_rust_next_flavor_runtime_crates_are_vendored():
+    """The in-tree crates the rust_next bindings need, without the driver transport: the
+    6 rust_next crates plus what M8a vendored (rust_constants, fuchsia-async, zx*)."""
+    deps = _intree_deps()
+    roots = set()
+    for user, ds in deps.items():
+        if user.startswith("//sdk/fidl/") and user.endswith(("_rust_next", "_rust_next_common")):
+            roots |= {d for d in ds if d.split(":")[0] not in NEXT_DRIVER_TRANSPORT}
+    seen, todo = set(), list(roots)
+    while todo:
+        label = todo.pop()
+        if label not in seen:
+            seen.add(label)
+            todo += deps.get(label, ())
+    paths = {label[2:].split(":")[0] for label in seen}
+    assert paths == {"sdk/lib/fuchsia-loom", "src/lib/fidl/rust_next/fidl_next",
+                     "src/lib/fidl/rust_next/fidl_next_bind", "src/lib/fidl/rust_next/fidl_next_codec",
+                     "src/lib/fidl/rust_next/fidl_next_protocol", "src/lib/fidl/rust_next/fidl_next_util",
+                     "src/lib/fidl/rust_constants", "src/lib/fuchsia-async", "src/lib/fuchsia-async-macro",
+                     "src/lib/fuchsia-sync", "sdk/rust/zx", "sdk/rust/zx-status", "sdk/rust/zx-status-ext",
+                     "sdk/rust/zx-sys", "sdk/rust/zx-types"}
+    assert paths <= set(LISTED)
+    assert all(LISTED[p] == "upstream" for p in paths)

@@ -58,6 +58,10 @@ Rewriting upstream BUILD.bazel files (parsed with Python's ast; comments untouch
                                            its api_file_path becomes None (no IDK atoms here)
   load("@fuchsia_build_info//:args.bzl", ...) -> load("//rules:build_info.bzl", ...)
                                            (the overlay's build arguments; only those it defines)
+  load("//build/rust:fidl_rust_next.bzl", "fidl_rust_next_allowlist")
+                                           -> load("//rules:fidl_rust_next.bzl", ...) (M8b);
+                                           the overlay's copy of upstream's list must equal
+                                           the revision's, labels mapped, or the run fails
   load of @rules_license rules             -> unchanged; any other load fails
   //build/config/rust/lints:<x>            -> //rules/lints:<x>
   //:license, //:__subpackages__, //:__pkg__  -> //vendor/fuchsia:<same>
@@ -75,6 +79,9 @@ Rewriting upstream BUILD.bazel files (parsed with Python's ast; comments untouch
                                            -> //vendor/fuchsia/<path>[:<t>], provisionally:
                                            a patch must remove it (host-only code the
                                            overlay does not build), or regen.py fails
+  a label with no mapping inside a Rust rule's test_deps -> kept as it is, provisionally:
+                                           a patch must remove it (unit tests are M16), or
+                                           regen.py fails (M8b)
 Go (M7; fidlgen_rust, built with rules_go under upstream's repo name io_bazel_rules_go):
   load("@io_bazel_rules_go//go:def.bzl", ...)  -> kept for go_library/go_binary; go_test
                                            is dropped from the load, with its calls
@@ -437,6 +444,18 @@ _BUILD_INFO = "@fuchsia_build_info//:args.bzl"
 _OVERLAY_BUILD_INFO = "//rules:build_info.bzl"
 BUILD_INFO_ARGS = ("fuchsia_sync_detect_lock_cycles",)
 
+# The rust_next allowlist (milestone M8b): upstream's build/rust/fidl_rust_next.bzl holds
+# the list that the fidl_next* crates' public aliases (and GN's rust_next bindings) are
+# visible to. The overlay's //rules:fidl_rust_next.bzl has a copy with the labels mapped
+# (_UPSTREAM_ALLOWLIST there), which generate() compares with the revision's.
+_FIDL_RUST_NEXT = "//build/rust:fidl_rust_next.bzl"
+FIDL_RUST_NEXT_UPSTREAM = "build/rust/fidl_rust_next.bzl"
+_OVERLAY_FIDL_RUST_NEXT = "//rules:fidl_rust_next.bzl"
+OVERLAY_FIDL_RUST_NEXT_FILE = "rules/fidl_rust_next.bzl"
+_ALLOWLIST_NAME = "fidl_rust_next_allowlist"
+_OVERLAY_ALLOWLIST_COPY = "_UPSTREAM_ALLOWLIST"
+_ALLOWLIST_NOTE = "rust_next allowlist from //rules:fidl_rust_next.bzl"
+
 # In-tree C libraries the IDK ships prebuilt (native deps of vendored crates).
 _SDK_LIBRARIES = {
     "//sdk/lib/fdio": "@fuchsia_sdk//pkg/fdio",
@@ -699,6 +718,17 @@ def _default_branch_nodes(src: _Source) -> set[int]:
     return out
 
 
+def _test_deps_nodes(src: _Source, rules: set[str]) -> set[int]:
+    """ids of every node inside the test_deps value of a call of one of `rules`."""
+    out: set[int] = set()
+    for node in ast.walk(src.tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in rules:
+            for kw in node.keywords:
+                if kw.arg == "test_deps":
+                    out.update(id(n) for n in ast.walk(kw.value))
+    return out
+
+
 def _fidl_library_edits(src: _Source, macros: set[str], idk: bool) -> tuple[list[tuple[int, int, str]], set[int]]:
     """Edits for fidl_library calls, and the ids of the nodes they replace.
 
@@ -750,7 +780,7 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
     dropped: set[str] = set()
     fidl_macros: set[str] = set()
     load_nodes: set[int] = set()
-    go_loads = build_info = False
+    go_loads = build_info = allowlist = False
     for call, file, symbols in _loads(src):
         load_nodes.add(id(call))
         if file in _GO_LOADS:
@@ -791,6 +821,13 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
                                          f"defines only {', '.join(BUILD_INFO_ARGS)} (add it there)")
             edits.append((*src.span(call.args[0]), f'"{_OVERLAY_BUILD_INFO}"'))
             build_info = True
+        elif file == _FIDL_RUST_NEXT:
+            for local, name in symbols:
+                if name != _ALLOWLIST_NAME:
+                    raise src.fail(call, f"loads {name} from {file}; the overlay's {_OVERLAY_FIDL_RUST_NEXT} "
+                                         f"maps only {_ALLOWLIST_NAME}")
+            edits.append((*src.span(call.args[0]), f'"{_OVERLAY_FIDL_RUST_NEXT}"'))
+            allowlist = True
         elif file == _RULES_RUST_DEFS:
             parts = []
             for local, name in symbols:
@@ -809,8 +846,19 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
         raise RegenError(f"{where}: an 'idk' library's BUILD.bazel must load {_FIDL_MACRO} "
                          f"from {_UPSTREAM_FIDL_RULES}")
     default_nodes = _default_branch_nodes(src)
+    test_dep_nodes = _test_deps_nodes(src, set(wrappers) | set(_RULES_RUST_TO_WRAPPER))
 
     def label(s: str, node: ast.AST) -> str:
+        try:
+            return mapped(s, node)
+        except RegenError:
+            if provisional is None or id(node) not in test_dep_nodes:
+                raise
+            # Unit tests are M16: a patch must drop the test dep (checked after the patches).
+            provisional.append((f"{where}:{node.lineno}", s))
+            return s
+
+    def mapped(s: str, node: ast.AST) -> str:
         if s.startswith(_BUILTIN_PREFIXES) or not s.startswith("//"):
             return s
         pkg, target = _split_label(s)
@@ -858,6 +906,8 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
             notes.append("Go loads mapped")
         if build_info:
             notes.append("build arguments from //rules:build_info.bzl")
+        if allowlist:
+            notes.append(_ALLOWLIST_NOTE)
         if fidl_macros:
             notes.append("sources from the IDK" if idk else "FIDL load mapped")
         if drop_edits:
@@ -1075,15 +1125,55 @@ def apply_patches(root: Path, vendor_dir: Path, crates: list[Crate], home: Path)
 
 
 def check_provisional(vendor: Path, provisional: list[tuple[str, str]]) -> None:
-    """Each provisional label (an unlisted package in a //conditions:default branch) must
-    be gone after the patches: the overlay does not build that code (module doc)."""
+    """Each provisional label (an unlisted package in a //conditions:default branch, or an
+    unmappable test dep) must be gone after the patches: the overlay does not build that
+    code, or not yet (module doc)."""
     for where, new in provisional:
         path = where.rsplit(":", 1)[0]
         if json.dumps(new) in (vendor / path).read_text():
+            if not new.startswith(f"//{VENDOR_OUT}/"):
+                raise RegenError(f"{where}: test_deps names {new}, which regen.py cannot map; remove "
+                                 f"it with a patch under {PATCHES}/{PurePosixPath(path).parent}/ "
+                                 "(unit tests are milestone M16)")
             pkg = _split_label(new)[0][len(VENDOR_OUT) + 1:]
             raise RegenError(f"{where}: depends on //{pkg} in a //conditions:default branch, but "
                              f"{pkg} is not listed in {VENDOR_LIST}; list it, or remove the branch "
                              f"with a patch under {PATCHES}/{PurePosixPath(path).parent}/")
+
+
+def _string_list(text: str, where: str, name: str) -> list[str]:
+    """The value of the top-level assignment `name = ["...", ...]` in a .bzl file."""
+    src = _Source(text, where)
+    for st in src.tree.body:
+        if (isinstance(st, ast.Assign) and len(st.targets) == 1 and isinstance(st.targets[0], ast.Name)
+                and st.targets[0].id == name):
+            if isinstance(st.value, ast.List) and all(
+                    isinstance(e, ast.Constant) and isinstance(e.value, str) for e in st.value.elts):
+                return [e.value for e in st.value.elts]
+            raise src.fail(st, f"{name} is not a list of plain strings")
+    raise RegenError(f"{where}: no top-level {name} = [...]")
+
+
+def check_fidl_rust_next_allowlist(root: Path, source: Source) -> None:
+    """The overlay's copy of upstream's fidl_rust_next_allowlist equals the revision's,
+    each label mapped as visibility is (//<path>:__pkg__ -> //vendor/fuchsia/<path>:__pkg__)."""
+    text = source.read([FIDL_RUST_NEXT_UPSTREAM])[FIDL_RUST_NEXT_UPSTREAM].decode()
+    want = []
+    for s in _string_list(text, FIDL_RUST_NEXT_UPSTREAM, _ALLOWLIST_NAME):
+        pkg, target = _split_label(s) if s.startswith("//") else ("", "")
+        if target not in (":__pkg__", ":__subpackages__"):
+            raise RegenError(f"{FIDL_RUST_NEXT_UPSTREAM}: {_ALLOWLIST_NAME} entry {s!r} is not "
+                             "//<path>:__pkg__ or //<path>:__subpackages__; regen.py cannot map it")
+        want.append(f"//{VENDOR_OUT}/{pkg}{target}" if pkg else f"//{VENDOR_OUT}{target}")
+    have = _string_list((root / OVERLAY_FIDL_RUST_NEXT_FILE).read_text(), OVERLAY_FIDL_RUST_NEXT_FILE,
+                        _OVERLAY_ALLOWLIST_COPY)
+    if have != want:
+        missing = [w for w in want if w not in have]
+        extra = [h for h in have if h not in want]
+        raise RegenError(f"{OVERLAY_FIDL_RUST_NEXT_FILE}: {_OVERLAY_ALLOWLIST_COPY} differs from "
+                         f"{FIDL_RUST_NEXT_UPSTREAM} at {source.revision} (labels mapped to //{VENDOR_OUT}/): "
+                         f"missing {missing or 'none'}, not upstream's {extra or 'none'}"
+                         + ("" if missing or extra else ", order differs") + "; update the copy")
 
 
 def _check_orphans(root: Path, crates: list[Crate]) -> None:
@@ -1131,6 +1221,7 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
     _write(vendor, "BUILD.bazel", _VENDOR_ROOT_BUILD.format(generated=GENERATED_BY, revision=rev).encode())
 
     provisional: list[tuple[str, str]] = []
+    uses_allowlist = False
     for crate in crates:
         files = crate_files[crate.path]
         build = f"{crate.path}/BUILD.bazel"
@@ -1149,6 +1240,7 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
             text = rewrite_upstream_build(contents[build].decode(), build, vendored, notes,
                                           idk=crate.build == "idk", provisional=provisional)
             text = _header(rev, build, ", ".join(notes)) + text
+            uses_allowlist |= _ALLOWLIST_NOTE in notes
         else:
             if not overlay.is_file():
                 raise RegenError(f"{VENDOR_LIST}: {crate.path} is 'overlay', but "
@@ -1157,6 +1249,8 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
             check_overlay_build(text, f"{OVERLAYS}/{crate.path}/BUILD.bazel")
         _write(vendor, build, text.encode())
 
+    if uses_allowlist:
+        check_fidl_rust_next_allowlist(root, source)
     apply_patches(root, vendor, crates, home)
     check_provisional(vendor, provisional)
     list_file = root / CRATES_IO_LIST
