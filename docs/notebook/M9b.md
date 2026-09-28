@@ -132,3 +132,20 @@ Three builds with explicit targets under `--lockfile_mode=error`: 479 targets ea
 `--config=fuchsia_x64 //tests/vendor/...`: 23 passed, 1 skipped. `check_sdk_files`: 0
 missing on all three. `MODULE.bazel.lock` unchanged. Disk: Bazel 11.36 of 12 GiB, total
 12.27 of 25. Next: `wip` commit, then evidence and plan.
+
+## 2026-09-28T04:54-07:00 — correction of the 04:35 attempt entry (patch counts)
+It says "12 drop `test_deps` only"; recounted from the files while writing the evidence:
+10 only empty `test_deps` (`inspect/format`, `inspect/rust`, `log/encoding`,
+`selectors`, `fdio`, `fuchsia-component/client`, `directory`, `vfs/rust/name`,
+`cm_fidl_validator`, `cm_types`); 13 empty `test_deps` in all (with `hierarchy`,
+`cm_rust`, `fuchsia-fs`). The total of 17 stands (10 + 4 Fuchsia-only + `fdomain/client`
++ `fuchsia-fs` + `log/rust`).
+
+## 2026-09-28T04:55-07:00 — checkpoint (stop before the checkpoint commit)
+State: implemented, in review. 35 crates (28 upstream + 7 overlays, 17 patches) build for
+x64 and arm64; the GN cross-check agrees for all 37 targets; project checks green (pytest
+435, reuse, three builds at 479 targets, `bazel test` 55 + 18 skipped, `regen.py --check`,
+`check_sdk_files`, lock unchanged); disk Bazel 11.36 of 12 GiB. Evidence written except
+Review; plan: M9b entry condensed ("in review"), backlog (4 items, disk numbers), Next
+session; `## ` headings equal the base. Next: the orchestrator's review, then fixes,
+Review section, checkpoint commit.
