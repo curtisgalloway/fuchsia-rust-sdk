@@ -8,8 +8,11 @@
 #     (fuchsia.test_rust: //drivers/bind). anyhow, fdf and zx are unused by the source;
 #     GN allows that for Rust drivers and so does fuchsia_rust_driver.
 #   - driver_bind_rules("bind"): upstream's rule names gizmo.example, which the IDK does
-#     not ship, so meta/placeholder.bind stands in until I3 (M11). The bytecode keeps
-#     GN's name, rust.bindbc, which the manifest names.
+#     not ship, so meta/simple_rust.bind (investigation I3) binds to the emulator's edu
+#     PCI device instead: a composite rule over the IDK's fuchsia.acpi and fuchsia.pci.
+#     The bytecode keeps GN's name, rust.bindbc, which the manifest names. The driver
+#     still uses fuchsia.test (the property it puts on its child node). bind_test checks
+#     the rule against the edu device's composite node spec (docs/evidence/I3.md).
 #   - fuchsia_driver_component("component"): the checked-in manifest (GN compiles the
 #     same output from meta/rust-driver.dml with dmlc). GN's `info` (component-info.json)
 #     has no Bazel counterpart.
@@ -22,6 +25,7 @@ load(
     "fuchsia_driver_component",
     "fuchsia_package",
 )
+load("//rules:bind_test.bzl", "fuchsia_driver_bind_test")
 load("//rules:fuchsia_rust_driver.bzl", "fuchsia_driver_elf_test", "fuchsia_driver_manifest_test", "fuchsia_rust_driver")
 
 fuchsia_rust_driver(
@@ -41,11 +45,28 @@ fuchsia_rust_driver(
     ],
 )
 
+_BIND_LIBRARIES = [
+    "@fuchsia_sdk//bind/fuchsia.acpi",
+    "@fuchsia_sdk//bind/fuchsia.pci",
+]
+
 fuchsia_driver_bind_bytecode(
     name = "bind",
     output = "rust.bindbc",
-    rules = "meta/placeholder.bind",
-    deps = ["@fuchsia_sdk//bind/fuchsia.test"],
+    rules = "meta/simple_rust.bind",
+    deps = _BIND_LIBRARIES,
+)
+
+# `bindc test --lint` (GN: driver_bind_rules' `tests`): the rule matches the properties
+# of both parents of the composite node spec the PCI bus publishes for the edu device on
+# the lock's core.x64 (and not another PCI device's). The spec's properties are from
+# `ffx driver composite show`.
+fuchsia_driver_bind_test(
+    name = "bind_test",
+    size = "small",
+    rules = "meta/simple_rust.bind",
+    tests = "meta/simple_rust_bind_test.json",
+    deps = _BIND_LIBRARIES,
 )
 
 fuchsia_driver_component(

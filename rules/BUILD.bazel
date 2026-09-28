@@ -9,7 +9,7 @@
 # build_info.bzl, the build arguments vendored BUILD files read (M8); fidl_rust_next.bzl,
 # the rust_next bindings and the allowlist the vendored fidl_next crates load (M8b);
 # fuchsia_rust_driver.bzl (the driver rule and its package tests) and bind_rust.bzl (a
-# bind library's Rust crate), M10.
+# bind library's Rust crate), M10; bind_test.bzl (`bindc test` on a driver's bind rules), I3.
 
 load(":host.bzl", "HOST_OS_CONSTRAINTS")
 

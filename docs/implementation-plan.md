@@ -88,7 +88,7 @@ in the cloud.
 | M9b | 28 upstream-Bazel in-tree crates + 7 overlays (incl. `fuchsia-component`) (R6) | M9a | cloud | complete |
 | M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | complete |
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | complete |
-| I3 | Emulator bind target for pilot 1 confirmed at this release | M3 | cloud (emulator) | pending |
+| I3 | Emulator bind target for pilot 1 confirmed at this release; pilot builds with it | M3 | cloud (emulator) | complete |
 | M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | pending |
 | G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone | M11 | cloud (emulator) | pending |
 | I4 | Method to replace the in-tree `aml-saradc` on the VIM3 | — | **lab** | pending |
@@ -566,30 +566,27 @@ realm tests not built (M16); the reference `DT_NEEDED` sets are x64's.
 
 ## I3 — Emulator bind target for pilot 1
 
+**Outcome:** at `33.20260927.4.1`, `scripts/emu start` adds QEMU's `edu` device
+(`-device edu`, `DEV_CONFIG` via `ffx emu start --dev-config`); `core.x64` shows it as
+`PCI0.bus.00_06_0` (1234:11e8, unbound) with a two-parent composite node spec `00_06_0`
+(`pci` + `acpi`, driver None). `drivers/simple_rust/meta/simple_rust.bind` is the lead's
+composite rule (`primary parent "pci"`: VID 0x1234, DID 0x11e8; `optional parent "acpi"`:
+`fuchsia.acpi.BIND_PROTOCOL.DEVICE`) over the IDK's `fuchsia.acpi` and `fuchsia.pci`,
+already in the pilot's build (placeholder removed; the bytecode is the same bytes as a
+standalone IDK `bindc compile`, x64 and arm64). `bindc test` matches it against both
+parents' properties from `ffx driver composite show 00_06_0` and rejects other devices;
+`//drivers/simple_rust:bind_test` (new `rules/bind_test.bzl`, since `rules_fuchsia`'s
+bind test rule breaks under Bzlmod) re-runs that in `bazel test`. The driver source is
+unchanged and needs no change to bind (it keeps `fuchsia.test_rust` for its child's
+property). Also fixed: M10's `elf_test` SIGPIPE flake (`readelf | grep -q` under
+`pipefail`).
 **Design coverage:** I3 (blocks R8a's "binds"). **Dependencies:** M3.
-**Lead (found 2026-09-27, not yet verified at this release):**
-`fuchsia-cloud-dev`'s `qemu_edu` driver binds on `core.x64` `33.20260919.6.1` under TCG
-with this rule:
-
-```
-composite qemu_edu;
-using fuchsia.acpi;
-using fuchsia.pci;
-primary parent "pci" { fuchsia.BIND_PCI_VID == 0x1234; fuchsia.BIND_PCI_DID == 0x11e8; }
-optional parent "acpi" { fuchsia.BIND_PROTOCOL == fuchsia.acpi.BIND_PROTOCOL.DEVICE; }
-```
-
-The PCI bus publishes composite node specs, so a non-composite rule registers but never
-binds. Both bind libraries are in the SDK.
-**Evidence to collect:** at the lock's release, confirm the edu device appears
-(`ffx driver list-devices -v`, with the QEMU `-device edu` flag used by
-`fuchsia-cloud-dev`), and that the rule above still compiles against this IDK's bind
-libraries.
-**Exit:** a `.bind` file for `drivers/simple_rust`, using only IDK bind libraries, plus
-the emulator command line that adds the device, both recorded in `docs/evidence/I3.md`.
-**Note for M11:** the edu device is owned by no in-tree driver on `core.x64`. If
-`qemu_edu` from `fuchsia-cloud-dev` is also registered, the two compete; register only
-the pilot.
+**Status:** complete. An independent reviewer subagent (launched by the orchestrator)
+reviewed before the checkpoint: land after fixes (2 minor, 2 nits; all resolved). The detailed entry is in the evidence file.
+**Evidence:** [I3](evidence/I3.md) · **Notebook:** [I3](notebook/I3.md)
+**Open limitations:** binding on the target is M11's; `ffx driver static-checks` flags
+upstream's manifest for no `device_categories` (not a bind input). **For M11:** step 1's
+bind rule is already applied; register only the pilot (`qemu_edu` would compete).
 
 ---
 
@@ -597,7 +594,8 @@ the pilot.
 
 **Design coverage:** R8a. **Dependencies:** M10, I3, M3.
 **In scope:**
-- The I3 `.bind` in `drivers/simple_rust`.
+- The I3 `.bind` in `drivers/simple_rust` (already applied by I3: composite, `pci`
+  primary + `acpi` optional; `meta/simple_rust.bind`, checked by `:bind_test`).
 - Any change to the driver's `Start` needed for a composite parent. It is recorded as
   a patch-like diff against upstream source, in the evidence.
 - `scripts/emu driver //drivers/simple_rust:pkg`.
@@ -605,15 +603,18 @@ the pilot.
 **Out of scope:** device I/O; the pilot only needs to bind and log.
 
 ### Implementation steps
-1. Apply the I3 bind rule, rebuild and register (`ffx driver register`; the harness
-   reboots before re-registering, per `fuchsia-cloud-dev` workaround 6).
+1. The I3 bind rule is already applied (composite: `pci` primary + `acpi` optional).
+   Rebuild and register the driver (`ffx driver register`; the harness reboots before
+   re-registering, per `fuchsia-cloud-dev` workaround 6), then observe the bind.
 2. Check `ffx driver list`, `ffx driver list-devices -v` and `ffx log`.
 3. Record the full command sequence in the evidence so G1 can replay it.
 
 ### Acceptance criteria
 - [ ] `ffx driver list` shows the overlay's package URL loaded.
-- [ ] `ffx driver list-devices -v` shows it bound to the edu node (or the node I3
-  chose).
+- [ ] `ffx driver list-devices -v` shows it bound to the composite child of the edu
+  device's spec `00_06_0`, expected to be `PCI0.bus.00_06_0.00_06_0` (not the edu PCI
+  node `PCI0.bus.00_06_0` itself, which stays a parent); `ffx driver composite show
+  00_06_0` names the driver.
 - [ ] The driver's start log line appears in `ffx log`.
 - [ ] Emulator and package come from the same `sdk_version` (C3), shown in the evidence.
 
@@ -1182,20 +1183,34 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 - **Driver ELF checks use `core.x64` references only (found in M10; for M12).** The
   allowed `DT_NEEDED` set and `SYSTEM_LIBS` come from the x64 bundle; M12's VIM3 bundle
   gives the first arm64 reference.
+- **`rules_fuchsia`'s `fuchsia_driver_bind_bytecode_test` is broken under Bzlmod (found
+  in I3; for M12, M14).** It names `bindc` and external bind libraries by execroot path
+  (`external/<repo>/...`) and leaves `bindc` out of its runfiles ("No such file or
+  directory"). The overlay uses `rules/bind_test.bzl` (`fuchsia_driver_bind_test`);
+  pilot 2's bind tests should too. Worth reporting upstream.
+- **`elf_test` flaked under parallel runs (found in I3; fixed in I3).** `readelf | grep
+  -q` under `pipefail` failed on SIGPIPE (36 of 40 runs with `--runs_per_test=40`);
+  `rules/driver_elf_test.sh` now captures the header first. Other `| grep -q` pipelines
+  under `pipefail` in new test scripts have the same hazard.
+- **`device_categories` missing from pilot 1's manifest (found in I3; for M11).**
+  `ffx driver static-checks` on the package fails "Device categories are valid"
+  (upstream's `.cml` has none; FHCP metadata). Not a bind input; M11 records whether it
+  matters.
 
 ## Next session
 
-- Current milestone and status: **M10 complete.** Branch `ms/M10` from `cd83c70`; `wip`
-  commits `5b79a3d` (state recovered after a container restart), `f06cdee`, `d083ca9`,
-  `0b6fd93`, `7009f95`, `99435d2`, `06d0d5c`, then the checkpoint commit `overlay: M10 —
-  fuchsia_rust_driver rule; pilot 1 packages`, after the reviewer subagent's review and
-  fixes.
-- Completed work and evidence: [M10 evidence](evidence/M10.md), including the review.
-- Uncommitted state: none.
-- Remaining work, blockers, and decisions: the R7 reading is decided (owner, 2026-09-28).
-  Unchanged: M17 placement.
-- Context boundary: normal (one container restart, recovered from files; process log).
-- Resume action: after M10's checkpoint, **I3** (emulator bind target), then **M11**.
-- Read first for M11: the I3 and M11 entries, [M10 evidence](evidence/M10.md) ("Findings for
-  later milestones": the packaged `libdriver_runtime.so`), `drivers/simple_rust/BUILD.bazel`,
+- Current milestone and status: **I3 complete.** Branch `ms/I3` from
+  `2a63354`; `wip` commits (chapter, rule and bind test, the `elf_test` fix, the bind test
+  rule, evidence, plan), review fixes, then the checkpoint
+  commit `overlay: I3 — Emulator bind target for pilot 1`.
+- Completed work and evidence: [I3 evidence](evidence/I3.md) (device listing, composite
+  node spec, bind rule, `bindc` checks, project checks, disk).
+- Uncommitted state: none expected after the checkpoint.
+- Remaining work, blockers, and decisions: none for I3. Unchanged: M17 placement.
+- Context boundary: normal.
+- Resume action: after I3's checkpoint, **M11** (register and bind pilot 1 on the
+  emulator).
+- Read first for M11: the I3 and M11 entries, [I3 evidence](evidence/I3.md) ("Findings
+  for M11"), [M10 evidence](evidence/M10.md) ("Findings for later milestones": the packaged
+  `libdriver_runtime.so`), `drivers/simple_rust/BUILD.bazel`,
   [notebook index](notebook/index.md).

@@ -150,3 +150,12 @@ path = ["drivers/simple_rust/src/lib.rs", "drivers/simple_rust/meta/simple_rust_
 precedence = "aggregate"
 SPDX-FileCopyrightText = "The Fuchsia Authors"
 SPDX-License-Identifier = "BSD-2-Clause"
+
+# Pilot 1's bind rule test spec (investigation I3): `bindc test` reads JSON, which cannot
+# carry a comment. The device properties are from the lock's core.x64 (ffx driver
+# composite show 00_06_0).
+[[annotations]]
+path = ["drivers/simple_rust/meta/simple_rust_bind_test.json"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Curtis Galloway"
+SPDX-License-Identifier = "Apache-2.0"
