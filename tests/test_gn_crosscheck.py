@@ -116,6 +116,8 @@ def test_compare_reports_differences_and_allows_only_listed_deviations():
     assert gc.compare(vfs, _facts(crate_type="dylib"), _facts()) == []
     assert gc.compare(vfs, _facts(crate_type="rlib"), _facts()) == [
         "crate_type: GN has rlib, the allowlisted deviation expects dylib"]
+    assert gc.compare(vfs, _facts(crate_type="dylib"), _facts(crate_type="dylib")) == [
+        "crate_type: bazel dylib, expected rlib (gn dylib, allowlisted)"]
 
 
 def test_run_checks_each_fuchsia_config_and_the_host_for_proc_macros(ev, capsys):

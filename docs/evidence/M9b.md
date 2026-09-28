@@ -386,9 +386,26 @@ and their resolutions:
 | D | decision | Disk | The hosted Bazel sub-budget rises from 12 to 15 GiB (orchestrator, 2026-09-28): M9b left 0.64 GiB for M9c + M10 while the total was at 12.3 of 25; the total (C6) is unchanged. `overlay_profile.py`, tests, README, plan updated |
 
 **After the fixes** (final tree): pytest 444; reuse compliant (1654); `regen.py --check`
-clean; `gn_crosscheck.py --all` 62/64 agree; the three builds with explicit targets
+clean; `gn_crosscheck.py --all`: 62 crate directories, 64 targets: all agree; the three builds with explicit targets
 (Fuchsia ones with the two log targets) under `--lockfile_mode=error`, 479 targets each;
 `bazel test //...` 55 passed + 18 skipped; `check_sdk_files` 0 missing on all three;
 `MODULE.bazel.lock` unchanged; disk Bazel 11.36 of 15 GiB, total 12.28 of 25 GiB; plan
-`## ` headings equal the base's 34. No second review: the orchestrator decided the fixes;
-the new tool and `regen.py` check are covered by their tests and by the runs above.
+`## ` headings equal the base's 34.
+
+### Second review round
+
+Per project-plan's "another review for substantial fixes": the same reviewer subagent,
+launched by the orchestrator, re-reviewed the fixes (`1feb17c..60593fb`) after checkpoint
+`60593fb`. It verified that `gn_crosscheck.py` is sound and not vacuous (its injected
+negatives for features, externs and a `vfs` dylib all failed), that `check_upstream_stub`
+is correct and tested, and that the log check targets, the `vfs` statics correction and
+the 15 GiB budget are consistent across files. **Verdict:** land. Findings, fixed in the
+follow-up commit `overlay: M9b — record re-review; crosscheck caveats`:
+
+| # | Severity | Finding | Resolution |
+|---|---|---|---|
+| r1 | minor | The C-library check uses transitive `CcInfo`: it proves "linked somewhere below", not "a direct dep" (`storage_trace` sees `libtrace-engine.so` through `trace/rust`); extra Bazel-side C libraries are not flagged | Stated in the docstring's "Not compared" |
+| r2 | nit | An allowlisted target that differs should print the expected Bazel type | `crate_type: bazel <x>, expected <y> (gn <z>, allowlisted)`; tested |
+
+After the follow-up: pytest 444; `gn_crosscheck.py --all`: 62 crate directories, 64
+targets: all agree; plan `## ` headings unchanged.

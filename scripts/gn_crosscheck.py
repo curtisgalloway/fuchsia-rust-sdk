@@ -25,7 +25,10 @@ known removed label) fails the check, as does a difference not in the allowlists
 
 Not compared: GN configs and rustflags (optimization, lints, -Z flags) and Bazel's
 rustc_flags; API-level and other non-feature cfgs; visibility, version and test targets
-(with_unit_tests, test_deps); how dependents link a crate. Overlay fields such as
+(with_unit_tests, test_deps); how dependents link a crate. The C-library check reads the
+target's transitive CcInfo, so it proves a library is linked somewhere below the target,
+not that it is a direct dep (storage_trace already sees libtrace-engine.so through
+trace/rust); C libraries Bazel links that GN does not name are not flagged. Overlay fields such as
 visibility are reviewed by hand (see the overlay headers).
 
 Usage:
@@ -312,7 +315,11 @@ def compare(t: Target, gn: Facts, bz: Facts) -> list[str]:
             diffs.append(f"crate_type: GN has {gn.crate_type}, the allowlisted deviation expects {gn_type}")
         want_type = bz_type
     if bz.crate_type != want_type:
-        diffs.append(f"crate_type: bazel {bz.crate_type} gn {gn.crate_type}")
+        if t.key in CRATE_TYPE_DEVIATIONS:
+            diffs.append(f"crate_type: bazel {bz.crate_type}, expected {want_type} "
+                         f"(gn {gn.crate_type}, allowlisted)")
+        else:
+            diffs.append(f"crate_type: bazel {bz.crate_type} gn {gn.crate_type}")
     if gn.externs != bz.externs:
         diffs.append(f"externs: bazel only {sorted(bz.externs - gn.externs)}, gn only {sorted(gn.externs - bz.externs)}")
     if missing := sorted(gn.native - bz.native):

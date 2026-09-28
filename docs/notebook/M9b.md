@@ -201,3 +201,10 @@ under `--lockfile_mode=error`, `bazel test //...` 55 + 18 skipped, `check_sdk_fi
 missing, lock unchanged, disk Bazel 11.36 of 15 GiB (budget raised by the orchestrator),
 total 12.28 of 25. Evidence Review filled in; plan M9b complete, Next session → M9c.
 Next: the checkpoint commit `overlay: M9b — Pilot 1's upstream-Bazel in-tree crates`.
+
+## 2026-09-28T05:35-07:00 — direction: re-review after the checkpoint
+The same reviewer re-reviewed `1feb17c..60593fb`: land. Follow-up commit (no amend):
+`gn_crosscheck.py`'s docstring states the C-library check is transitive and ignores
+extra Bazel-side libraries; an allowlisted crate-type mismatch prints the expected type
+(tested); the evidence has a "Second review round". pytest 444; `--all`: 62 crate
+directories, 64 targets agree; plan headings unchanged.
