@@ -199,6 +199,8 @@ Outcome: open (in review) — pilot 1 binds to `PCI0.bus.00_06_0.00_06_0` on the
   [M9c](M9c.md) adds 0.11 GiB (6 crates; total 12.39 GiB, Bazel 11.47 of 15).
   [M10](M10.md) adds 0.7 GiB (the pilot for two configs; total 13.09 GiB, Bazel 12.18 of 15),
   after reclaiming 1.2 GiB the package transition's `-ST-` rebuilds had used.
+  [M11](M11.md) adds nothing to Bazel (12.18 of 15); the `emulator` bucket reaches 0.52 GiB
+  after two registrations and one reboot (total 13.26 GiB running, 13.10 stopped).
 - **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
   Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
   [M4](M4.md) derives the Rust cfgs from that file and asserts the HEAD branch at build time.

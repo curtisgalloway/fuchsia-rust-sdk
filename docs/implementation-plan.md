@@ -89,7 +89,7 @@ in the cloud.
 | M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | complete |
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | complete |
 | I3 | Emulator bind target for pilot 1 confirmed at this release; pilot builds with it | M3 | cloud (emulator) | complete |
-| M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | in review |
+| M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | complete |
 | G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone | M11 | cloud (emulator) | pending |
 | I4 | Method to replace the in-tree `aml-saradc` on the VIM3 | — | **lab** | pending |
 | M12 | Pilot 2 closure; `aml_saradc` builds for arm64 and passes R7 checks (R4–R7) | G1 | cloud | pending |
@@ -592,53 +592,26 @@ bind rule is already applied; register only the pilot (`qemu_edu` would compete)
 
 ## M11 — Pilot 1 binds on the emulator
 
+**Outcome:** `scripts/emu driver //drivers/simple_rust:pkg` registers pilot 1 on the
+lock's `core.x64` (`33.20260927.4.1`, TCG) and it binds on the first registration:
+`ffx driver composite show 00_06_0` names
+`fuchsia-pkg://devhost/simple_rust_driver#meta/simple_rust_driver.cm` and node
+`PCI0.bus.00_06_0.00_06_0` (parents `pci` = `PCI0.bus.00_06_0`, `acpi`), `list-devices -v`
+shows it bound with its child `simple_child`, and `ffx log` has `SimpleRustDriver::start()
+was invoked.` Lock, IDK, SDK and target share the `sdk_version` (C3). No driver source or
+build change (diff against upstream: none); only `scripts/emu.py`'s docstring changed.
+The harness's reboot path (URL already registered) binds too. The driver host loads one
+runtime, its own (`driver_host` links `libdriver_runtime.so`); the packaged `lib/` copies
+are not loaded. `device_categories` blocks nothing; `vfs` statics not observed. The G1
+replay sequence is in the evidence.
 **Design coverage:** R8a. **Dependencies:** M10, I3, M3.
-**In scope:**
-- The I3 `.bind` in `drivers/simple_rust` (already applied by I3: composite, `pci`
-  primary + `acpi` optional; `meta/simple_rust.bind`, checked by `:bind_test`).
-- Any change to the driver's `Start` needed for a composite parent. It is recorded as
-  a patch-like diff against upstream source, in the evidence.
-- `scripts/emu driver //drivers/simple_rust:pkg`.
-
-**Out of scope:** device I/O; the pilot only needs to bind and log.
-
-### Implementation steps
-1. The I3 bind rule is already applied (composite: `pci` primary + `acpi` optional).
-   Rebuild and register the driver (`ffx driver register`; the harness reboots before
-   re-registering, per `fuchsia-cloud-dev` workaround 6), then observe the bind.
-2. Check `ffx driver list`, `ffx driver list-devices -v` and `ffx log`.
-3. Record the full command sequence in the evidence so G1 can replay it.
-
-### Acceptance criteria
-- [x] `ffx driver list` shows the overlay's package URL loaded.
-- [x] `ffx driver list-devices -v` shows it bound to the composite child of the edu
-  device's spec `00_06_0`, expected to be `PCI0.bus.00_06_0.00_06_0` (not the edu PCI
-  node `PCI0.bus.00_06_0` itself, which stays a parent); `ffx driver composite show
-  00_06_0` names the driver.
-- [x] The driver's start log line appears in `ffx log`.
-- [x] Emulator and package come from the same `sdk_version` (C3), shown in the evidence.
-
-### Testing and review
-- Review focus: C3, the driver diff against upstream `simple/rust` (only what binding
-  requires), and a replayable sequence.
-
-### Session sizing
-Small, if I3 is done. The main risk is a start-time failure in the Rust runtime (for
-example a missing `DT_NEEDED` at load); the M10 comparison is where to look.
-
-### Evidence and findings
-Status: in review (awaiting the independent review; not yet `complete`) · Evidence:
-[M11](evidence/M11.md) · Notebook: [M11](notebook/M11.md)
-- Bound on the first registration, driver source and build unchanged (diff against
-  upstream: none): `composite show 00_06_0` names
-  `fuchsia-pkg://devhost/simple_rust_driver#meta/simple_rust_driver.cm` and node
-  `PCI0.bus.00_06_0.00_06_0`; the driver adds `simple_child`; `ffx log` has
-  `SimpleRustDriver::start() was invoked.`; lock, IDK, SDK and target all
-  `33.20260927.4.1`. The replay sequence for G1 is in the evidence.
-- `scripts/emu driver`'s reboot path works (second run: reboot, re-register, bound).
-- One driver runtime in the driver host (the host's bootfs copy); the packaged `lib/`
-  copies are not loaded. `device_categories` blocks nothing. `vfs` statics not observed.
-- Only `scripts/emu.py`'s docstring changed outside `docs/`.
+**Status:** complete. An independent reviewer subagent (launched by the orchestrator)
+replayed the G1 sequence before the checkpoint: land after fixes (3 minor, 4 nits; all
+resolved). The detailed entry is in the evidence file.
+**Evidence:** [M11](evidence/M11.md) · **Notebook:** [M11](notebook/M11.md)
+**Open limitations:** x64 only on a target (arm64 first loads on the VIM3, M13); no
+device I/O; two Rust `std` copies per driver host (backlog); `vfs` statics untested
+until a driver uses `vfs`.
 
 ---
 
