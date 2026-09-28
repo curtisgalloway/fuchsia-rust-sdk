@@ -12,6 +12,10 @@ which `uv run scripts/resolve_pins.py <sdk-version>` produces from anonymous ups
 lookups. See the [design](docs/design.md) and the
 [implementation plan](docs/implementation-plan.md).
 
+To write a driver, start with the [driver guide](docs/driver-guide.md): copy pilot 1
+(`drivers/simple_rust`), write its bind rule, build it for both targets and bind it on
+the emulator.
+
 ## Build
 
 Bazel runs through `scripts/bazel`, which downloads the release in `.bazelversion` once
