@@ -4,10 +4,10 @@
 #
 # SPDX-FileCopyrightText: 2022 The Fuchsia Authors
 # SPDX-FileCopyrightText: 2026 Curtis Galloway
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Ported from fuchsia.git build/bazel/toolchains/rust/rust.BUILD.bazel at the lock's
-# fuchsia_revision (b5274053cc0f). The Fuchsia LICENSE is LICENSES/BSD-3-Clause.txt.
+# fuchsia_revision (b5274053cc0f). The Fuchsia LICENSE is LICENSES/BSD-2-Clause.txt.
 # Changes from upstream, all marked "Overlay:" below:
 #   - The host is fixed to linux-x64 (design C5); upstream reads @fuchsia_build_config.
 #   - Only the x64 and arm64 Fuchsia targets and the linux-x64 host are defined (D4);

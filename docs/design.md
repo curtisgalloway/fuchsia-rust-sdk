@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 # Rust drivers out of tree (the overlay) — Design
 
 Revision: 2026-09-27, draft 1 — approved by the owner 2026-09-27, including D6;
-amended 2026-09-27 per owner direction and M2/M3 findings (C6, A2, R1, R2, §4.1, §4.2 toolchain and Rust rules)
+amended 2026-09-27 per owner direction and M2/M3 findings (C4, C6, A2, R1, R2, §4.1, §4.2 toolchain, Rust rules and third-party crates)
 
 Source brief: [`brief.md`](brief.md), copied from `curtisgalloway/fuchsia-ci` at `b061204`
 (`docs/drivers/rust-driver-oot-plan.md`) (the
@@ -130,7 +130,8 @@ Facts found for this design (local tree at `b5274053`, 2026-09-27):
   built at release N runs only on an OS from release N. Every artifact is
   pinned to one release and regenerated, never kept compatible.
 - **C4. Licensing.** This repo's own code is Apache 2.0 with SPDX headers.
-  Vendored Fuchsia code keeps its BSD-3 `LICENSE`; vendored crates keep theirs.
+  Vendored Fuchsia code keeps its `LICENSE` (the BSD-2-Clause text at the
+  release revision; corrected in M5 from "BSD-3") and `PATENTS`; vendored crates keep theirs.
 - **C5. Build host is linux-amd64.** The CIPD host toolchain and the IDK are
   fetched for that platform.
 - **C6. Environment profile; the hosted profile is the default.** Resource limits
@@ -284,11 +285,15 @@ code and upstream's lint configs. The API-level cfg list from
 Rust toolchains, as upstream does: the Fuchsia toolchains at the configured level
 (HEAD), the host toolchain at PLATFORM (amended after M4).
 
-**Third-party crates (`third_party/crates/`, R4).** `crate_universe` run over
-the release's `Cargo.toml`/`Cargo.lock`, restricted to the crates the closure
-needs. The four patched crates come from `third_party/rust_crates/` at the
-release revision as local repositories. Generated output is committed so the
-build needs no crates.io resolution step, only downloads pinned by checksum.
+**Third-party crates (`third_party/crates/`, R4).** `regen.py` takes upstream's own
+`crate_universe`-generated BUILD files for `third_party/rust_crates` at the release
+revision, restricted to the crates the closure needs, and rewrites their labels; no
+local `crate_universe` run and no crate-index resolution (amended after M5, option
+A). Each `.crate` is downloaded from crates.io pinned by the SHA-256 in the release's
+`Cargo.lock`, which is itself checked against the lock. The locally patched crates
+(`forks/libc`, `ask2patch/memchr`, …) are copied from `third_party/rust_crates/` at
+the release revision by `regen.py` and committed (D6). Generated output is committed
+so the build needs no resolution step, only downloads pinned by checksum.
 
 **FIDL bindings (`rules/fidl_rust.bzl` + `tools/`, R5).** One rule, two flavors.
 Both run the IDK's `fidlc` on IDK FIDL sources to get JSON IR, then the flavor's

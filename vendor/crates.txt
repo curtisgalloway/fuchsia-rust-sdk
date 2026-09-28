@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+#
+# The fuchsia.git directories scripts/regen.py copies to vendor/fuchsia/<path>/ (design
+# R6, D9), one per line: "<upstream path> <how its BUILD.bazel is made>".
+#   upstream  upstream's BUILD.bazel, labels rewritten by regen.py
+#   overlay   overlays/<path>/BUILD.bazel, hand-written and reviewed
+# Every crate a listed BUILD file depends on must be listed too. Keep sorted.
+
+sdk/rust/zx-status upstream
+sdk/rust/zx-status-ext upstream
+sdk/rust/zx-sys upstream
+sdk/rust/zx-types upstream

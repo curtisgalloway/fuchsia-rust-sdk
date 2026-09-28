@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T21:38-07:00
+Updated: 2026-09-27T22:20-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -68,11 +68,27 @@ Outcome: complete — cfgs at the toolchain level as upstream; wrappers add cap-
 - New repository rule in its own file so the 3 GB IDK is not refetched
 - M3 checkpoint had deleted the plan's M4–M10/I2 entries; restored
 
+### [M5 — Vendor stage of `regen.py`; `zx` crates build](M5.md)
+Entries: 2026-09-27T21:45-07:00 through 2026-09-27T22:20-07:00
+Outcome: complete — `regen.py vendor`/`--check`; `zx-types`, `zx-sys`, `zx-status(-ext)` build; `zx` → M6
+- Upstream's crates.io crates are in fuchsia.git with crate_universe BUILD files; reused them + static.crates.io by Cargo.lock SHA-256 (option A: M6 continues)
+- `zx` needs patched crates (`forks/libc`, `ask2patch/memchr` via `bstr`): deferred to M6
+- Review: Fuchsia's LICENSE is BSD-2-Clause, mislabelled BSD-3 since M2; corrected repo-wide
+- Review: regex rewriter missed `@rules_rust` loads; now ast-based, fails closed at file:line
+- Git: depth-1 blobless fetch, then one by-ID fetch of the needed blobs (~16 s per run)
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
   emulator bucket (0.5 GiB; total 8.8 GiB, clean-slate peak about 9.6 GiB).
   [M4](M4.md) adds 0.06 GiB (total 8.82 GiB).
+  [M5](M5.md) adds 0.17 GiB (`@rust_crates` and builds; total 8.99 GiB).
 - **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
   Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
   [M4](M4.md) derives the Rust cfgs from that file and asserts the HEAD branch at build time.
+- **Vendored lints (`vendored = True`):** [M4](M4.md) adds the attribute (`--cap-lints=allow`)
+  and the review decides every vendored target gets it; [M5](M5.md) makes regen.py add it
+  to each `rustc_*` call and tests it in Bazel (`tests/vendor`).
+- **Fuchsia license name:** [M2](M2.md) added Fuchsia's LICENSE as BSD-3-Clause and
+  M3/M4 followed; the [M5](M5.md) review found it is the 2-clause text and M5 relabelled
+  the repo (design C4 to amend).

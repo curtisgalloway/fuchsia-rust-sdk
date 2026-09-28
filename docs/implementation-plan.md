@@ -75,7 +75,7 @@ in the cloud.
 | M2a | Fit the hosted disk budget (C6): trimmed IDK extraction, cache policy, disk report | M2 | cloud | complete |
 | M3 | Portable emulator harness at the lock's release; the M2 binary runs on it (R2, C6) | M2a | cloud (emulator) | complete |
 | M4 | `rustc_*` rules with API-level cfgs (R3) | M2 | cloud | complete |
-| M5 | Vendor stage of `regen.py` + `--check`; `zx-types`, `zx-sys`, `zx` build (R6 mechanism, R2) | M4 | cloud | pending |
+| M5 | Vendor stage of `regen.py` + `--check`; `zx-types`, `zx-sys`, `zx` build (R6 mechanism, R2) | M4 | cloud | complete |
 | M6 | Pilot 1 closure measured (D8) + its crates.io crates build (R4) | M5 | cloud | pending |
 | I2 | Prebuilt `fidlgen_rust` / `fidlgen_rust_next`: published or not | — | cloud | pending |
 | M7 | Both FIDL generators available as Bazel host tools (R5 tools) | I2, M6 | cloud | pending |
@@ -262,67 +262,31 @@ by hand (recipe in the evidence).
 
 ## M5 — Vendor stage of `regen.py`; `zx` crates build
 
-**Design coverage:** R6 (mechanism and `--check`), R2 (`zx-types`, `zx-sys`, `zx`
-build), D6, D9. **Dependencies:** M4.
-**In scope:**
-- `scripts/regen.py vendor` and `scripts/regen.py --check`. A vendor list file,
-  `vendor/crates.txt` (proposed): upstream path → how its `BUILD.bazel` is made.
-- Label rewriting for upstream `BUILD.bazel` files; `overlays/` and
-  `patches/fuchsia/` application; `LICENSE`/`METADATA` carried.
-- The first three crates: `sdk/rust/zx-types`, `sdk/rust/zx-sys` and `sdk/rust/zx`,
-  all with upstream Bazel builds.
-
-**Out of scope:**
-- the crates.io repository (M6). `zx`'s crates.io deps (`bitflags`,
-  `static_assertions`, `zerocopy`…) are either provided by the smallest possible
-  `crate_universe` subset here, or `zx` alone waits for M6 (decide by inspection,
-  record it).
-- the full `regen.py` pipeline (M14).
-
-### Implementation steps
-1. Git access: sparse, blobless fetch of `fuchsia.git` at `fuchsia_revision` into a
-   scratch directory outside the repo (brief App. B step 1).
-2. Copy each listed crate directory to `vendor/fuchsia/<upstream path>/` (D9).
-3. For crates with upstream `BUILD.bazel`, rewrite labels:
-   - `//<path>` → `//vendor/fuchsia/<path>`
-   - `//third_party/rust_crates:<x>` → the crate-universe label
-   - upstream rule loads → `//rules:rustc.bzl`
-   - `//build/config/rust/lints:<x>` → `//rules/lints:<x>` (10 upstream files pass
-     `lint_config = "//build/config/rust/lints:clippy_warn_all"`; M4 review finding 3)
-   - every `rustc_*` target gets `vendored = True` (decided after M4 review finding 2:
-     the overlay builds upstream code at HEAD, which upstream builds at PLATFORM, with
-     `-Dwarnings` and `unused_crate_dependencies = warn`; its lints are upstream's
-     concern)
-
-   Otherwise, copy `overlays/<path>/BUILD.bazel`.
-4. Apply `patches/fuchsia/<path>/*.patch` in order. A failing patch stops the run and
-   names the patch and the file.
-5. `--check`: regenerate into scratch and diff against `vendor/`; exit non-zero on drift.
-6. pytest for label rewriting, patch failure and drift detection, using a tiny fake
-   upstream tree.
-
-### Acceptance criteria
-- [ ] `regen.py vendor` reproduces `vendor/` byte-for-byte on a second run.
-- [ ] `regen.py --check` passes on a clean tree, and fails naming the file after a
-  one-byte hand edit in `vendor/`.
-- [ ] A patch that no longer applies fails with the patch name and file (pytest).
-- [ ] `zx-types` and `zx-sys` build for both Fuchsia targets. `zx` builds too, or is
-  explicitly deferred to M6 with the reason recorded.
-- [ ] Each vendored crate carries upstream `LICENSE` (C4).
-
-### Testing and review
-- Verify with `uv run pytest`, `scripts/regen.py --check`, and both build configs on
-  `//vendor/fuchsia/sdk/rust/...`.
-- Review focus: D6 (only generated content committed), D9 layout, determinism, and no
-  network access at build time.
-
-### Session sizing
-Starts from the design §4.2 "Vendored crates", brief App. A.1 (the `zx*` rows) and
-App. B. The main uncertainty is label-rewrite coverage for upstream Bazel files. Split
-point: land the mechanism with `zx-types` alone, then add the other two.
-
-### Evidence and findings
-Status: pending · Evidence: [M5](evidence/M5.md) · Notebook: [M5](notebook/M5.md)
+**Design coverage:** R6 (mechanism and `--check`), R2 (`zx-types`, `zx-sys`), D6, D9.
+**Dependencies:** M4.
+**Status:** complete. An independent review ran before the checkpoint (1 major, 2 minor
+findings, 5 nits, all resolved as the orchestrator decided; the major one corrected the
+repo's Fuchsia license to BSD-2-Clause). The detailed entry is in the evidence file.
+**Outcome:** `scripts/regen.py vendor` copies the paths in `vendor/crates.txt` from
+fuchsia.git at the lock's revision (depth-1 blobless fetch, blobs by ID, M1's isolated
+git) to `vendor/fuchsia/<path>/`, rewrites upstream `BUILD.bazel` files (parsed with
+`ast`, failing closed at file:line on anything unmapped) (rules →
+`//rules:rustc.bzl`, lints → `//rules/lints`, `//:license`, in-tree paths →
+`//vendor/fuchsia/…`, crates.io → `@rust_crates`), adds `vendored = True` to every
+`rustc_*` call, applies `overlays/` and `patches/fuchsia/`, and copies the root
+`LICENSE`/`PATENTS`. It also writes `third_party/crates/`: the crates.io closure
+(6 crates for `zerocopy`) from upstream's own crate_universe BUILD files, each `.crate`
+pinned by the release `Cargo.lock`'s SHA-256 (`@rust_crates`, `toolchain/crates.bzl`).
+`--check` regenerates and names every drifting file. `zx-types`, `zx-sys`, `zx-status`,
+`zx-status-ext` build for x64, arm64 and host; a second run is byte-identical; a
+one-byte edit fails `--check` naming the file. pytest 277, reuse lint, three builds,
+`bazel test //...` (25) pass; total disk 8.99 GiB of 25.
+**Evidence:** [M5](evidence/M5.md) · **Notebook:** [M5](notebook/M5.md)
+**Open limitations:** `zx` deferred to M6 (it needs the patched `libc` fork and
+`ask2patch/memchr`, M6's scope); crate_universe is not run locally (upstream's output
+is reused, decided: option A; design §4.2 and C4 wording are the orchestrator's to
+amend); `--check` needs network access to fuchsia.git; `tests/vendor` lists vendored
+crates by hand.
 
 ---
 
@@ -900,7 +864,7 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 - **Download allowlist as a standing check.** M2 verified with
   `--experimental_downloader_config` (allow BCR, github.com, CIPD, GCS,
   static.crates.io); committing it would catch new unpinned hosts, but M5's crates may
-  add hosts.
+  add hosts. (M5 added only static.crates.io, at fetch time, pinned by SHA-256.)
 
 - **Product bundle pinned by hash — decided and done in M3.** Upstream pins none of the
   `core.x64` bundle's files by content; owner decision 2026-09-27: "yes, pin the bundle
@@ -939,7 +903,7 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   (upstream: PLATFORM) with `-Dwarnings` and the ported lints
   (`unused_crate_dependencies = warn`), which risks unused-import/crate errors. Decision
   (orchestrator, after M4 review): M5's rewrite sets `vendored = True` on every target
-  under `vendor/`; now in M5's steps.
+  under `vendor/`; now in M5's steps. Done in M5 (`regen.py`; checked by `tests/vendor`).
 - **Host FIDL bindings and host cfgs at one level (found in the M4 review; for M8/M16).**
   Host code builds with the PLATFORM cfgs, and in-scope crates branch on PLATFORM
   (`src/lib/fuchsia-fs`, e.g. `src/node.rs:156`; 15 files under `src/storage/lib/vfs`).
@@ -959,6 +923,26 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 - **Design §4.2 "Rust rules" wording (found in M4).** It has the wrapper adding the
   API-level cfgs; upstream (and now the overlay) adds them in the toolchain. An
   orchestrator amendment, not an M4 change.
+- **crates.io route for M6 (found in M5) — decided.** M5 created `third_party/crates/`
+  without running crate_universe: regen.py reuses upstream's crate_universe-generated
+  `third_party/rust_crates/vendor/<crate>/BUILD.bazel` files and downloads each `.crate`
+  from static.crates.io by the release `Cargo.lock`'s SHA-256 (`@rust_crates`).
+  Decision (orchestrator, after the M5 review; option A): M6 continues this route, and
+  the patched crates (`forks/libc`, `ask2patch/memchr`, …), whose sources exist only in
+  fuchsia.git, are vendored from fuchsia.git by regen.py and committed (D6). The
+  orchestrator amends design §4.2 "Third-party crates". `zx` (deferred from M5)
+  needs `libc` (`forks/libc-0.2.189`), `bstr` → `ask2patch/memchr`, `bitflags` (+
+  `serde_core` under upstream's features) and `static_assertions`; add
+  `sdk/rust/zx upstream` to `vendor/crates.txt` and `//vendor/fuchsia/sdk/rust/zx` to
+  `tests/vendor/BUILD.bazel`.
+- **Fuchsia's license is BSD-2-Clause (found in the M5 review) — fixed in M5.** The repo
+  had `LICENSES/BSD-3-Clause.txt` with Fuchsia's 2-clause text since M2; renamed and
+  every Fuchsia-derived label corrected ([M5 evidence](evidence/M5.md)). Design C4 says
+  "BSD-3"; the orchestrator amends it.
+- **`regen.py` closure over-approximates `select()` (found in M5).** It follows every
+  label in an upstream crate BUILD file, including branches for platforms the overlay
+  does not build; with M6's larger set it may fetch crates never compiled. `@rust_crates`
+  is also one repository (all crates download together).
 - **Classify driver protocols by FIDL availability; experiment with our own FIDL
   (owner interest, 2026-09-27).** The overlay only generates bindings for FIDL that
   exists. For each candidate driver or bus, classify every parent protocol as:
@@ -979,18 +963,19 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M4 complete** (branch `ms/M4` from `95e0f93`; wip
-  commits `3dd5915`, `96c7e32`, then the checkpoint `overlay: M4 — rustc rules with
-  API-level cfgs` with the review fixes).
-- Completed work and evidence: [M4 evidence](evidence/M4.md), including the review
+- Current milestone and status: **M5 complete** (branch `ms/M5` from `a472bb6`; wip
+  commits `7382c9c`, `a5572d3`, then the checkpoint `overlay: M5 — Vendor stage of
+  regen.py; zx crates build` with the review fixes).
+- Completed work and evidence: [M5 evidence](evidence/M5.md), including the review
   findings and resolutions.
 - Uncommitted state: none.
-- Remaining work, blockers, and decisions: none for M4. The orchestrator amends design
-  §4.2 "Rust rules" (cfgs are added by the toolchain). Unchanged: the R7 reading for
-  pilot 1 (before M10); M17 placement.
+- Remaining work, blockers, and decisions: none for M5. For the orchestrator: amend
+  design C4 (Fuchsia's license is BSD-2-Clause) and §4.2 "Third-party crates" (the
+  crates.io route, option A). Unchanged: the R7 reading for pilot 1 (before M10); M17
+  placement.
 - Context boundary: normal.
-- Resume action: begin the next eligible milestone the orchestrator names (M5 is next on
+- Resume action: begin the next eligible milestone the orchestrator names (M6 is next on
   the critical path; I2 and I3 can run beside it).
-- Read first for M5: the M5 entry (its label rewrite now sets `vendored = True` and maps
-  `//build/config/rust/lints`), [M4 evidence](evidence/M4.md), `rules/rustc.bzl`,
-  [notebook index](notebook/index.md).
+- Read first for M6: the M6 entry, the backlog item "crates.io route for M6",
+  [M5 evidence](evidence/M5.md) (decisions 1–3, 8), `scripts/regen.py` (module
+  docstring), `toolchain/crates.bzl`, [notebook index](notebook/index.md).

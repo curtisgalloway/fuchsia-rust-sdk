@@ -1,11 +1,11 @@
 # Copyright 2026 The Fuchsia Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file (in this repository: LICENSES/BSD-3-Clause.txt; Fuchsia's
+# found in the LICENSE file (in this repository: LICENSES/BSD-2-Clause.txt; Fuchsia's
 # patent grant is in third_party/fuchsia/PATENTS).
 #
 # SPDX-FileCopyrightText: 2026 The Fuchsia Authors
 # SPDX-FileCopyrightText: 2026 Curtis Galloway
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 """scripts/emu: run the lock's release of core.x64 in QEMU and put packages on it.
 
     scripts/emu setup            fetch the IDK (ffx, QEMU) and the lock's core.x64 bundle
