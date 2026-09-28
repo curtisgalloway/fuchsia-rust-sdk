@@ -129,3 +129,14 @@ path = [
 precedence = "aggregate"
 SPDX-FileCopyrightText = "The Fuchsia Authors"
 SPDX-License-Identifier = "BSD-2-Clause"
+
+# Test inputs and golden outputs for the FIDL generators (tests/fidlgen, milestone M7),
+# copied unchanged from fuchsia.git at the lock's fuchsia_revision (C4): fidlc's IR
+# goldens (tools/fidl/fidlc/goldens/<n>.json.golden) and fidlgen_rust_next's goldens
+# (tools/fidl/fidlgen_rust_next/goldens/<n>[_common].rs.golden). Recipe and blob IDs in
+# docs/evidence/M7.md. Fuchsia's LICENSE is LICENSES/BSD-2-Clause.txt.
+[[annotations]]
+path = ["tests/fidlgen/testdata/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "The Fuchsia Authors"
+SPDX-License-Identifier = "BSD-2-Clause"

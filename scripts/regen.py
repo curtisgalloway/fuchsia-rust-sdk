@@ -27,8 +27,9 @@ Outputs, generated and committed (D6); never edit them by hand:
                            or BUILD.gn) are left out; list them separately.
   vendor/fuchsia/LICENSE, PATENTS   fuchsia.git's root files, which cover every file
                            under vendor/fuchsia/ as they cover the upstream tree (C4)
+  vendor/fuchsia/rustfmt.toml       fuchsia.git's root rustfmt config (FIDL generators, M7)
   vendor/fuchsia/BUILD.bazel        the license target upstream BUILD files name as
-                           //:license
+                           //:license, and the export of rustfmt.toml
   third_party/crates/      the crates the vendored BUILD files and vendor/crates_io.txt
                            name, and everything they depend on: upstream's
                            crate_universe-generated BUILD files (fuchsia.git
@@ -55,6 +56,18 @@ Rewriting upstream BUILD.bazel files (parsed with Python's ast; comments untouch
   //third_party/rust_crates/<forks|ask2patch>/<dir>[:<t>] -> @rust_crates//<kind>/<dir>[:<t>]
   //<path>[:<t>], <path> listed            -> //vendor/fuchsia/<path>[:<t>]
   //<path>:__pkg__ / :__subpackages__      -> //vendor/fuchsia/<path>:<same> (visibility)
+Go (M7; fidlgen_rust, built with rules_go under upstream's repo name io_bazel_rules_go):
+  load("@io_bazel_rules_go//go:def.bzl", ...)  -> kept for go_library/go_binary; go_test
+                                           is dropped from the load, with its calls
+  load("//build/bazel/rules/host:defs.bzl", "go_binary_host_tool")
+      -> load("@io_bazel_rules_go//go:def.bzl", go_binary_host_tool = "go_binary")
+  load("//build/bazel/platforms:constraints.bzl", "HOST_OS_CONSTRAINTS")
+      -> load("//rules:host.bzl", "HOST_OS_CONSTRAINTS")
+  load("@platforms//host:constraints.bzl", ...)  -> unchanged
+  load("//tools/fidl/lib/fidlgentest:fidlgentest_go_test.bzl", ...) -> removed, with its
+                                           calls (the tests need Go modules, C1)
+A dropped test call must be a whole top-level statement, and any other go_* call or
+symbol fails, as for Rust.
 Every call of one of those Rust rules gets `vendored = True`: the overlay builds
 upstream code at HEAD, which upstream builds at PLATFORM, so its lints are upstream's
 concern (M4 review). The rewriter fails closed, naming file:line: any other //-label
@@ -99,8 +112,10 @@ PATCHES = "patches/fuchsia"
 # Every generated tree, relative to the repository root. --check compares these.
 OUTPUTS = (VENDOR_OUT, CRATES_OUT)
 
-# fuchsia.git root files copied to vendor/fuchsia/ (their license covers every file).
-ROOT_FILES = ("LICENSE", "PATENTS")
+# fuchsia.git root files copied to vendor/fuchsia/: LICENSE and PATENTS (their license
+# covers every file), and rustfmt.toml, the format config the FIDL generators run rustfmt
+# with (upstream passes //rustfmt.toml; milestone M7).
+ROOT_FILES = ("LICENSE", "PATENTS", "rustfmt.toml")
 
 RUST_CRATES = "third_party/rust_crates"
 RUST_CRATES_VENDOR = f"{RUST_CRATES}/vendor"
@@ -819,6 +834,13 @@ license(
     name = "license",
     license_kinds = ["@rules_license//licenses/spdx:BSD-2-Clause"],
     license_text = "LICENSE",
+    visibility = ["//visibility:public"],
+)
+
+# Not upstream's: fuchsia.git's root rustfmt.toml, which the FIDL generators are given
+# as --rustfmt-config (as upstream's GN templates pass //rustfmt.toml).
+exports_files(
+    ["rustfmt.toml"],
     visibility = ["//visibility:public"],
 )
 """

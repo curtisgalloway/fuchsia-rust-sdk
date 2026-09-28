@@ -149,6 +149,7 @@ def _write(root: Path, rel: str, data, mode=0o644):
 def make_upstream(root: Path) -> Path:
     _write(root, "LICENSE", "Fuchsia license text\n")
     _write(root, "PATENTS", "Fuchsia patents text\n")
+    _write(root, "rustfmt.toml", 'edition = "2024"\n')
     _write(root, "sdk/rust/a/BUILD.bazel", A_BUILD)
     _write(root, "sdk/rust/a/BUILD.gn", "# gn\n")
     _write(root, "sdk/rust/a/src/lib.rs", "pub fn a() -> u32 {\n    1\n}\n")
@@ -388,6 +389,160 @@ def test_rewriter_fails_closed(text, message):
     assert message in str(e.value)
 
 
+# Go (M7): upstream's fidlgen_rust BUILD files at the lock revision, abridged.
+GO_BINARY = _HDR + """\
+load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
+load("//build/bazel/rules/host:defs.bzl", "go_binary_host_tool")
+
+package(default_applicable_licenses = ["//:license"])
+
+go_binary_host_tool(
+    name = "fidlgen_rust",
+    srcs = ["main.go"],
+    target_compatible_with = HOST_CONSTRAINTS,
+    visibility = [
+        "//build/bazel/rules:__subpackages__",
+    ],
+    deps = [
+        "//tools/fidl/fidlgen_rust/codegen",
+        "//tools/fidl/lib/fidlgen",
+    ],
+)
+"""
+
+GO_CODEGEN = _HDR + """\
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
+load("//tools/fidl/lib/fidlgentest:fidlgentest_go_test.bzl", "fidlgentest_go_test")
+
+package(
+    default_applicable_licenses = ["//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "codegen",
+    srcs = ["codegen.go"],
+    embedsrcs = ["alias.tmpl"],
+    importpath = "go.fuchsia.dev/fuchsia/tools/fidl/fidlgen_rust/codegen",
+    target_compatible_with = HOST_CONSTRAINTS,
+    deps = ["//tools/fidl/lib/fidlgen"],
+)
+
+fidlgentest_go_test(
+    name = "fidlgen_rust_lib_tests",
+    srcs = ["ir_test.go"],
+    embed = [":codegen"],
+    target_compatible_with = HOST_CONSTRAINTS,
+    visibility = ["//tools:__pkg__"],
+    deps = ["//third_party/golibs:github.com/google/go-cmp/cmp"],
+)
+"""
+
+GO_LIB = _HDR + """\
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("//build/bazel/platforms:constraints.bzl", "HOST_OS_CONSTRAINTS")
+
+package(
+    default_applicable_licenses = ["//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "fidlgen",
+    srcs = ["types.go"],
+    importpath = "go.fuchsia.dev/fuchsia/tools/fidl/lib/fidlgen",
+    target_compatible_with = HOST_OS_CONSTRAINTS,
+)
+
+go_test(
+    name = "fidlgen_lib_test",
+    srcs = ["types_test.go"],
+    embed = [
+        ":fidlgen",
+    ],
+    target_compatible_with = HOST_OS_CONSTRAINTS,
+    deps = [
+        "//third_party/golibs:github.com/google/go-cmp/cmp",
+    ],
+)
+"""
+
+GO_PATHS = {"tools/fidl/fidlgen_rust", "tools/fidl/fidlgen_rust/codegen", "tools/fidl/lib/fidlgen"}
+
+
+def test_go_binary_host_tool_becomes_rules_go_go_binary():
+    notes = []
+    out = regen.rewrite_upstream_build(GO_BINARY, "tools/fidl/fidlgen_rust/BUILD.bazel", GO_PATHS, notes)
+    assert notes == ["labels rewritten", "Go loads mapped"]
+    # Only the load and the labels change; the call site keeps upstream's name.
+    assert out == (GO_BINARY
+                   .replace('load("//build/bazel/rules/host:defs.bzl", "go_binary_host_tool")',
+                            'load("@io_bazel_rules_go//go:def.bzl", go_binary_host_tool = "go_binary")')
+                   .replace('"//:license"', '"//vendor/fuchsia:license"')
+                   .replace('"//build/bazel/rules:__subpackages__"',
+                            '"//vendor/fuchsia/build/bazel/rules:__subpackages__"')
+                   .replace('"//tools/', '"//vendor/fuchsia/tools/'))
+
+
+def test_go_test_macros_are_dropped_with_their_load():
+    notes = []
+    out = regen.rewrite_upstream_build(GO_CODEGEN, "c/BUILD.bazel", GO_PATHS, notes)
+    assert notes == ["labels rewritten", "Go loads mapped", "test targets dropped"]
+    assert "fidlgentest" not in out and "golibs" not in out and "ir_test.go" not in out
+    assert out.endswith('    deps = ["//vendor/fuchsia/tools/fidl/lib/fidlgen"],\n)\n')
+    assert ('load("@io_bazel_rules_go//go:def.bzl", "go_library")\n'
+            'load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")\n\npackage(') in out
+
+
+def test_go_test_is_dropped_and_host_os_constraints_mapped():
+    out = regen.rewrite_upstream_build(GO_LIB, "l/BUILD.bazel", GO_PATHS)
+    assert 'load("@io_bazel_rules_go//go:def.bzl", "go_library")\n' in out
+    assert 'load("//rules:host.bzl", "HOST_OS_CONSTRAINTS")\n' in out
+    assert "go_test" not in out and "golibs" not in out
+    assert out.count("go_library(") == 1 and out.endswith("HOST_OS_CONSTRAINTS,\n)\n")
+
+
+def test_rust_rules_keep_their_header_note():
+    notes = []
+    regen.rewrite_upstream_build(A_BUILD, "sdk/rust/a/BUILD.bazel", {"sdk/rust/a", "sdk/rust/b"}, notes)
+    assert ", ".join(notes) == "labels rewritten, vendored = True added"
+
+
+@pytest.mark.parametrize("text, message", [
+    ('load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_source")\n',
+     "f:1: loads go_source from @io_bazel_rules_go//go:def.bzl; regen.py maps only go_library, go_binary, go_test"),
+    ('load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")\n',
+     "f:1: load of @io_bazel_rules_go//proto:def.bzl: regen.py has no mapping"),
+    ('load("//build/bazel/rules/host:defs.bzl", "py_binary_host_tool")\n',
+     "f:1: loads py_binary_host_tool from //build/bazel/rules/host:defs.bzl"),
+    ('load("//build/bazel/platforms:constraints.bzl", "HOST_CONSTRAINTS")\n',
+     "f:1: loads HOST_CONSTRAINTS from //build/bazel/platforms:constraints.bzl"),
+    ('x = 1\ngo_library(name = "x")\n', "f:2: go_library() is not loaded from a rules file regen.py maps"),
+    ('load("@io_bazel_rules_go//go:def.bzl", "go_test")\n[go_test(name = n) for n in ["a"]]\n',
+     "f:2: go_test() is dropped by regen.py, so it must be a top-level statement"),
+    ('load("@io_bazel_rules_go//go:def.bzl", "go_test")\nx = go_test(name = "t")\n',
+     "f:2: go_test() is dropped by regen.py"),
+])
+def test_go_rewriter_fails_closed(text, message):
+    with pytest.raises(regen.RegenError) as e:
+        regen.rewrite_upstream_build(text, "f", set())
+    assert message in str(e.value)
+
+
+def test_vendor_header_names_the_go_changes(env):
+    upstream, repo, run = env
+    _write(upstream, "tools/fidl/lib/fidlgen/BUILD.bazel", GO_LIB)
+    _write(upstream, "tools/fidl/lib/fidlgen/types.go", "package fidlgen\n")
+    _write(repo, "vendor/crates.txt", "sdk/rust/a upstream\nsdk/rust/b overlay\ntools/fidl/lib/fidlgen upstream\n")
+    assert run("vendor") == 0
+    text = (repo / "vendor/fuchsia/tools/fidl/lib/fidlgen/BUILD.bazel").read_text()
+    assert text.startswith(f"# Generated by scripts/regen.py from fuchsia.git {REV}:tools/fidl/lib/fidlgen/BUILD.bazel\n"
+                           "# (labels rewritten, Go loads mapped, test targets dropped). Do not edit")
+    assert (repo / "vendor/fuchsia/tools/fidl/lib/fidlgen/types.go").read_text() == "package fidlgen\n"
+    assert run("--check") == 0
+
+
 def test_vendored_added_to_every_form_of_call():
     text = ('load("//build/bazel/rules/rust:defs.bzl", "rustc_binary", "rustc_library", lib = "rustc_proc_macro")\n'
             'rustc_library(\n    name = "l",\n)\n\nrustc_binary(name = "b")\n\n'
@@ -452,11 +607,12 @@ def test_vendor_writes_the_expected_trees(env):
     v = repo / "vendor/fuchsia"
     assert sorted(p.relative_to(v).as_posix() for p in v.rglob("*") if p.is_file()) == [
         "BUILD.bazel", "LICENSE", "PATENTS",
+        "rustfmt.toml",
         "sdk/rust/a/BUILD.bazel", "sdk/rust/a/BUILD.gn", "sdk/rust/a/src/lib.rs", "sdk/rust/a/tool.sh",
         "sdk/rust/b/BUILD.bazel", "sdk/rust/b/BUILD.gn", "sdk/rust/b/src/lib.rs",
     ]
     # Copied byte for byte, modes kept; LICENSE covers the tree (C4).
-    for rel in ("LICENSE", "PATENTS", "sdk/rust/a/src/lib.rs", "sdk/rust/b/src/lib.rs"):
+    for rel in ("LICENSE", "PATENTS", "rustfmt.toml", "sdk/rust/a/src/lib.rs", "sdk/rust/b/src/lib.rs"):
         assert (v / rel).read_bytes() == (upstream / rel).read_bytes()
     assert (v / "sdk/rust/a/tool.sh").stat().st_mode & 0o111
     assert not (v / "sdk/rust/a/src/lib.rs").stat().st_mode & 0o111
@@ -466,6 +622,7 @@ def test_vendor_writes_the_expected_trees(env):
     assert (v / "sdk/rust/b/BUILD.bazel").read_text() == B_OVERLAY
     root_build = (v / "BUILD.bazel").read_text()
     assert 'license_text = "LICENSE"' in root_build and "spdx:BSD-2-Clause" in root_build
+    assert 'exports_files(\n    ["rustfmt.toml"],' in root_build
     assert "SPDX" not in root_build  # only REUSE.toml's vendor/fuchsia/** annotation applies
 
     c = repo / "third_party/crates"

@@ -22,3 +22,8 @@ go_binary_host_tool(
         "//vendor/fuchsia/tools/fidl/lib/fidlgen",
     ],
 )
+
+exports_files(
+    glob(["goldens/*.golden"]),
+    visibility = ["//tests/fidlgen:__pkg__"],
+)

@@ -7,7 +7,8 @@
 #   overlay   overlays/<path>/BUILD.bazel, hand-written and reviewed
 # Every crate a listed BUILD file depends on must be listed too. Keep sorted.
 # Besides Rust crates, the list holds the Go sources of fidlgen_rust (milestone M7), which
-# the overlay builds with rules_go: its binary, its codegen package and tools/fidl/lib/fidlgen.
+# the overlay builds with rules_go: its binary, its codegen package and tools/fidl/lib/fidlgen;
+# and the configs the prebuilt fidlgen_rust_next is run with.
 
 sdk/rust/zx upstream
 sdk/rust/zx-status upstream
@@ -16,4 +17,5 @@ sdk/rust/zx-sys upstream
 sdk/rust/zx-types upstream
 tools/fidl/fidlgen_rust upstream
 tools/fidl/fidlgen_rust/codegen upstream
+tools/fidl/fidlgen_rust_next/configs overlay
 tools/fidl/lib/fidlgen upstream

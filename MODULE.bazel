@@ -17,9 +17,10 @@ module(
 # follow fuchsia-infra-bazel-rules, which sdk-samples/drivers uses at this release,
 # except rules_cc, which matches fuchsia.git's pin at the lock revision
 # (build/bazel/toplevel.MODULE.bazel). Under Bazel 8 rules_cc's cc_* rules are the
-# native ones, so the choice has no functional effect here.
+# native ones, so the choice has no functional effect here. platforms is 1.1.0, the
+# version rules_go (below) requires and fuchsia.git pins (M7; it was 1.0.0).
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
-bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_cc", version = "0.2.19")
 bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "rules_python", version = "1.1.0")
