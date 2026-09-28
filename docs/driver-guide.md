@@ -37,8 +37,13 @@ sed -i -e 's/simple_rust_bind_test\.json/my_driver_bind_test.json/' \
 sed -i 's/simple_rust_driver\.so/my_driver.so/' meta/my_driver.cml
 sed -i 's/^composite simple_rust;/composite my_driver;/' meta/my_driver.bind
 sed -i 's/const NAME: &str = "simple_rust_driver";/const NAME: \&str = "my_driver";/' src/lib.rs
-grep -rn simple_rust .     # expect only comments (BUILD.bazel's header, the .bind's)
+grep -rn simple_rust .     # expect one line: a comment in meta/my_driver.bind
+cd ../..                   # back to the repository root; every later command runs there
 ```
+
+Then rewrite the comments by hand: `BUILD.bazel`'s header says its files are upstream's
+unchanged pilot, and the `.bind`'s comments describe pilot 1's rule. Neither is true of
+your driver.
 
 What each name is:
 
@@ -72,7 +77,9 @@ Keep the Bazel target names (`driver`, `bind`, `bind_test`, `component`, `pkg`, 
   `rules_fuchsia`'s bind test, which fails under Bzlmod): `bindc test --lint` with the
   JSON spec.
 - **`component`**, **`pkg`** — `fuchsia_driver_component` and `fuchsia_package`. `pkg` is
-  tagged `manual`, so `//...` skips it: name it explicitly.
+  tagged `manual`, so `//...` does not list it; under the Fuchsia configs `//...` still
+  builds it, because `elf_test` and `manifest_test` depend on it. Name it explicitly to
+  build just the package.
 - **`elf_test`**, **`manifest_test`** — the R7 checks on the packaged driver (exports,
   soname, `DT_NEEDED` within `allowed_needed`, every packaged library's needs resolved,
   CPU) and the manifest's `syslog`/`inspect` shards. Fuchsia configs only.
@@ -117,6 +124,8 @@ test shows the rule rejects what it should.
 
 ## 5. Build and test for both targets
 
+From the repository root, as in every section from here on:
+
 ```bash
 scripts/bazel build --config=fuchsia_x64   //drivers/my_driver:pkg
 scripts/bazel build --config=fuchsia_arm64 //drivers/my_driver:pkg
@@ -126,7 +135,8 @@ scripts/bazel test  --config=fuchsia_arm64 //drivers/my_driver/...
 
 Expect `bind_test`, `elf_test` and `manifest_test` to pass for each. A host `scripts/bazel
 test` skips all three (they are Fuchsia-only). The package is
-`bazel-bin/drivers/my_driver/my_driver.far`.
+`bazel-out/fuchsia_x64-fastbuild/bin/drivers/my_driver/my_driver.far` (arm64:
+`fuchsia_arm64-fastbuild`); `bazel-bin` points at whichever config was built last.
 
 If you add a dependency, `elf_test` may report a new `DT_NEEDED` library: add it to
 `allowed_needed` only after checking an in-tree driver in the release's product bundle
@@ -186,14 +196,16 @@ must include `syslog/client.shard.cml` (and `inspect/client.shard.cml`), which g
   closure). Another IDK library is a line `sdk/fidl/<library> idk` there. A library
   outside the IDK needs the non-IDK route: `sdk/fidl/<library> upstream` (as
   `fuchsia.sys2`), so `regen.py` copies its `.fidl` files from fuchsia.git at the lock's
-  revision; such an interface is not a published contract. Then `uv run scripts/regen.py`
-  (see its `--help`) regenerates `vendor/`.
+  revision; such an interface is not a published contract. Then `uv run scripts/regen.py
+  vendor` regenerates `vendor/` (`--check` reports drift).
 - **Crates:** only crates the overlay vendors. A new in-tree crate goes through
   `regen.py` (`vendor/crates.txt`, `overlays/`, `patches/`; never hand edits); the
   crates.io roots in `vendor/crates_io.txt` are pilot 1's (pytest keeps them equal to
   `docs/closure/pilot1.json`), so a new crates.io crate needs the closure updated too
   (M14 automates this). `fidl` is visible to `//drivers`; other restricted in-tree
-  targets (e.g. `rust_next` bindings) need a visibility patch or an allowlist entry.
+  targets need a visibility patch under `patches/fuchsia/` (as `fidl`'s `0002`), and a
+  driver that names `rust_next` binding crates directly needs its package in
+  `_OVERLAY_ALLOWLIST` in `rules/fidl_rust_next.bzl`.
 - **Unit tests** (`with_unit_tests`, `test_deps`) are accepted and ignored until M16.
 - **Licensing:** a copied `.cml` keeps upstream's header and the JSON has none: before
   committing a new driver, add its files to `REUSE.toml` (as pilot 1's are) so `uv run
