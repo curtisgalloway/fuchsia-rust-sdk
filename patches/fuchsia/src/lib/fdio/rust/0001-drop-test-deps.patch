@@ -1,0 +1,31 @@
+SPDX-FileCopyrightText: 2026 Curtis Galloway
+SPDX-FileCopyrightText: The Fuchsia Authors
+SPDX-License-Identifier: Apache-2.0 AND BSD-2-Clause
+
+Build fdio without its test deps (milestone M9b).
+
+test_deps are dropped: //rules:rustc.bzl makes no unit tests until milestone M16, and
+regen.py would otherwise fetch crates outside the closure (assert_matches, tempfile).
+
+The added lines are the overlay's (Apache-2.0); the context lines are Fuchsia's
+(BSD-2-Clause, LICENSES/BSD-2-Clause.txt). Applied by scripts/regen.py to the rewritten
+BUILD.bazel.
+
+--- a/src/lib/fdio/rust/BUILD.bazel
++++ b/src/lib/fdio/rust/BUILD.bazel
+@@ -19,13 +19,8 @@
+     edition = "2024",
+     rustc_flags = ["-Dunused_results"],
+     target_compatible_with = ["@platforms//os:fuchsia"],
+-    test_deps = [
+-        "//vendor/fuchsia/src/lib/fuchsia-async",
+-        "@rust_crates//vendor:assert_matches",
+-        "@rust_crates//vendor:libc",
+-        "@rust_crates//vendor:rand",
+-        "@rust_crates//vendor:tempfile",
+-    ],
++    # Overlay: unit tests are milestone M16 (patch 0001).
++    test_deps = [],
+     version = "0.2.0",
+     visibility = ["//visibility:public"],
+     with_unit_tests = True,

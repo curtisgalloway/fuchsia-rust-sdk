@@ -392,3 +392,26 @@ Prevention: write the process-log entry (and a notebook attempt entry when it ch
 the path) in the command right after the failure, before the fix.
 Fix belongs in: agent habit (lab-notebook skill already says so)
 Status: open
+
+## 2026-09-28T04:37-07:00 — failed command: package label assumed to name the crate target
+Chapter: [M9b](notebook/M9b.md)
+What happened: a build of 20 vendored packages named each as `//vendor/fuchsia/<path>`;
+`src/lib/diagnostics/inspect/derive/macro` has no target `macro` ("no such target"), so
+Bazel rejected the pattern set (the others built under `--keep_going`).
+Cost: one rerun, under a minute.
+Prevention: name vendored packages as `<path>:all` (or take target names from the
+closure's `targets`), since upstream target names often differ from the directory name.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T04:45-07:00 — failed command: overlay mapping applied from memory, not from M9a's files
+Chapter: [M9b](notebook/M9b.md)
+What happened: five new overlays omitted `visibility = ["//visibility:public"]` for GN's
+"no visibility" (M9a's overlays spell it out; a symbolic macro's target is otherwise
+private), and `vfs` kept the proc macro `paste` in `deps`. Two analysis errors on the
+first build of layers 4–11, one rebuild each config.
+Cost: one fix-and-rebuild cycle, a few minutes.
+Prevention: generate or check overlays against an existing one's rendered fields (or run
+the field cross-check) before the first build; list GN proc-macro deps separately.
+Fix belongs in: agent habit
+Status: open

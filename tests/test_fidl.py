@@ -77,10 +77,16 @@ def test_rust_flavor_runtime_crates_are_vendored():
 
 
 def test_fuchsia_only_patches_are_for_crates_used_only_on_fuchsia():
-    contexts = {c["path"]: {ctx for t in c["targets"] for ctx in t["contexts"]} for c in CLOSURE["intree"]}
-    patched = sorted(p.parent.relative_to(ROOT / regen.PATCHES).as_posix()
-                     for p in (ROOT / regen.PATCHES).rglob("*-fuchsia-only.patch"))
-    assert patched == ["src/lib/fidl/rust/fidl", "src/lib/fuchsia-async", "src/lib/fuchsia-sync"]
+    """Every patch that marks a target Fuchsia-only (M8a; M9b) is for a crate the closure
+    uses in the fuchsia context only (a proc macro beside it, as cm_rust's, is host code)."""
+    contexts = {c["path"]: {ctx for t in c["targets"] if t["crate_type"] != "proc-macro" for ctx in t["contexts"]}
+                for c in CLOSURE["intree"]}
+    marker = '+    target_compatible_with = ["@platforms//os:fuchsia"],'
+    patched = sorted({p.parent.relative_to(ROOT / regen.PATCHES).as_posix()
+                      for p in (ROOT / regen.PATCHES).rglob("*.patch") if marker in p.read_text()})
+    assert patched == ["src/lib/diagnostics/hierarchy/rust", "src/lib/diagnostics/log/types",
+                       "src/lib/fdomain/client", "src/lib/fidl/rust/fidl", "src/lib/fuchsia-async",
+                       "src/lib/fuchsia-sync", "src/sys/lib/cm_rust", "src/sys/lib/moniker"]
     for path in patched:
         assert contexts[path] == {"fuchsia"}, path
         build = (ROOT / regen.VENDOR_OUT / path / "BUILD.bazel").read_text()

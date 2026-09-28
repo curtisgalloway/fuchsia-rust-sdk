@@ -1,0 +1,26 @@
+SPDX-FileCopyrightText: 2026 Curtis Galloway
+SPDX-FileCopyrightText: The Fuchsia Authors
+SPDX-License-Identifier: Apache-2.0 AND BSD-2-Clause
+
+Build diagnostics_log without //sdk/lib/syslog:client_includes (milestone M9b).
+
+Upstream's own comment: an empty stub in Bazel; in GN an expect_includes() target that
+checks that dependent components include syslog/client.shard.cml in their manifest. The
+overlay does not vendor //sdk/lib/syslog, so the label is removed; the manifest check is
+the driver package's concern (milestone M10).
+
+The added lines are the overlay's (Apache-2.0); the context lines are Fuchsia's
+(BSD-2-Clause, LICENSES/BSD-2-Clause.txt). Applied by scripts/regen.py to the rewritten
+BUILD.bazel.
+
+--- a/src/lib/diagnostics/log/rust/BUILD.bazel
++++ b/src/lib/diagnostics/log/rust/BUILD.bazel
+@@ -37,7 +37,7 @@
+         "//vendor/fuchsia/sdk/fidl/fuchsia.logger:fuchsia.logger_rust",
+         # Empty stub in Bazel; an expect_includes() target in GN that checks
+         # dependent components for `syslog/client.shard.cml` in their manifest.
+-        "//vendor/fuchsia/sdk/lib/syslog:client_includes",
++        # Overlay: removed; the manifest check is milestone M10's (patch 0001).
+         "//vendor/fuchsia/sdk/rust/zx",
+         "//vendor/fuchsia/src/lib/diagnostics/log/encoding/rust",
+         "//vendor/fuchsia/src/lib/fidl/rust/fidl",

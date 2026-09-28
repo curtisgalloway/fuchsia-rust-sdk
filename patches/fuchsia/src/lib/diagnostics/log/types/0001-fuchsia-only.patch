@@ -1,0 +1,32 @@
+SPDX-FileCopyrightText: 2026 Curtis Galloway
+SPDX-FileCopyrightText: The Fuchsia Authors
+SPDX-License-Identifier: Apache-2.0 AND BSD-2-Clause
+
+Build types for Fuchsia only (milestone M9b).
+
+On host, upstream builds it with schemars and serde (feature serde): outside pilot 1's
+closure (docs/closure/pilot1.json: this crate is used from Fuchsia code only). The host
+branch is emptied and the target marked Fuchsia-only.
+
+The added lines are the overlay's (Apache-2.0); the context lines are Fuchsia's
+(BSD-2-Clause, LICENSES/BSD-2-Clause.txt). Applied by scripts/regen.py to the rewritten
+BUILD.bazel.
+
+--- a/src/lib/diagnostics/log/types/BUILD.bazel
++++ b/src/lib/diagnostics/log/types/BUILD.bazel
+@@ -31,11 +31,11 @@
+         "@rust_crates//vendor:thiserror",
+     ] + select({
+         "@platforms//os:fuchsia": [],
+-        "//conditions:default": [
+-            "@rust_crates//vendor:schemars",
+-            "@rust_crates//vendor:serde",
+-        ],
++        # Overlay: no host build (patch 0001).
++        "//conditions:default": [],
+     }),
++    # Overlay: Fuchsia only (patch 0001).
++    target_compatible_with = ["@platforms//os:fuchsia"],
+ )
+ 
+ # Provided for users who need to use serde in the target.
