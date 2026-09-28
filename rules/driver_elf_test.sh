@@ -31,7 +31,16 @@ else
   echo "ok: $driver exports only [$exported]"
 fi
 
-# 2. The driver's DT_NEEDED set is within the allowed set (the reference driver's).
+# 2. Its soname is its file name, as GN's drivers have.
+soname="$("$readelf" --dynamic --wide "$src" | sed -n 's/.*(SONAME).*\[\(.*\)\].*/\1/p')"
+if [[ "$soname" != "${driver##*/}" ]]; then
+  echo "FAIL: $driver has soname [$soname], expected [${driver##*/}]" >&2
+  status=1
+else
+  echo "ok: $driver has soname $soname"
+fi
+
+# 3. The driver's DT_NEEDED set is within the allowed set (the reference driver's).
 needed="$(needed_of "$src")" || { echo "FAIL: llvm-readelf could not read $driver" >&2; exit 1; }
 needed="$(echo $needed)"
 echo "$driver DT_NEEDED: [$needed]"
@@ -42,7 +51,7 @@ for lib in $needed; do
   fi
 done
 
-# 3. Every ELF file in the package (the driver and lib/) finds each library it needs in
+# 4. Every ELF file in the package (the driver and lib/) finds each library it needs in
 # the package's lib/ or among the system libraries, so the loader can resolve them all.
 checked=0
 while IFS='=' read -r dest path; do

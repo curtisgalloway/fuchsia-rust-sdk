@@ -10,9 +10,10 @@ wrapping `fuchsia_cc` (fuchsia/private/fuchsia_cc.bzl), and on GN's
 `fuchsia_rust_driver` (build/drivers/fuchsia_driver.gni):
 
 - The shared library is a rules_rust `rust_shared_library` (crate type `cdylib`; GN:
-  `rustc_cdylib`), linked with `-Wl,--version-script=` rules_fuchsia's `driver.ld`, so it
-  exports only `__fuchsia_driver_registration__` (design F3), and against
-  `@fuchsia_sdk//pkg/driver_runtime_shared_lib`, as `fuchsia_cc_driver` links it.
+  `rustc_cdylib`) with soname `<output_name>.so`, linked with `-Wl,--version-script=`
+  rules_fuchsia's `driver.ld`, so it exports only `__fuchsia_driver_registration__`
+  (design F3), and against `@fuchsia_sdk//pkg/driver_runtime_shared_lib`, as
+  `fuchsia_cc_driver` links it.
 - Lints: `//rules/lints:fuchsia_rust_driver` by default (GN's
   `set_defaults("fuchsia_rust_driver")` adds `allow_unused_crate_dependencies`) and
   `--cap-lints=deny`, as `rustc_library`.
@@ -177,6 +178,7 @@ def _fuchsia_rust_driver_impl(
         tags,
         **kwargs):
     cdylib = name + ".cdylib"
+    bin_name = (output_name or name) + ".so"
     rust_shared_library(
         name = cdylib,
         # GN names the crate after the target (rustc_cdylib without `name`).
@@ -185,6 +187,9 @@ def _fuchsia_rust_driver_impl(
         compile_data = (compile_data or []) + [_DRIVER_LD],
         rustc_flags = with_fuchsia_rustc_flags(rustc_flags) + [
             "-Clink-arg=-Wl,--version-script=$(execpath %s)" % _DRIVER_LD,
+            # As GN's and fuchsia_cc_driver's shared libraries: the soname is the file
+            # name (the core.x64 Rust drivers have DT_SONAME <output_name>.so).
+            "-Clink-arg=-Wl,-soname=" + bin_name,
         ],
         lint_config = lint_config or _LINT_CONFIG,
         target_compatible_with = target_compatible_with or _FUCHSIA,
@@ -194,7 +199,7 @@ def _fuchsia_rust_driver_impl(
     )
     _fuchsia_rust_driver_binary(
         name = name,
-        bin_name = (output_name or name) + ".so",
+        bin_name = bin_name,
         native_target = ":" + cdylib,
         data = ["@fuchsia_sdk//pkg/sysroot:dist"],
         target_compatible_with = target_compatible_with or _FUCHSIA,
