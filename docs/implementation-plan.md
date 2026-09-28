@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 # Rust drivers out of tree (the overlay) — Implementation Plan
 
 Design: [design](design.md), revision "2026-09-27, draft 1", approved 2026-09-27
-including D6 (approval recorded in commit `2ced23a`; file unchanged since).
+including D6 (approval recorded in commit `2ced23a`; since amended by owner direction and milestone findings; see its revision line).
 Brief: [brief](brief.md) (evidence and upstream paths; the design wins where they differ).
 Notebook: [index](notebook/index.md); process log: [process log](process-log.md)
 Target release for milestone 1: `33.20260927.4.1` (`LATEST_LINUX` on 2026-09-27).
@@ -112,6 +112,25 @@ are met:
 Next: report to the owner and wait. I4, M12–M18 and G2 start only on the owner's
 go-ahead.
 M3, I2 and I3 run beside it. I4 needs only the lab, so it can run any time before M13.
+
+**Publication decisions (owner, 2026-09-28).** The repository is prepared to be made
+public; the owner flips its visibility after this lands (branch `ms/public`, final
+commit `docs: prepare for public release (brief note, README, SECURITY, CONTRIBUTING)`).
+- **1A:** `docs/brief.md` stays in the tree. Its header gains one note: its relative
+  links name files in `curtisgalloway/fuchsia-ci`, which will be published later, so they
+  resolve there once it is, and not before. The owner first chose 1B (remove the brief
+  from the tree, keep it in history) and changed to 1A the same day; the branch's first
+  commit carried out 1B and a later one reverted it (the design notebook chapter records
+  both corrections). `fuchsia-ci` will itself be made public later (owner), so its
+  mentions in the design and this plan stay as they were, with no "private" marker.
+- **2A:** the name stays; `README.md` says near the top that this is not an official
+  Google or Fuchsia project and that Fuchsia is a trademark of Google LLC.
+- **3A:** the notebooks, evidence files and process log stay where they are.
+- Also added: a public-facing `README.md` pass (status, limits, how this was built),
+  `SECURITY.md` (GitHub private vulnerability reporting) and `CONTRIBUTING.md`.
+- Link edits in this plan: M12–M17's evidence and notebook links, which pointed at files
+  not yet written, became code text (a milestone's session restores the links when it
+  writes them). The design is unchanged.
 
 ## Design coverage
 
@@ -714,7 +733,7 @@ crates: M12a covers the closure, crates and bindings; M12b covers the vendored c
 the driver and the checks.
 
 ### Evidence and findings
-Status: pending · Evidence: [M12](evidence/M12.md) · Notebook: [M12](notebook/M12.md)
+Status: pending · Evidence: `evidence/M12.md` · Notebook: `notebook/M12.md` (both not yet written)
 
 ---
 
@@ -737,7 +756,7 @@ Status: pending · Evidence: [M12](evidence/M12.md) · Notebook: [M12](notebook/
 **Blocked outside the lab:** unavailable hardware leaves this `blocked`, not complete.
 
 ### Evidence and findings
-Status: pending · Evidence: [M13](evidence/M13.md) · Notebook: [M13](notebook/M13.md)
+Status: pending · Evidence: `evidence/M13.md` · Notebook: `notebook/M13.md` (both not yet written)
 
 ---
 
@@ -775,7 +794,7 @@ Status: pending · Evidence: [M13](evidence/M13.md) · Notebook: [M13](notebook/
   otherwise inherit.
 
 ### Evidence and findings
-Status: pending · Evidence: [M14](evidence/M14.md) · Notebook: [M14](notebook/M14.md)
+Status: pending · Evidence: `evidence/M14.md` · Notebook: `notebook/M14.md` (both not yet written)
 
 ---
 
@@ -797,7 +816,7 @@ release than `33.20260927.4.1` exists (check `LATEST_LINUX`).
   in the evidence (RFC evidence per design §1).
 
 ### Evidence and findings
-Status: pending · Evidence: [M15](evidence/M15.md) · Notebook: [M15](notebook/M15.md)
+Status: pending · Evidence: `evidence/M15.md` · Notebook: `notebook/M15.md` (both not yet written)
 
 ---
 
@@ -826,7 +845,7 @@ Status: pending · Evidence: [M15](evidence/M15.md) · Notebook: [M15](notebook/
 Split point: the test rule with one trivial test, then the `aml-saradc` suite.
 
 ### Evidence and findings
-Status: pending · Evidence: [M16](evidence/M16.md) · Notebook: [M16](notebook/M16.md)
+Status: pending · Evidence: `evidence/M16.md` · Notebook: `notebook/M16.md` (both not yet written)
 
 ---
 
@@ -849,7 +868,7 @@ milestone.
 **Decision needed before start:** where the job lives relative to the C++ job.
 
 ### Evidence and findings
-Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/M17.md)
+Status: pending · Evidence: `evidence/M17.md` · Notebook: `notebook/M17.md` (both not yet written)
 
 ---
 
@@ -1293,6 +1312,9 @@ overlay's cfgs and the Fuchsia target `std`. Split point: one crate first, then 
   requirement and constraint coverage, deviations, disk, closure counts, the guide's
   verification and the review.
 - Uncommitted state: none. The emulator is stopped and the scratch clone removed.
+- After G1 (docs only, branch `ms/public`): publication prep per the owner's decisions
+  1B/2A/3A ("Publication decisions" under the milestone 1 declaration). The owner flips
+  the repository's visibility; no milestone status changed.
 - Remaining work, blockers, and decisions: **stop and report to the owner.** Milestones
   after G1 (I4, M12–M18, G2) start only on the owner's go-ahead (owner direction
   2026-09-28); M18 additionally needs the owner's approval. Unchanged: M17 placement.

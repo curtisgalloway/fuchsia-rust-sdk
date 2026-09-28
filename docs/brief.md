@@ -5,7 +5,9 @@
 > `curtisgalloway/fuchsia-ci` repo at `b061204`, kept here so sessions without that
 > checkout can read it. Relative links (e.g. `out-of-tree-bus-drivers.md`) point into
 > `fuchsia-ci`. The approved design is [`design.md`](design.md); where they differ, the
-> design wins.
+> design wins. The relative links name files in `curtisgalloway/fuchsia-ci`'s `docs/drivers/`:
+> they will resolve there once that repository is published, and until then they do not
+> (note added 2026-09-28).
 
 # Rust drivers out of tree: plan brief
 

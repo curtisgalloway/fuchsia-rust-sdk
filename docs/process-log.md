@@ -632,3 +632,28 @@ Prevention: before simulating a fresh machine, list every path the tools write
 name it as kept.
 Fix belongs in: project instructions (a "fresh container" recipe for gates)
 Status: open
+
+## 2026-09-28T09:23-07:00 — user correction: publication decisions changed mid-change (brief 1B → 1A; `fuchsia-ci` not "private")
+Chapter: [design](notebook/design.md)
+What happened: preparing the repository to be made public, I carried out the owner's
+decision 1B first: `docs/brief.md` (a copy from `curtisgalloway/fuchsia-ci`) removed from
+the tree, its three links made plain text (one an in-place edit of the append-only
+design chapter, disclosed in a correction entry), "(private)" added to two `fuchsia-ci`
+references, all committed. The owner then changed to 1A (keep the brief, with a header
+note about its links into `fuchsia-ci`), and then said `fuchsia-ci` will be published
+later, so nothing should call it private. I restored the brief and the links, removed
+the markers, and added a second correction entry to the design chapter (the first stays,
+append-only). The README pass, SECURITY.md, CONTRIBUTING.md and the tree sweep were not
+affected. Also this session: the Edit tool refused `docs/implementation-plan.md` twice
+because it had been read only with `sed` or not since an edit by script (same cause as
+M11's entry).
+Cost: one commit carried out and then reverted; two correction entries where none would
+remain; about ten minutes; two extra Read calls.
+Prevention: when a decision removes content or changes how another repository is
+described (private, public), commit the reversible, uncontroversial parts first and the
+removal last, so a changed decision costs an unstaged edit rather than a revert. Record
+each source repository's intended visibility in the design's header when it is first
+cited, so publication does not depend on a same-day decision.
+Fix belongs in: agent habit (order of commits), and project-plan skill (a line on
+recording the visibility of cited repositories)
+Status: open

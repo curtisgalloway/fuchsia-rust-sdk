@@ -74,3 +74,22 @@ owner, not silently changed.
 ## 2026-09-27T17:46-07:00 — checkpoint
 State: plan draft 1 written ([plan](../implementation-plan.md)). Design unchanged.
 Next: owner reads the plan; then start I1 (first command in the plan's Next session).
+
+## 2026-09-28T09:18-07:00 — correction of the chapter's goal line (brief link)
+The goal line linked `../brief.md`. The owner decided on 2026-09-28 (publication
+decision 1B) to remove `docs/brief.md` from the tree before the repository is made
+public: it copies a document from the owner's private `curtisgalloway/fuchsia-ci` repo,
+which is not published. The file stays in git history (last present at `909cc07`).
+The goal line was edited in place: the link became the plain text "`docs/brief.md` at
+`909cc07`". No other word of this chapter changed; this is the one deliberate exception
+to append-only in this chapter. The "brief" in the entries above still means that
+document; see the design's header.
+
+## 2026-09-28T09:22-07:00 — correction of 2026-09-28T09:18-07:00 (brief link edit reverted)
+The owner changed publication decision 1B to 1A the same day: `docs/brief.md` stays in
+the tree, with a note in its header about its links into `curtisgalloway/fuchsia-ci`
+(they resolve once that repository is published, not before). The in-place
+edit of the goal line was reverted: it links `../brief.md` again, word for word as
+first written. The correction entry above stays as written (append-only); it describes
+an edit that no longer stands. This chapter now differs from its pre-2026-09-28 text
+only by these two appended entries.
