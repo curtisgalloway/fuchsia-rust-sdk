@@ -5,9 +5,10 @@
 
 Upstream's Rust toolchain reads `all_numbered_api_levels` and `idk_buildable_api_levels`
 from `@fuchsia_build_info//:args.bzl`, which GN writes from the source tree's
-`sdk/version_history.json`. The overlay has no GN build, so this repository rule writes
-the same two names to `@<name>//:args.bzl` from a `version_history.json` file, using the
-port of upstream's `get_platform_version.py` in //rules:api_level.bzl.
+`sdk/version_history.json`, and its FIDL rules read `runtime_supported_api_levels`. The
+overlay has no GN build, so this repository rule writes the same three names to
+`@<name>//:args.bzl` from a `version_history.json` file, using the port of upstream's
+`get_platform_version.py` in //rules:api_level.bzl.
 
 MODULE.bazel creates `@fuchsia_api_levels` from the IDK's copy (the release's levels,
 used by the toolchains) and two test repositories from pinned copies (tests/api_level).
@@ -29,10 +30,13 @@ def _api_levels_repository_impl(rctx):
 all_numbered_api_levels = {all_numbered}
 
 idk_buildable_api_levels = {idk_buildable}
+
+runtime_supported_api_levels = {runtime_supported}
 """.format(
         source = source,
         all_numbered = json.encode(levels.all_numbered_api_levels),
         idk_buildable = json.encode(levels.idk_buildable_api_levels),
+        runtime_supported = json.encode(levels.runtime_supported_api_levels),
     ))
     rctx.file("BUILD.bazel", 'exports_files(["args.bzl"])\n')
 

@@ -70,11 +70,13 @@ def platform_version_from_json(content, source = "version_history.json"):
         source: A name for the file, used in error messages.
 
     Returns:
-        A struct with the two values upstream's Rust cfg generator reads from
-        @fuchsia_build_info//:args.bzl, as strings (build/bazel/BUILD.gn stringifies
-        them): `all_numbered_api_levels` (every numbered level in the file, all frozen
-        or previously frozen) and `idk_buildable_api_levels` (the GN default:
-        the "supported" levels plus "NEXT").
+        A struct with values upstream reads from @fuchsia_build_info//:args.bzl, as
+        strings (build/bazel/BUILD.gn stringifies them): `all_numbered_api_levels` (every
+        numbered level in the file, all frozen or previously frozen) and
+        `idk_buildable_api_levels` (the GN default: the "supported" levels plus "NEXT"),
+        which the Rust cfg generator reads, and `runtime_supported_api_levels` (the
+        "sunset" and "supported" levels plus "NEXT" and "HEAD"), which FIDL's PLATFORM
+        level expands to (build/bazel/rules/fidl/fidl_ir.bzl; overlay: milestone M8).
     """
     data = json.decode(content)["data"]
     api_levels = data["api_levels"]
@@ -90,9 +92,15 @@ def platform_version_from_json(content, source = "version_history.json"):
             # Upstream: an assertion that every level is retired, sunset or supported.
             fail('%s: "api_levels" contains a level with an unexpected "phase": %s is "%s".' % (source, level, phase))
         phases[level] = phase
+    sunset_api_levels = [level for level in numbered if phases[level] == "sunset"]
     supported_api_levels = [level for level in numbered if phases[level] == "supported"]
 
+    # Special API levels are added below.
+    runtime_supported_api_levels = [str(level) for level in sunset_api_levels + supported_api_levels]
+
+    # Explicitly add concrete special API levels.
     # "HEAD" is not supported in the IDK - see https://fxbug.dev/334936990.
+    runtime_supported_api_levels += ["NEXT", "HEAD"]
     idk_buildable_api_levels = [str(level) for level in supported_api_levels] + ["NEXT"]
 
     # Overlay: upstream asserts the special levels appear as NEXT, HEAD, PLATFORM in that
@@ -108,4 +116,5 @@ def platform_version_from_json(content, source = "version_history.json"):
     return struct(
         all_numbered_api_levels = [str(level) for level in numbered],
         idk_buildable_api_levels = idk_buildable_api_levels,
+        runtime_supported_api_levels = runtime_supported_api_levels,
     )

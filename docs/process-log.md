@@ -273,3 +273,24 @@ Prevention: run `bazel mod` commands with `--lockfile_mode=off` (or in a scratch
 output base), or check the lockfile diff right after them.
 Fix belongs in: agent habit; project instructions (plan backlog item added)
 Status: open
+
+## 2026-09-28T02:25-07:00 — instruction gap: notebook entries stamped with a guessed time
+Chapter: [M8](notebook/M8.md)
+What happened: three M8 entries were written in one heredoc with a typed timestamp
+(02:32) while the `date` call in the same command printed 02:24; noticed from the
+command's output and corrected before anything else read them.
+Cost: one extra edit; a wrong stamp would have misled the index's staleness check.
+Prevention: substitute the `date` output into the heredoc (`$(date …)`) instead of
+typing it.
+Fix belongs in: agent habit (lab-notebook skill already says so)
+Status: open
+
+## 2026-09-28T02:25-07:00 — surprise: Bash auto-mode classifier gave no verdict for several minutes
+Chapter: [M8](notebook/M8.md)
+What happened: around 02:00 every Bash call (even `date`) failed with "The server-side
+auto mode classifier gave no verdict (error)"; read-only tools kept working. Continued
+reading upstream files with Read/Grep until Bash came back.
+Cost: about 5 minutes; no step redone.
+Prevention: none on the project side; keep read-only work queued for such gaps.
+Fix belongs in: tool (harness)
+Status: open

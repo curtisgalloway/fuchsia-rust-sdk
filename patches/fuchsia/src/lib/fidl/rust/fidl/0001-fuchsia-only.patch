@@ -1,0 +1,29 @@
+SPDX-FileCopyrightText: 2026 Curtis Galloway
+SPDX-FileCopyrightText: The Fuchsia Authors
+SPDX-License-Identifier: Apache-2.0 AND BSD-2-Clause
+
+Build the fidl crate for Fuchsia only (milestone M8).
+
+On host, upstream builds it with //src/lib/fuchsia-emulated-handle, which needs tokio
+(forks/tokio-1.53.1, sources only in fuchsia.git) and futures-lite: outside pilot 1's
+closure (docs/closure/pilot1.json: this crate is used from Fuchsia code only). The host
+branch is emptied and the target marked Fuchsia-only, so host builds skip it instead of
+failing. The added lines are the overlay's (Apache-2.0); the context lines are Fuchsia's
+(BSD-2-Clause, LICENSES/BSD-2-Clause.txt). Applied by scripts/regen.py to the rewritten
+BUILD.bazel.
+
+--- a/src/lib/fidl/rust/fidl/BUILD.bazel
++++ b/src/lib/fidl/rust/fidl/BUILD.bazel
+@@ -54,8 +54,11 @@
+         "@rust_crates//vendor:thiserror",
+     ] + select({
+         "@platforms//os:fuchsia": ["//vendor/fuchsia/sdk/rust/zx"],
+-        "//conditions:default": ["//vendor/fuchsia/src/lib/fuchsia-emulated-handle"],
++        # Overlay: no host build (patch 0001).
++        "//conditions:default": [],
+     }),
++    # Overlay: Fuchsia only (patch 0001).
++    target_compatible_with = ["@platforms//os:fuchsia"],
+ )
+ 
+ package(default_applicable_licenses = ["//vendor/fuchsia:license"])
