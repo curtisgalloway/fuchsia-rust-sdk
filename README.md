@@ -25,6 +25,17 @@ scripts/bazel build //examples/hello_host                         # host toolcha
 A cold build downloads about 4 GB (mostly the release's IDK, then clang and the Rust
 toolchain, each pinned by SHA-256 in the lock).
 
+The two FIDL binding generators are host tools. `fidlgen_rust` is built from vendored
+source with `rules_go` and the release's Go SDK (the lock's `go` field);
+`fidlgen_rust_next` is the release's prebuilt binary (the lock's `fidlgen_rust_next`
+field, from the public debug-symbol store):
+
+```bash
+scripts/bazel run //tools/fidlgen_rust -- --help
+scripts/bazel run //tools/fidlgen_rust_next -- --help
+scripts/bazel test //tests/fidlgen/...    # both reproduce upstream's goldens; fuchsia.mem
+```
+
 ### Disk and environment profiles
 
 Disk limits belong to the environment (design C6). The default profile, `hosted`, fits

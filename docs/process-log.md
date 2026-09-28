@@ -260,3 +260,16 @@ Prevention: compare against the base in a separate worktree (or with a WIP commi
 first), never by stashing a tree that a Bazel command will write to.
 Fix belongs in: agent habit
 Status: open
+
+## 2026-09-28T01:29-07:00 — surprise: `bazel mod graph` wrote ~3,000 lines into MODULE.bazel.lock
+Chapter: [M7](notebook/M7.md)
+What happened: a `bazel mod graph` run (to compare resolved module versions) evaluated
+every module extension in the graph and recorded their results in `MODULE.bazel.lock`
+(pip, pybind11, rules_fuzzing, crate_universe's `cu_nr`). They showed up in the M7
+lockfile diff as if rules_go had caused them; the builds never need them.
+Cost: about 10 minutes to find the cause and prove the minimal lockfile (strip, rerun
+the three builds and the tests, check `--lockfile_mode=error`).
+Prevention: run `bazel mod` commands with `--lockfile_mode=off` (or in a scratch
+output base), or check the lockfile diff right after them.
+Fix belongs in: agent habit; project instructions (plan backlog item added)
+Status: open
