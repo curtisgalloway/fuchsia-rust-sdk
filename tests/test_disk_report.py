@@ -147,3 +147,10 @@ def test_sdk_scope_excludes_whole_sdk_globs():
     assert "rdeps(@fuchsia_sdk//..., @fuchsia_sdk//:all_files)" in cs.SDK_SCOPE
     assert "_EXPORT_SUBPACKAGE_FILEGROUP" in cs.SDK_SCOPE
     assert cs.CONFIGS["host"] == (None, "//...")
+
+
+def test_unexpected_analysis_errors():
+    known = "@@+fuchsia_repos+fuchsia_sdk//pkg/vulkan_layers/riscv64:vulkan_layers"
+    new = "@@+fuchsia_repos+fuchsia_sdk//pkg/fdio:fdio"
+    assert cs.unexpected_errors([known, new]) == [new]
+    assert cs.unexpected_errors([known]) == []

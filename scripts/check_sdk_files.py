@@ -15,7 +15,9 @@ the transitive closure of
   runfiles of the `bazel run` wrappers `:ffx`, `:cmc` and `:funnel`) and the
   per-package glob filegroups `all_files` collects,
 
-then fails if any of those files is missing (a dangling symlink counts as missing).
+then fails if any of those files is missing (a dangling symlink counts as missing), or
+if a target in scope fails analysis other than the known ones in
+EXPECTED_ANALYSIS_ERRORS (a target that fails analysis reaches no files at all).
 
     uv run scripts/check_sdk_files.py            # all three configurations
     uv run scripts/check_sdk_files.py --config fuchsia_x64
@@ -42,6 +44,34 @@ SDK_SCOPE = (
     f"({SDK}//... - rdeps({SDK}//..., {SDK}//:all_files)"
     f' - attr(name, "^_EXPORT_SUBPACKAGE_FILEGROUP$", {SDK}//...))'
 )
+# Targets in the SDK scope that fail analysis under the Fuchsia configs. A target that
+# fails analysis contributes no files to the query, so it could hide a missing file; any
+# failure not listed here fails the check. The first 13 fail on the untrimmed IDK too
+# (measured in M2a): prebuilt packages exist only for numbered API levels, not HEAD, and
+# the rest need toolchains or packages the release's SDK does not provide. The last one
+# is the trim's own doing: its only input is a riscv64 library the trim drops, and the
+# name says it is riscv64-only.
+EXPECTED_ANALYSIS_ERRORS = frozenset(
+    f"@@+fuchsia_repos+fuchsia_sdk//{t}"
+    for t in (
+        ":fuchsia_platform_sdk",
+        ":fuchsia_toolchain_version_sdk",
+        "packages/cmd-buf-benchmark-test:cmd-buf-benchmark-test",
+        "packages/fake-build-info:fake-build-info",
+        "packages/heapdump-collector:heapdump-collector",
+        "packages/intl_property_manager:intl_property_manager",
+        "packages/realm_builder_server:realm_builder_server",
+        "packages/vkcopy-test:vkcopy-test",
+        "packages/vkext-test:vkext-test",
+        "packages/vkloop-test:vkloop-test",
+        "packages/vkproto-driver-test:vkproto-driver-test",
+        "packages/vkreadback_test:vkreadback_test",
+        "python/rtc_conformance_test/unversioned:rtc_conformance_test",
+        # trim: arch/riscv64/dist/VkLayer_*.so
+        "pkg/vulkan_layers/riscv64:vulkan_layers",
+    )
+)
+
 # config name -> the --config flag (None for the host) and the query scope.
 CONFIGS: dict[str, tuple[str | None, str]] = {
     "fuchsia_x64": ("fuchsia_x64", f"//... + {SDK_SCOPE}"),
@@ -74,6 +104,10 @@ _ERROR_TARGET = re.compile(r"errors encountered while analyzing target '([^']+)'
 def parse_analysis_errors(stderr: str) -> list[str]:
     """Targets --keep_going skipped because their analysis failed."""
     return sorted(set(_ERROR_TARGET.findall(stderr)))
+
+
+def unexpected_errors(errors: list[str]) -> list[str]:
+    return [t for t in errors if t not in EXPECTED_ANALYSIS_ERRORS]
 
 
 def resolve(path: str, workspace: Path, output_base: Path) -> Path:
@@ -132,10 +166,14 @@ def main(argv: list[str] | None = None) -> int:
               f"{len(r.missing)} missing, {len(r.analysis_errors)} targets not analyzable")
         for f in r.missing:
             print(f"  missing: {f}")
+        unexpected = unexpected_errors(r.analysis_errors)
+        for t in unexpected:
+            print(f"  not analyzable (unexpected): {t}")
         if args.list_errors:
             for t in r.analysis_errors:
-                print(f"  not analyzable: {t}")
-        if r.missing:
+                if t not in unexpected:
+                    print(f"  not analyzable (expected): {t}")
+        if r.missing or unexpected:
             status = 1
     return status
 

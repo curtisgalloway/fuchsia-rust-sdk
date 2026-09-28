@@ -192,45 +192,20 @@ build-flags toolchain (M4 may revisit); no Fuchsia proc-macro use yet (M6).
 ## M2a — Fit the hosted disk budget
 
 **Design coverage:** C6. **Dependencies:** M2.
-**Why:** M2 measured the Bazel output base at 16 GB (extracted IDK 13 GB, of which
-`obj/` 8.3 GB) plus a 3.8 GB repository cache, leaving 9 GB of the hosted profile's 30.
-**In scope:**
-- Extract only what the overlay builds against from the pinned IDK: the API level(s)
-  the configs use (HEAD) and the x64/arm64 architectures, dropping other API levels'
-  prebuilts and riscv64. The archive stays pinned and verified by SHA-256 before any
-  trim.
-- A repository-cache policy (clear or bound it after fetching).
-- `scripts/disk_report` (proposed): disk use per bucket (output base, repository
-  cache, emulator state, scratch) against the active profile's budget.
-- Profile detection and declaration (hosted by default; a declared large-disk profile
-  skips the trim and keeps caches).
-
-**Out of scope:** emulator assets (M3 measures them with the same report).
-
-### Acceptance criteria
-- [ ] A tampered IDK archive still fails its SHA-256 check; the trim runs only after
-  verification.
-- [ ] From a clean output base, `//...` builds under `fuchsia_x64`, `fuchsia_arm64`
-  and host.
-- [ ] Output base plus repository cache ≤ 12 GB under the hosted profile, shown by
-  the disk report.
-- [ ] Under a declared large-disk profile, trim and cache clearing are skipped
-  (covered by the script's unit tests, not a second full build).
-- [ ] `uv run pytest` and `uv run reuse lint` pass.
-
-### Testing and review
-- Review focus: the trim cannot hide a missing file the generated SDK needs (a build
-  that never references it passes anyway); the SHA-256 check still covers the whole
-  archive; profile logic.
-- Review method: inherit.
-
-### Session sizing
-One session. The main risk is that `rules_fuchsia`'s generated SDK references other API
-levels' prebuilts. Split point: the trim and measurement first, then the profile and
-cache policy.
-
-### Evidence and findings
-Status: pending · Evidence: [M2a](evidence/M2a.md) · Notebook: [M2a](notebook/M2a.md)
+**Status:** in_progress: implementation, verification and evidence done; review
+pending (before the checkpoint). The detailed entry is in the evidence file.
+**Outcome:** environment profiles (`scripts/overlay_profile.py`: `hosted` default,
+`large-disk` declared by `$OVERLAY_PROFILE` or `~/.config/fuchsia-rust-sdk/profile`).
+Under `hosted`, `@fuchsia_idk` is SHA-256-checked by `rctx.download`, then extracted by
+`scripts/idk_extract.py` without `obj/` (non-HEAD levels), riscv64 libraries and arm64
+host tools (3.6 GB instead of 13 GB), and `scripts/bazel` prunes the IDK tarball from
+the repository cache after fetching. From a clean output base all three `//...` builds
+pass; output base + repository cache 7.69 GiB (budget 12), total 7.96 GiB (budget 25),
+by `scripts/disk_report.py`. `scripts/check_sdk_files.py` shows no reachable SDK file
+missing. pytest 118, `reuse lint` pass.
+**Evidence:** [M2a](evidence/M2a.md) · **Notebook:** [M2a](notebook/M2a.md)
+**Open limitations:** a refetch of the IDK downloads 3 GB again; the prune needs
+`scripts/bazel`; fetching the IDK needs `python3` ≥ 3.11; `large-disk` has no budget.
 
 ---
 
@@ -946,7 +921,7 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 | Risk | Affects | Mitigation |
 |---|---|---|
-| Cloud disk: about 30 GB free. `fuchsia-cloud-dev`'s cache is about 15 GB; this repo adds the Rust toolchain, crates and bindings | M3 onward | Record disk at M2 and M3. Share one Bazel output base. Drop `rules_python`-only deps. If still tight, emulator milestones may need a lab machine or a larger environment. **Measured at M2:** Bazel caches about 20 GB (extracted IDK 13 GB, of which `obj/` 8.3 GB; repository cache 3.8 GB); 9 GB free afterwards. **Response:** constraint C6 and milestone M2a (owner direction 2026-09-27) |
+| Cloud disk: about 30 GB free. `fuchsia-cloud-dev`'s cache is about 15 GB; this repo adds the Rust toolchain, crates and bindings | M3 onward | Record disk at M2 and M3. Share one Bazel output base. Drop `rules_python`-only deps. If still tight, emulator milestones may need a lab machine or a larger environment. **Measured at M2:** Bazel caches about 20 GB (extracted IDK 13 GB, of which `obj/` 8.3 GB; repository cache 3.8 GB); 9 GB free afterwards. **Response:** constraint C6 and milestone M2a (owner direction 2026-09-27). **After M2a:** Bazel caches 7.7 GiB, total 8.0 GiB of the hosted 25; about 17 GiB left for M3 |
 | TCG emulation is slow | M11, M16 | Budget from `fuchsia-cloud-dev`'s measurements (about 1 min boot, about 2 min driver reload) |
 | I1 finds no anonymous mapping | everything | Stop and escalate at I1; do not guess a revision |
 | Closure larger than the plan's split thresholds | M6, M8, M9, M12 | Split thresholds are stated per milestone; split before starting |
@@ -954,7 +929,7 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 ## Discovered work / backlog
 
 - **Disk before M3 (found in M2) — decided:** the owner requires the hosted profile
-  (30 GB); became constraint C6 and milestone M2a.
+  (30 GB); became constraint C6 and milestone M2a (done: 8.0 GiB of 25 after M2a).
 - **Bazel version as a lock field (M14).** fuchsia.git pins Bazel in
   `manifests/jiri.lock` (`fuchsia/third_party/3pp/bazel`); `resolve_pins.py` could
   record it so `.bazelversion`/`scripts/bazel.sha256` follow the release automatically.
@@ -1002,20 +977,18 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M2 complete** (branch `ms/M2` from `722dc81`;
-  checkpoint `overlay: M2 — Bazel workspace and Fuchsia Rust toolchains` on top of
-  three `wip: M2 — …` commits).
-- Completed work and evidence: [M2 evidence](evidence/M2.md), including the review
-  findings and resolutions. Both Fuchsia configs and the host build pass from a clean
-  output base; pytest (75) and `reuse lint` pass.
-- Commits: `8975e53`, `6b71b8b`, `cca5d08` (wip) and the checkpoint. No uncommitted state.
-- Remaining work, blockers, and decisions:
-  - the orchestrator's docs commit: design amendments (Bazel version, host-std package
-    and five pins, new constraint C6) and the new milestone M2a (IDK trim);
-  - **before M3:** disk (9 GB free after M2), which M2a addresses;
-  - unchanged: the R7 reading for pilot 1 (before M10 closes); M17 placement.
+- Current milestone and status: **M2a in_progress, review pending** (branch `ms/M2a`
+  from `aaf53b7`; wip `695841e`; the rest uncommitted until the review).
+- Completed work and evidence: [M2a evidence](evidence/M2a.md). Profiles, trimmed IDK
+  extraction, post-fetch cache prune, disk report and SDK-file check; all three `//...`
+  builds from a clean output base; 7.69 GiB of 12 for the Bazel caches.
+- Remaining work, blockers, and decisions: the orchestrator's review, fixes, the
+  Review section of the evidence, then the checkpoint commit
+  `overlay: M2a — Fit the hosted disk budget`. Unchanged: the R7 reading for pilot 1
+  (before M10 closes); M17 placement.
 - Context boundary: normal.
-- Resume action: begin the next eligible milestone the orchestrator names (M2a, then M3
-  or M4).
-- Read first: [M2 evidence](evidence/M2.md), [notebook index](notebook/index.md),
-  `MODULE.bazel`, `toolchain/`.
+- Resume action: finish M2a's review and checkpoint; then M3 or M4 as the orchestrator
+  names.
+- Read first: [M2a evidence](evidence/M2a.md) (its "For M3" section before M3),
+  [notebook index](notebook/index.md), `scripts/overlay_profile.py`,
+  `scripts/disk_report.py`, `toolchain/repositories.bzl`.

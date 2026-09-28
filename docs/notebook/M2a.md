@@ -90,3 +90,50 @@ empty. Loud, not silent. Fix: keep `arch/<dropped cpu>/sysroot/` (riscv64: 26 MB
 597 MB). Also noted: since globs skip dangling symlinks, `:all_files` just omits the
 trimmed files instead of failing. Also added the post-fetch prune to `scripts/bazel`
 (previous entry). Next: expunge and clear the cache again, then the measured build.
+
+## 2026-09-27T19:59-07:00 — attempt: measured clean build passes under the hosted profile
+From an expunged output base and an empty repository cache: `scripts/bazel build
+--lockfile_mode=error --config=fuchsia_x64 //...` exit 0 in 162 s (all fetches,
+download, SHA-256, trimmed extraction), then `--config=fuchsia_arm64 //...` 2 s and host
+`//...` 1 s; `MODULE.bazel.lock` unchanged. The post-fetch prune ran once, after the
+x64 build (`removed the IDK archive from the repository cache`). `disk_report.py`:
+output base 6.66 GiB (IDK 3.6 GB, clang 1.9 GB, Rust 1.1 GB), repository cache 0.91 GiB,
+bazel group 7.57 of 12 GiB, total 7.84 of 25 GiB; 21.3 GiB free.
+
+## 2026-09-27T20:01-07:00 — surprise: a missing IDK file shows up as an analysis error, not a missing path
+`check_sdk_files.py` on the trimmed build: 0 missing in all three configs, but under
+the Fuchsia configs 14 targets fail analysis, versus 13 on the untrimmed IDK (the
+reference cquery at the start). The new one is `pkg/vulkan_layers/riscv64:vulkan_layers`
+(`no such target //:arch/riscv64/dist/VkLayer_image_pipe_swapchain.so`): in the SDK's
+root package a label to a file that no longer exists is `no such target` at analysis.
+Negative test: moving `arch/x64/lib/libfdio.so` out of the IDK gave 0 "missing" but 37
+new analysis failures (`pkg/fdio:fdio`, `//examples/hello_rust`, …). So a failed
+target hides its files from the query; the check now fails on any analysis error
+outside a listed set (the 13 pre-existing ones plus the riscv64-only vulkan layer), and
+the negative test exits 1. File restored; check back to exit 0.
+
+## 2026-09-27T20:06-07:00 — attempt: live tamper test, profile change, final measurement
+- Lock `bazel_sdk.value` last digit `6`→`7`: the `fuchsia_idk` fetch fails in
+  `rctx.download` (`Checksum was 043104ba…78f6 but wanted …78f7`), exit 2 after 41 s;
+  no extraction ran. Lock restored (`git diff --exit-code` clean); nothing for that hash
+  was left in the repository cache.
+- `OVERLAY_PROFILE=bogus`: the `fuchsia_idk` fetch re-ran and failed with
+  `unknown profile 'bogus' (known: hosted, large-disk)`, and `scripts/bazel` warned that
+  the cache policy was not applied. So the repository rule does see profile changes.
+- Rebuilt after both (107 s x64, 1 s arm64, 0 s host, `--lockfile_mode=error`, lock
+  file unchanged); `check_sdk_files.py` exit 0; `disk_report.py` exit 0: output base
+  6.75 GiB, repository cache 0.94 GiB, bazel 7.69/12 GiB, total 7.96/25 GiB.
+
+## 2026-09-27T20:06-07:00 — correction of 2026-09-27T19:32-07:00 (sdk_host_tool wrappers)
+The 19:32 entry predicted `:ffx`, `:cmc` and `:funnel` would fail after the trim.
+They do not: Bazel globs skip dangling symlinks, so `:all_files` just omits the trimmed
+files, and `scripts/bazel build --config=fuchsia_x64 @fuchsia_sdk//:ffx` succeeds. The
+check still leaves them out of scope, because their only extra inputs are the whole-SDK
+globs.
+
+## 2026-09-27T20:08-07:00 — checkpoint
+State: in progress, review pending. All five acceptance criteria verified (evidence
+"Verification"); evidence written except "Review"; plan entry, Risks and Next session
+updated; README gained "Disk and environment profiles". Branch `ms/M2a`: wip
+`695841e`, later changes uncommitted. Next: the orchestrator's reviewer subagent, fixes,
+the evidence Review section, then the checkpoint commit.
