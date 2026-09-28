@@ -90,7 +90,7 @@ in the cloud.
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | complete |
 | I3 | Emulator bind target for pilot 1 confirmed at this release; pilot builds with it | M3 | cloud (emulator) | complete |
 | M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | complete |
-| G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone; driver guide | M11 | cloud (emulator) | pending |
+| G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone; driver guide | M11 | cloud (emulator) | in review |
 | I4 | Method to replace the in-tree `aml-saradc` on the VIM3 | — | **lab** | pending |
 | M12 | Pilot 2 closure; `aml_saradc` builds for arm64 and passes R7 checks (R4–R7) | G1 | cloud | pending |
 | M13 | Pilot 2 binds on the VIM3 and reads the ADC (R8b) | M12, I4 | **lab** | pending |
@@ -637,6 +637,13 @@ until a driver uses `vfs`.
 
 **Review:** `review-swarm` if available, otherwise a reviewer subagent over the whole
 milestone-1 diff against design §1, §3 and §4.
+**Status:** in review. All six checks pass in a simulated fresh container (caches
+deleted, fresh clone at `c0ec17d`): pytest 453, `regen.py --check` clean, the lock
+byte-identical, `//...` built and tested cold for x64 (6 min 8 s), arm64 and host,
+the M11 replay binds verbatim, and `docs/driver-guide.md` followed literally binds a
+renamed copy. Disk peak Bazel 12.42 of 15 GiB, end 11.69; total 12.36 of 25. Review and
+the milestone 1 declaration are the orchestrator's.
+**Evidence:** [G1](evidence/G1.md) · **Notebook:** [G1](notebook/G1.md)
 **Exit:** all pass → milestone 1 declared in the plan and reported to the owner. Then
 **stop**: milestones after G1 (I4, M12–M18, G2) start only on the owner's go-ahead (owner
 direction 2026-09-28).
@@ -1235,6 +1242,21 @@ overlay's cfgs and the Fuchsia target `std`. Split point: one crate first, then 
 - **Driver guide and API docs (owner request 2026-09-28).** The driver guide
   (`docs/driver-guide.md`) is G1's check 6; generated API docs are M18, which runs only
   on the owner's approval.
+- **Driver guide written and verified (G1).** `docs/driver-guide.md`; followed literally
+  in G1 to a renamed copy that built, tested and bound. It is 200 lines (asked: about
+  150). Keep it current when the driver rule, `scripts/emu` or the bind targets change.
+- **A second driver for a bound spec registers silently (found in G1).** `ffx driver
+  register` of another URL for the edu spec exits 0 with "No new nodes were bound to the
+  driver being registered."; the first driver keeps the spec until reboot. The guide
+  says to stop and start first. `scripts/emu driver` could check `composite show` after
+  registering and fail when the spec names another URL.
+- **ffx log noise (found in G1).** `ffx log … dump` prints `WARN: missing authentication
+  for symbol servers` first (besides M11's ssh retry noise on reboot); replay scripts
+  must not treat it as a failure.
+- **Cold build numbers for the closure report (found in G1; for M14).** From an empty
+  output base on 4 vCPU: x64 6 min 8 s (IDK fetch included), arm64 1 min 5 s, host 48 s;
+  Bazel peak 12.42 GiB (IDK archive beside its extraction), 11.69 GiB at rest. M14's
+  report could record these with the closure counts (69 in-tree, 121 crates.io, 23 FIDL).
 - **Two Rust `std` copies in a driver host (found in M11; for M12 and later drivers).**
   `driver_host` loads `libstd-<hash>.so`; the overlay's drivers link `std` statically
   (rules_rust), so the process has two `std` copies with separate statics (panic hook,
@@ -1248,24 +1270,20 @@ overlay's cfgs and the Fuchsia target `std`. Split point: one crate first, then 
 
 ## Next session
 
-- Current milestone and status: **M11 complete.** Branch `ms/M11` from `88651a1`;
-  `wip` commits (chapter, first bind, runtime copies, reboot path and
-  `device_categories`, checks and the `scripts/emu.py` docstring, evidence, plan, review
-  findings, review fixes), then the checkpoint commit `overlay: M11 — Pilot 1 binds on
-  the emulator`.
-- Completed work and evidence: [M11 evidence](evidence/M11.md) (the entry as planned, C3
-  table, register output, `driver list`, `composite show 00_06_0`, `list-devices -v`,
-  `ffx log`, the replay sequence for G1, the four backlog answers, project checks, disk,
-  review).
-- Uncommitted state: none expected after the checkpoint; the emulator is stopped and the
-  scratch directory deleted.
-- Remaining work, blockers, and decisions: none for M11. Unchanged: M17 placement. A
-  separate `docs:` commit after the checkpoint applies the owner-approved plan edits
-  (driver guide in G1, M18 API docs, stop after G1); done.
+- Current milestone and status: **G1 in review.** Branch `ms/G1` from `c0ec17d`; `wip`
+  commits (notebook chapter, fresh-container simulation, checks 1–2, process log, guide
+  draft, check 3, check 4, guide verification, evidence and plan). No checkpoint commit
+  yet: the orchestrator runs the review, then the checkpoint `overlay: G1 — Milestone 1
+  gate` and the milestone 1 declaration.
+- Completed work and evidence: [G1 evidence](evidence/G1.md) (six checks, all pass;
+  deviations; disk against the hosted budget; closure counts; guide verification).
+- Uncommitted state: none. The emulator is stopped. The scratch clone outside the repo
+  keeps its Bazel output base for the reviewer; the guide's copy was deleted from it.
+- Remaining work, blockers, and decisions: the review (plan: `review-swarm` if available,
+  otherwise a reviewer subagent over the milestone-1 diff against design §1, §3 and §4);
+  its fixes; the checkpoint; declaring milestone 1 and reporting to the owner. Unchanged:
+  M17 placement.
 - Context boundary: normal.
-- Resume action: **G1** (milestone 1 gate from a clean clone; step 4 replays the M11
-  sequence in the evidence; step 6 writes and verifies the driver guide). After G1:
-  report to the owner and **wait**; later milestones start only on the owner's go-ahead
-  (owner direction 2026-09-28).
-- Read first for G1: the G1 entry, [M11 evidence](evidence/M11.md) ("The replay sequence
-  for G1", "Findings for later milestones"), [notebook index](notebook/index.md).
+- Resume action: **G1 review**, then **stop**: milestones after G1 (I4, M12–M18, G2) start
+  only on the owner's go-ahead (owner direction 2026-09-28).
+- Read first: the G1 entry, [G1 evidence](evidence/G1.md), [notebook index](notebook/index.md).
