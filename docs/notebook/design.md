@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # design — Design and planning
 
-Goal: turn the brief (`docs/brief.md` at `909cc07`, from `fuchsia-ci` `b061204`)
+Goal: turn the brief ([`../brief.md`](../brief.md), from `fuchsia-ci` `b061204`)
 into an approved design and an implementation plan for this repo.
 Verdict record: [design](../design.md), then `../implementation-plan.md`.
 
@@ -84,3 +84,12 @@ The goal line was edited in place: the link became the plain text "`docs/brief.m
 `909cc07`". No other word of this chapter changed; this is the one deliberate exception
 to append-only in this chapter. The "brief" in the entries above still means that
 document; see the design's header.
+
+## 2026-09-28T09:22-07:00 — correction of 2026-09-28T09:18-07:00 (brief link edit reverted)
+The owner changed publication decision 1B to 1A the same day: `docs/brief.md` stays in
+the tree, with a note in its header about its links into `curtisgalloway/fuchsia-ci`
+(they resolve once that repository is published, not before). The in-place
+edit of the goal line was reverted: it links `../brief.md` again, word for word as
+first written. The correction entry above stays as written (append-only); it describes
+an edit that no longer stands. This chapter now differs from its pre-2026-09-28 text
+only by these two appended entries.

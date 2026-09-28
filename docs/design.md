@@ -8,9 +8,8 @@ SPDX-License-Identifier: Apache-2.0
 Revision: 2026-09-27, draft 1 — approved by the owner 2026-09-27, including D6;
 amended 2026-09-27 per owner direction and M2–M8a findings (C4, C6, A2, A4, R1, R2, R4, R5, D7, §4.1, §4.2 toolchain, Rust rules and third-party crates)
 
-Source brief: `docs/drivers/rust-driver-oot-plan.md` in the private
-`curtisgalloway/fuchsia-ci` repo at `b061204` (not published; a copy lived at
-`docs/brief.md` until `909cc07`, in this repo's history) (the
+Source brief: [`brief.md`](brief.md), copied from `curtisgalloway/fuchsia-ci` at `b061204`
+(`docs/drivers/rust-driver-oot-plan.md`) (the
 "brief"). It holds the upstream evidence, with paths relative to `fuchsia.git`.
 This document restates only what the design depends on; section references like
 "brief §3.4" point there.
@@ -348,7 +347,7 @@ component rules unchanged.
 (bindings) → R6 for a version, writes the closure report, then builds and runs
 the R7 checks. Keyed on upstream paths and GN labels so a rename fails loudly.
 A `fuchsia-ci` job invokes it per mirrored release, alongside the C++
-out-of-tree rebuild job proposed in `fuchsia-ci`'s (private)
+out-of-tree rebuild job proposed in `fuchsia-ci`'s
 `docs/drivers/out-of-tree-bus-drivers.md` §7.
 
 ### 4.3 Main flows
