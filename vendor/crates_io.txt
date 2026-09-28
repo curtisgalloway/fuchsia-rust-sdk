@@ -5,3 +5,47 @@
 # vendored BUILD files use (design R4; milestone M6b), one per line, sorted: the direct
 # crates.io deps of the pilots' closures (docs/closure/<pilot>.json, crates_io.direct).
 # Their crates, and every crate those depend on, go to third_party/crates/.
+anyhow
+async-trait
+base64
+bitfield
+bitflags
+bstr
+byteorder
+chrono
+crossbeam
+darling
+derivative
+either
+flyweights
+fragile
+futures
+itertools
+libc
+lock_api
+log
+lru
+maplit
+memchr
+munge
+num-derive
+num-traits
+paste
+pin-project
+pin-project-lite
+proc-macro2
+quote
+rand
+rustc-hash
+serde
+slab
+smallvec
+socket2
+static_assertions
+strum
+strum_macros
+syn
+thiserror
+url
+winnow
+zerocopy

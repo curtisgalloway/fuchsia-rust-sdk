@@ -646,6 +646,27 @@ def parse_aliases(text: str) -> dict[str, str]:
     return {m.group(1): m.group(2) for m in _ALIAS.finditer(text)}
 
 
+_CRATE_RULES = ("rust_library", "rust_proc_macro")
+
+
+def crate_target(text: str, where: str) -> tuple[str, str]:
+    """(rule, name) of the one rust_library or rust_proc_macro in a crate_universe BUILD file."""
+    src = _Source(text, where)
+    found = []
+    for node in src.tree.body:
+        call = node.value if isinstance(node, ast.Expr) else None
+        if isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id in _CRATE_RULES:
+            names = [k.value.value for k in call.keywords if k.arg == "name"
+                     and isinstance(k.value, ast.Constant) and isinstance(k.value.value, str)]
+            if len(names) != 1:
+                raise src.fail(call, f"{call.func.id}() without a plain name")
+            found.append((call.func.id, names[0]))
+    if len(found) != 1:
+        raise RegenError(f"{where}: expected one of {', '.join(_CRATE_RULES)}, found "
+                         f"{', '.join(f'{r}({n})' for r, n in found) or 'none'}")
+    return found[0]
+
+
 def _package_info(text: str, where: str) -> tuple[str, str]:
     name = re.search(r'package_name = "([^"]+)"', text)
     version = re.search(r'package_version = "([^"]+)"', text)
@@ -875,9 +896,7 @@ def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: 
     out.mkdir(parents=True)
     rev = source.revision
     header_note = "labels rewritten for the @rust_crates repository"
-    if not roots and not direct:
-        crates_json: dict = {"aliases": [], "crates": []}
-    else:
+    if roots or direct:
         alias_file = f"{RUST_CRATES_VENDOR}/BUILD.bazel"
         texts = source.read([alias_file, CARGO_LOCK])
         lock_sha = hashlib.sha256(texts[CARGO_LOCK]).hexdigest()
@@ -888,12 +907,14 @@ def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: 
         local = cargo_lock_local(texts[CARGO_LOCK].decode())
         aliases = parse_aliases(texts[alias_file].decode())
         alias_blocks = []
+        alias_targets: dict[str, str] = {}
         todo: set[str] = set(direct)
         for name in sorted(roots):
             actual = aliases.get(name)
             if actual is None:
                 raise RegenError(f"@{CRATES_REPO}//vendor:{name}: upstream {alias_file} has no alias {name!r}")
             text, deps = rewrite_crate_build(f'"{actual}"', alias_file)
+            alias_targets[name] = json.loads(text)
             alias_blocks.append(f'alias(\n    name = "{name}",\n    actual = {text},\n)\n')
             todo |= deps
         seen: set[str] = set()
@@ -931,8 +952,10 @@ def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: 
                                      f"{build_files[build_file]}")
                 build_files[build_file] = d
                 _write(out, build_file, (_crate_header(rev, upstream, header_note) + text).encode())
+                rule, target = crate_target(raw, upstream)
                 entries.append({"build_file": build_file, "name": name, "path": d,
-                                "version": version, **entry})
+                                "proc_macro": rule == "rust_proc_macro",
+                                "target": f"//{d}:{target}", "version": version, **entry})
                 nxt |= deps
             frontier = sorted(nxt - seen)
         entries.sort(key=lambda e: e["path"])
@@ -941,6 +964,9 @@ def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: 
                         + "\n".join(alias_blocks))
         _write(out, "BUILD.vendor.bazel", aliases_text.encode())
         crates_json = {"aliases": sorted(roots), "crates": entries}
+        build_list = crates_build(entries, alias_targets)
+    else:
+        build_list = crates_build([], {})
     crates_json = {
         "cargo_lock": f"{FUCHSIA_GIT} {rev}:{CARGO_LOCK}",
         "cargo_lock_sha256": cargo_lock_sha256,
@@ -948,7 +974,40 @@ def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: 
         **crates_json,
     }
     _write(out, "crates.json", (json.dumps(crates_json, indent=2, sort_keys=True) + "\n").encode())
-    _write(out, "BUILD.bazel", _CRATES_BUILD.format(generated=GENERATED_BY).encode())
+    _write(out, "BUILD.bazel", build_list.encode())
+
+
+def crates_build(entries: list[dict], alias_targets: dict[str, str]) -> str:
+    """third_party/crates/BUILD.bazel: exports for crates.bzl, and the build list (R4).
+
+    @rust_crates targets are tagged manual, so //... would skip them. Two filegroups make
+    the project's three //... builds compile every generated crate:
+      aliases   every alias whose target is a library, in the configuration built: for a
+                Fuchsia target, their target-side closure, with proc macros and build
+                scripts (and what those need) built for the exec platform.
+      host_all  every crate's library or proc-macro target, for the host only.
+    Every crate is not built for Fuchsia: upstream's crate_universe resolves features per
+    platform, so a crate used only by proc macros or build scripts (e.g. synstructure)
+    has no Fuchsia feature set that compiles, and a proc macro built for a Fuchsia target
+    would be linked as a Fuchsia shared object.
+    """
+    out = _CRATES_BUILD.format(generated=GENERATED_BY)
+    if not entries:
+        return out
+    macros = {e["target"] for e in entries if e["proc_macro"]}
+    libs = [f"@{CRATES_REPO}//vendor:{a}" for a, t in sorted(alias_targets.items()) if t not in macros]
+    every = [f"@{CRATES_REPO}{e['target']}" for e in entries]
+
+    def srcs(labels: list[str]) -> str:
+        return "".join(f'        "{label}",\n' for label in labels)
+    return out + (
+        "\n# The build list (R4); see crates_build in scripts/regen.py.\n"
+        f'filegroup(\n    name = "aliases",\n    srcs = [\n{srcs(libs)}    ],\n)\n\n'
+        f'filegroup(\n    name = "host_all",\n    srcs = [\n{srcs(every)}    ],\n'
+        '    target_compatible_with = select({\n'
+        '        "@platforms//os:fuchsia": ["@platforms//:incompatible"],\n'
+        '        "//conditions:default": [],\n'
+        '    }),\n)\n')
 
 
 def _copy_patched(source: Source, d: str, out: Path) -> list[str]:

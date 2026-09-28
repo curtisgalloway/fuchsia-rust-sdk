@@ -478,7 +478,11 @@ def test_vendor_writes_the_expected_trees(env):
     # The patched crate reached through bar: copied, not downloaded (M6b).
     assert spec["crates"][0] == {
         "build_file": "BUILD.ask2patch.memo.bazel", "name": "memo", "path": "ask2patch/memo",
+        "proc_macro": False, "target": "//ask2patch/memo:memo",
         "version": "2.0.0", "files": ["LICENSE-MIT", "gen.sh", "src/lib.rs"]}
+    # The build list: every crate's library target, so //... builds them (M6b).
+    build = (c / "BUILD.bazel").read_text()
+    assert '"@rust_crates//vendor:foo",' in build and build.count('"@rust_crates//') == 4
     memo = c / "src/ask2patch/memo"
     for rel in ("LICENSE-MIT", "gen.sh", "src/lib.rs"):
         assert (memo / rel).read_bytes() == (upstream / "third_party/rust_crates/ask2patch/memo" / rel).read_bytes()
@@ -595,6 +599,30 @@ def test_check_names_a_one_byte_edit_in_a_patched_crate(env, capsys):
     err = capsys.readouterr().err
     assert "third_party/crates/src/ask2patch/memo/src/lib.rs: content differs" in err
     assert "1 file(s) drift" in err
+
+
+def test_crate_target_and_build_list():
+    pm = _crate_build("m", "1.0.0").replace("rust_library(", "rust_proc_macro(").replace(
+        '"@rules_rust//rust:defs.bzl", "rust_library"', '"@rules_rust//rust:defs.bzl", "rust_proc_macro"')
+    assert regen.crate_target(pm, "f") == ("rust_proc_macro", "m")
+    assert regen.crate_target(_crate_build("l", "1.0.0") + 'cargo_build_script(name = "_bs")\n', "f") == \
+        ("rust_library", "l")
+    with pytest.raises(regen.RegenError, match="f: expected one of rust_library, rust_proc_macro, found none"):
+        regen.crate_target('cargo_build_script(name = "_bs")\n', "f")
+    with pytest.raises(regen.RegenError, match="found rust_library\\(a\\), rust_library\\(b\\)"):
+        regen.crate_target('rust_library(name = "a")\nrust_library(name = "b")\n', "f")
+    build = regen.crates_build([
+        {"target": "//vendor/l-1:l", "proc_macro": False},
+        {"target": "//vendor/m-1:m", "proc_macro": True},
+        {"target": "//vendor/n-1:n", "proc_macro": False},
+    ], {"l": "//vendor/l-1:l", "m": "//vendor/m-1:m"})
+    aliases, host = build.split('name = "aliases"')[1].split('name = "host_all"')
+    assert '"@rust_crates//vendor:l",' in aliases and "incompatible" not in aliases
+    assert '"vendor:m"' not in aliases and "n-1" not in aliases
+    for label in ("//vendor/l-1:l", "//vendor/m-1:m", "//vendor/n-1:n"):
+        assert f'"@rust_crates{label}",' in host
+    assert '"@platforms//os:fuchsia": ["@platforms//:incompatible"]' in host
+    assert "filegroup" not in regen.crates_build([], {})
 
 
 def test_crates_io_list_parsing_errors():
