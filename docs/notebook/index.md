@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T21:29-07:00
+Updated: 2026-09-27T21:38-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -60,8 +60,8 @@ Outcome: complete — `scripts/emu` boots the lock's core.x64 (TCG ~51 s), hello
 - Dead end: probing plain-HTTP apt mirrors through a CONNECT-only proxy; apt hosts left out of the preflight
 
 ### [M4 — `rustc_*` rules with API-level cfgs](M4.md)
-Entries: 2026-09-27T21:17-07:00 through 2026-09-27T21:29-07:00
-Outcome: open (review pending) — cfgs at the toolchain level as upstream; wrappers add cap-lints
+Entries: 2026-09-27T21:17-07:00 through 2026-09-27T21:38-07:00
+Outcome: complete — cfgs at the toolchain level as upstream; wrappers add cap-lints
 - Upstream generator is `build/bazel/versioning/rustc_api_level.bzl`; golden made by running it unmodified; GN emitter agrees
 - IDK `version_history.json` is key-sorted (`10…32, 4…9`); upstream's script rejects it; port sorts numerically
 - Dead end: select() on rules_fuchsia's API level fails host analysis when unset; host gets PLATFORM directly
