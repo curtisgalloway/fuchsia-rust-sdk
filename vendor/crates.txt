@@ -19,6 +19,11 @@
 # Driver runtime crates (M9a): sdk/lib/async/rust/*, sdk/lib/driver/runtime/rust/* and
 # fidl_driver, the FIDL driver transport's runtime; upstream has no BUILD.bazel for any
 # of them, so each is "overlay" (a BUILD.gn translated by hand).
+# Pilot 1's other in-tree crates (M9b): the 28 with a usable upstream BUILD.bazel
+# ("upstream"; patches under patches/fuchsia/ trim what the overlay does not build) and 7
+# overlays: detect-stall, fuchsia-component/{escrow,runtime,server}, storage/lib/trace,
+# storage/lib/vfs/rust (a GN rustc_dylib, built as an rlib), and fuchsia-component itself,
+# whose upstream BUILD.bazel is an empty stub.
 
 sdk/fidl/fuchsia.component idk
 sdk/fidl/fuchsia.component.decl idk
@@ -47,6 +52,7 @@ sdk/lib/async/rust overlay
 sdk/lib/async/rust/dispatcher overlay
 sdk/lib/async/rust/fidl overlay
 sdk/lib/async/rust/sys overlay
+sdk/lib/c/rust upstream
 sdk/lib/driver/runtime/rust overlay
 sdk/lib/driver/runtime/rust/channel overlay
 sdk/lib/driver/runtime/rust/core overlay
@@ -59,6 +65,21 @@ sdk/rust/zx-status upstream
 sdk/rust/zx-status-ext upstream
 sdk/rust/zx-sys upstream
 sdk/rust/zx-types upstream
+src/lib/buf-read-ext upstream
+src/lib/detect-stall overlay
+src/lib/diagnostics/hierarchy/rust upstream
+src/lib/diagnostics/inspect/contrib/rust upstream
+src/lib/diagnostics/inspect/derive upstream
+src/lib/diagnostics/inspect/derive/macro upstream
+src/lib/diagnostics/inspect/format/rust upstream
+src/lib/diagnostics/inspect/rust upstream
+src/lib/diagnostics/log/encoding/rust upstream
+src/lib/diagnostics/log/rust upstream
+src/lib/diagnostics/log/types upstream
+src/lib/diagnostics/selectors upstream
+src/lib/directed_graph upstream
+src/lib/fdio/rust upstream
+src/lib/fdomain/client upstream
 src/lib/fidl/rust/fidl upstream
 src/lib/fidl/rust/fidl_driver overlay
 src/lib/fidl/rust_constants upstream
@@ -67,9 +88,28 @@ src/lib/fidl/rust_next/fidl_next_bind upstream
 src/lib/fidl/rust_next/fidl_next_codec upstream
 src/lib/fidl/rust_next/fidl_next_protocol upstream
 src/lib/fidl/rust_next/fidl_next_util upstream
+src/lib/from-enum upstream
 src/lib/fuchsia-async upstream
 src/lib/fuchsia-async-macro upstream
+src/lib/fuchsia-component overlay
+src/lib/fuchsia-component/client upstream
+src/lib/fuchsia-component/directory upstream
+src/lib/fuchsia-component/escrow overlay
+src/lib/fuchsia-component/runtime overlay
+src/lib/fuchsia-component/server overlay
+src/lib/fuchsia-fs upstream
+src/lib/fuchsia-runtime upstream
 src/lib/fuchsia-sync upstream
+src/lib/injectable-time upstream
+src/lib/trace/rust upstream
+src/storage/lib/trace overlay
+src/storage/lib/vfs/rust overlay
+src/storage/lib/vfs/rust/name upstream
+src/sys/lib/cm_fidl_validator upstream
+src/sys/lib/cm_graph upstream
+src/sys/lib/cm_rust upstream
+src/sys/lib/cm_types upstream
+src/sys/lib/moniker upstream
 tools/fidl/fidlgen_rust upstream
 tools/fidl/fidlgen_rust/codegen upstream
 tools/fidl/fidlgen_rust_next/configs overlay

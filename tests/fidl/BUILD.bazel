@@ -179,6 +179,8 @@ filegroup(
         ":driver_transport",
         # The driver runtime crates (M9a) that no binding depends on.
         "//tests/vendor:driver_runtime_crates",
+        # Pilot 1's other in-tree crates (M9b).
+        "//tests/vendor:pilot1_crates",
     ],
     target_compatible_with = ["@platforms//os:fuchsia"],
 )

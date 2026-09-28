@@ -19,7 +19,9 @@ Inputs, all committed:
                            rewritten, with its .fidl sources taken from the IDK (D7)
   vendor/crates_io.txt     @rust_crates//vendor aliases to generate besides those the
                            vendored BUILD files use (the pilots' direct crates.io deps)
-  overlays/<path>/BUILD.bazel     hand-written BUILD file for an "overlay" crate
+  overlays/<path>/BUILD.bazel     hand-written BUILD file for an "overlay" crate; if
+                           upstream has a BUILD.bazel there, it must build no Rust (a
+                           stub, M9b), or the run fails
   patches/fuchsia/<path>/*.patch  applied in name order after the BUILD files
 
 Outputs, generated and committed (D6); never edit them by hand:
@@ -72,13 +74,17 @@ Rewriting upstream BUILD.bazel files (parsed with Python's ast; comments untouch
   //build/bazel/rules/fidl:__pkg__ / :__subpackages__ -> //rules:<same> (the package of
                                            the overlay's FIDL macros, whose targets must see
                                            the FIDL runtime crates)
-  //sdk/lib/fdio, //zircon/system/ulib/sync -> @fuchsia_sdk//pkg/fdio, @fuchsia_sdk//pkg/sync
+  //sdk/lib/fdio, //zircon/system/ulib/sync, //zircon/system/ulib/trace-engine
+                                           -> @fuchsia_sdk//pkg/<fdio|sync|trace-engine>
                                            (C libraries the IDK ships prebuilt)
+  //build/bazel/platforms:is_host_os       -> //rules:is_host_os (a select() key; M9b)
   srcs of fidl_library in an "idk" library -> @fuchsia_sdk//fidl/<library>:<file name>
-  //<path>[:<t>] not listed, in a "//conditions:default" branch of a select()
-                                           -> //vendor/fuchsia/<path>[:<t>], provisionally:
-                                           a patch must remove it (host-only code the
-                                           overlay does not build), or regen.py fails
+  //<path>[:<t>] not listed                -> //vendor/fuchsia/<path>[:<t>], provisionally:
+                                           a patch must remove it (code the overlay does
+                                           not build: a host branch, a target outside the
+                                           closure), or regen.py fails naming file:line
+                                           (M8a for //conditions:default branches; any
+                                           position since M9b)
   a label with no mapping inside a Rust rule's test_deps -> kept as it is, provisionally:
                                            a patch must remove it (unit tests are M16), or
                                            regen.py fails (M8b)
@@ -464,6 +470,15 @@ _ALLOWLIST_NOTE = "rust_next allowlist from //rules:fidl_rust_next.bzl"
 _SDK_LIBRARIES = {
     "//sdk/lib/fdio": "@fuchsia_sdk//pkg/fdio",
     "//zircon/system/ulib/sync": "@fuchsia_sdk//pkg/sync",
+    # src/lib/trace/rust links libtrace-engine.so (milestone M9b).
+    "//zircon/system/ulib/trace-engine": "@fuchsia_sdk//pkg/trace-engine",
+}
+
+# Upstream config_settings used as select() keys, and the overlay's equivalents in
+# //rules/BUILD.bazel (milestone M9b). is_host_os: upstream's matches the host
+# platform's OS constraint; the overlay's matches HOST_OS_CONSTRAINTS (//rules:host.bzl).
+_CONFIG_SETTINGS = {
+    "//build/bazel/platforms:is_host_os": "//rules:is_host_os",
 }
 
 # Go (milestone M7: tools/fidl/fidlgen_rust and tools/fidl/lib/fidlgen, which upstream
@@ -710,18 +725,6 @@ def _go_load(src: _Source, call: ast.Call, file: str, symbols: list[tuple[str, s
     return (start, end, f'load("{target}", ' + ", ".join(kept) + ")")
 
 
-def _default_branch_nodes(src: _Source) -> set[int]:
-    """ids of every node inside the "//conditions:default" value of a select() dict."""
-    out: set[int] = set()
-    for node in ast.walk(src.tree):
-        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "select"
-                and node.args and isinstance(node.args[0], ast.Dict)):
-            for key, value in zip(node.args[0].keys, node.args[0].values):
-                if isinstance(key, ast.Constant) and key.value == "//conditions:default":
-                    out.update(id(n) for n in ast.walk(value))
-    return out
-
-
 def _test_deps_nodes(src: _Source, rules: set[str]) -> set[int]:
     """ids of every node inside the test_deps value of a call of one of `rules`."""
     out: set[int] = set()
@@ -775,7 +778,7 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
     `notes`, when given, receives a phrase per kind of change made, for the header.
     `idk`: the file is a FIDL library's whose sources come from the IDK.
     `provisional`, when given, receives ("<where>:<line>", new label) for each unlisted
-    in-tree label in a //conditions:default branch; without it such a label fails.
+    in-tree label and each unmappable test dep; without it such a label fails.
     """
     src = _Source(text, where)
     edits: list[tuple[int, int, str]] = []
@@ -849,7 +852,6 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
     if idk and not fidl_macros:
         raise RegenError(f"{where}: an 'idk' library's BUILD.bazel must load {_FIDL_MACRO} "
                          f"from {_UPSTREAM_FIDL_RULES}")
-    default_nodes = _default_branch_nodes(src)
     test_dep_nodes = _test_deps_nodes(src, set(wrappers) | set(_RULES_RUST_TO_WRAPPER))
 
     def label(s: str, node: ast.AST) -> str:
@@ -872,6 +874,8 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
             return f"//{_OVERLAY_FIDL_RULES_PACKAGE}{target}"
         if s in _SDK_LIBRARIES:
             return _SDK_LIBRARIES[s]
+        if s in _CONFIG_SETTINGS:
+            return _CONFIG_SETTINGS[s]
         if pkg == "" and target in (":license", ":__subpackages__", ":__pkg__"):
             return f"//{VENDOR_OUT}{target}"
         if pkg == RUST_CRATES_VENDOR and target:
@@ -886,7 +890,9 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
             return f"//{VENDOR_OUT}/{pkg}{target}"
         if pkg.startswith("build/") or pkg == "":
             raise src.fail(node, f"{s}: no overlay mapping for this label")
-        if provisional is not None and id(node) in default_nodes:
+        if provisional is not None:
+            # Code the overlay does not build (a host branch, a target outside the
+            # closure): a patch must remove it (checked after the patches; M9b).
             new = f"//{VENDOR_OUT}/{pkg}{target}"
             provisional.append((f"{where}:{node.lineno}", new))
             return new
@@ -927,6 +933,21 @@ def check_overlay_build(text: str, where: str) -> None:
             raise src.fail(call, f"loads from {file}; overlays use the wrappers in //rules:rustc.bzl")
     _string_edits(src, lambda s, n: s, set())  # labels must be plain double-quoted strings
     _check_all_vendored(text, where)
+
+
+def check_upstream_stub(text: str, where: str) -> None:
+    """An overlay may replace an upstream BUILD.bazel only while that file builds no Rust
+    (M9b: src/lib/fuchsia-component's is an empty stub filegroup, fxbug.dev/500609897).
+    Once upstream's file defines a Rust target, the crate should be 'upstream' again."""
+    src = _Source(text, where)
+    for node in ast.walk(src.tree):
+        if isinstance(node, ast.Call):
+            func = node.func
+            name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
+            if _RUST_CALL_NAME.match(name):
+                raise src.fail(node, f"upstream's BUILD.bazel now defines {name}(), but {VENDOR_LIST} "
+                                     "lists this crate 'overlay'; list it 'upstream' (patching what "
+                                     "the overlay changed) or confirm the overlay is still needed")
 
 
 def build_strings(text: str, where: str) -> list[str]:
@@ -1129,9 +1150,9 @@ def apply_patches(root: Path, vendor_dir: Path, crates: list[Crate], home: Path)
 
 
 def check_provisional(vendor: Path, provisional: list[tuple[str, str]]) -> None:
-    """Each provisional label (an unlisted package in a //conditions:default branch, or an
-    unmappable test dep) must be gone after the patches: the overlay does not build that
-    code, or not yet (module doc)."""
+    """Each provisional label (an unlisted in-tree package, or an unmappable test dep) must
+    be gone after the patches: the overlay does not build that code, or not yet (module
+    doc)."""
     for where, new in provisional:
         path = where.rsplit(":", 1)[0]
         if json.dumps(new) in (vendor / path).read_text():
@@ -1140,9 +1161,9 @@ def check_provisional(vendor: Path, provisional: list[tuple[str, str]]) -> None:
                                  f"it with a patch under {PATCHES}/{PurePosixPath(path).parent}/ "
                                  "(unit tests are milestone M16)")
             pkg = _split_label(new)[0][len(VENDOR_OUT) + 1:]
-            raise RegenError(f"{where}: depends on //{pkg} in a //conditions:default branch, but "
-                             f"{pkg} is not listed in {VENDOR_LIST}; list it, or remove the branch "
-                             f"with a patch under {PATCHES}/{PurePosixPath(path).parent}/")
+            raise RegenError(f"{where}: depends on //{pkg}, but {pkg} is not listed in "
+                             f"{VENDOR_LIST}; list it, or remove the label with a patch under "
+                             f"{PATCHES}/{PurePosixPath(path).parent}/")
 
 
 def _string_list(text: str, where: str, name: str) -> list[str]:
@@ -1251,6 +1272,8 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
                                  f"{OVERLAYS}/{crate.path}/BUILD.bazel does not exist")
             text = overlay.read_text()
             check_overlay_build(text, f"{OVERLAYS}/{crate.path}/BUILD.bazel")
+            if build in contents:
+                check_upstream_stub(contents[build].decode(), build)
         _write(vendor, build, text.encode())
 
     if uses_allowlist:

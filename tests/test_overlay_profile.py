@@ -38,8 +38,8 @@ def test_default_without_home_or_xdg():
 def test_hosted_trims_and_does_not_cache():
     hosted = op.PROFILES["hosted"]
     assert hosted.trim_idk and not hosted.cache_idk_archive
-    # C6: total <= 25 GB; M2a: output base + repository cache <= 12 GB.
-    assert hosted.budgets == {"total": 25 * op.GIB, "bazel": 12 * op.GIB}
+    # C6: total <= 25 GB; output base + repository cache <= 15 GB (12 in M2a; 15 since M9b).
+    assert hosted.budgets == {"total": 25 * op.GIB, "bazel": 15 * op.GIB}
 
 
 def test_large_disk_skips_trim_and_keeps_caches():

@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T04:14-07:00
+Updated: 2026-09-28T05:29-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -137,6 +137,15 @@ Outcome: complete (M9a) — 11 driver runtime overlays; FIDL driver transport on
 - GN gives `driver` + `fidl_driver`/`fdf` to both `rust` and `rust_common`; `//tests/fidl:driver_transport` fails without either flavor's feature
 - Corrected: macro-declared crates are visible to edges written in `//rules` (not a `select()` effect); only top-level targets need `//rules:__pkg__`
 
+### [M9b — Pilot 1's upstream-Bazel in-tree crates](M9b.md)
+Entries: 2026-09-28T04:18-07:00 through 2026-09-28T05:29-07:00
+Outcome: complete — 35 crates (28 upstream + 17 patches; 7 overlays) build for x64/arm64; `scripts/gn_crosscheck.py`: all 62 vendored closure crates match GN
+- `fuchsia-component`'s upstream BUILD.bazel is an empty stub: overlay (28+7); `regen.py` now checks overlays replace only stubs
+- `regen.py`: `is_host_os` → `//rules:is_host_os`, trace-engine → IDK, unlisted labels provisional anywhere (patch removes)
+- `vfs` (GN dylib) built as an rlib: `temp_clone.rs` statics become per driver; M10 `DT_NEEDED` differs by `libvfs_rust.so`
+- Review: GN parity check committed as a project tool (fails on unresolvable deps); Bazel sub-budget 12 → 15 GiB (orchestrator)
+- My overlays' first build failed: GN "no visibility" needs explicit public; proc macros go in `proc_macro_deps`
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
@@ -149,6 +158,7 @@ Outcome: complete (M9a) — 11 driver runtime overlays; FIDL driver transport on
   [M8](M8.md) adds 0.4 GiB (bindings for three configs; total 11.71 GiB, Bazel 10.81 of 12).
   [M8b](M8b.md) adds 0.14 GiB (`rust_next` bindings, 6 crates; total 11.85 GiB, Bazel 10.95 of 12).
   [M9](M9.md) (M9a) adds 0.04 GiB (11 driver runtime crates; total 11.90 GiB, Bazel 10.99 of 12).
+  [M9b](M9b.md) adds 0.37 GiB (35 crates, two Fuchsia configs, exec proc macros; total 12.27 GiB, Bazel 11.36 of 12).
 - **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
   Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
   [M4](M4.md) derives the Rust cfgs from that file and asserts the HEAD branch at build time.
@@ -175,3 +185,7 @@ Outcome: complete (M9a) — 11 driver runtime overlays; FIDL driver transport on
   and defers it (as upstream's Bazel rule); [M8b](M8b.md) writes the `rust_next` driver
   path behind a flag; [M9](M9.md) (M9a) vendors the runtime as overlays, removes both
   flags and pins the transport with `//tests/fidl:driver_transport`.
+- **Unmappable labels in upstream BUILD files:** [M8](M8.md) keeps an unlisted package in a
+  `//conditions:default` branch provisionally (a patch must remove it); M8b adds unmappable
+  `test_deps`; [M9b](M9b.md) extends it to any position (targets outside the closure,
+  `syslog:client_includes`) and maps `is_host_os` and trace-engine instead.

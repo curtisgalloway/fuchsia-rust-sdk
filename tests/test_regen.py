@@ -373,7 +373,7 @@ def test_rewrite_fails_naming_file_line_and_label(label, message):
      "f:1: load of //build/bazel/rules/fidl:fidl_rust_library.bzl: regen.py has no mapping"),
     ('load("@fuchsia_build_info//:args.bzl", "rust_cap_lints")\n',
      "f:1: loads rust_cap_lints from @fuchsia_build_info//:args.bzl"),
-    # An unlisted package outside a //conditions:default branch.
+    # An unlisted package, without the provisional list (regen.py's run passes one).
     ('deps = select({"@platforms//os:fuchsia": ["//src/lib/emu"], "//conditions:default": []})\n',
      "f:1: depends on //src/lib/emu, but src/lib/emu is not listed"),
     ('load("@rules_rust//rust:defs.bzl", "rust_lint_config")\n',
@@ -1093,11 +1093,23 @@ def test_build_info_args_are_the_ones_the_overlay_defines():
 
 
 def test_sdk_libraries_and_fidl_rules_visibility():
-    text = ('deps = ["//sdk/lib/fdio", "//zircon/system/ulib/sync"]\n'
+    text = ('deps = ["//sdk/lib/fdio", "//zircon/system/ulib/sync", "//zircon/system/ulib/trace-engine"]\n'
             'visibility = ["//build/bazel/rules/fidl:__subpackages__", "//build/bazel/rules/fidl:__pkg__"]\n')
     out = regen.rewrite_upstream_build(text, "f", set())
-    assert '"@fuchsia_sdk//pkg/fdio", "@fuchsia_sdk//pkg/sync"' in out
+    assert '"@fuchsia_sdk//pkg/fdio", "@fuchsia_sdk//pkg/sync", "@fuchsia_sdk//pkg/trace-engine"' in out
     assert '"//rules:__subpackages__", "//rules:__pkg__"' in out
+
+
+def test_is_host_os_maps_to_the_overlays_config_setting():
+    """M9b: upstream's //build/bazel/platforms:is_host_os select() key -> //rules:is_host_os,
+    which //rules/BUILD.bazel defines; other //build/bazel/platforms labels still fail."""
+    text = 'x = select({"//build/bazel/platforms:is_host_os": ["a"], "//conditions:default": []})\n'
+    out = regen.rewrite_upstream_build(text, "f", set())
+    assert '"//rules:is_host_os": ["a"]' in out
+    rules_build = (ROOT / "rules/BUILD.bazel").read_text()
+    assert 'name = "is_host_os"' in rules_build and "HOST_OS_CONSTRAINTS" in rules_build
+    with pytest.raises(regen.RegenError, match="f:1: //build/bazel/platforms:is_fuchsia: no overlay mapping"):
+        regen.rewrite_upstream_build('x = ["//build/bazel/platforms:is_fuchsia"]\n', "f", set())
 
 
 HOST_BRANCH = _HDR + '''\
@@ -1125,6 +1137,15 @@ def test_unlisted_label_in_a_default_branch_is_provisional():
     assert "f:12: depends on //src/lib/emulated, but src/lib/emulated is not listed" in str(e.value)
 
 
+def test_unlisted_label_anywhere_is_provisional():
+    """M9b: not only in a //conditions:default branch; e.g. a target outside the closure."""
+    text = 'deps = ["//sdk/rust/b", "//src/lib/other:x"]\nv = select({"@platforms//os:fuchsia": ["//src/lib/c"]})\n'
+    provisional = []
+    out = regen.rewrite_upstream_build(text, "f", {"sdk/rust/b"}, provisional=provisional)
+    assert '["//vendor/fuchsia/sdk/rust/b", "//vendor/fuchsia/src/lib/other:x"]' in out
+    assert provisional == [("f:1", "//vendor/fuchsia/src/lib/other:x"), ("f:2", "//vendor/fuchsia/src/lib/c")]
+
+
 def _host_branch_env(env):
     upstream, repo, run = env
     _write(upstream, "sdk/rust/a/BUILD.bazel", HOST_BRANCH)
@@ -1135,9 +1156,9 @@ def test_a_provisional_label_left_after_the_patches_fails(env, capsys):
     _, repo, run = _host_branch_env(env)
     assert run("vendor") == 2
     err = capsys.readouterr().err
-    assert ("sdk/rust/a/BUILD.bazel:12: depends on //src/lib/emulated in a //conditions:default "
-            "branch, but src/lib/emulated is not listed in vendor/crates.txt; list it, or remove "
-            "the branch with a patch under patches/fuchsia/sdk/rust/a/") in err
+    assert ("sdk/rust/a/BUILD.bazel:12: depends on //src/lib/emulated, but src/lib/emulated is "
+            "not listed in vendor/crates.txt; list it, or remove the label with a patch under "
+            "patches/fuchsia/sdk/rust/a/") in err
 
 
 def test_a_patch_removing_the_provisional_label_passes(env):
@@ -1346,3 +1367,39 @@ def test_the_overlays_own_allowlist_entries_are_outside_vendor_fuchsia():
         assert entry.startswith("//") and not entry.startswith(("//vendor/", "//third_party/")), entry
         assert entry.endswith((":__pkg__", ":__subpackages__")), entry
     assert "fidl_rust_next_allowlist = _UPSTREAM_ALLOWLIST + _OVERLAY_ALLOWLIST" in text
+
+
+# --- M9b: provisional labels anywhere, end to end; overlays over upstream stubs -----
+
+PLAIN_DEP = _HDR + '''\
+load("//build/bazel/rules/rust:defs.bzl", "rustc_library")
+
+rustc_library(
+    name = "a",
+    srcs = ["src/lib.rs"],
+    deps = ["//sdk/rust/b", "//src/lib/other:x"],
+)
+'''
+
+
+def test_an_unlisted_plain_dep_left_after_the_patches_fails(env, capsys):
+    """Outside any select() (M9b generalized M8a's rule): kept provisionally, then the run
+    fails naming file:line, since no patch removes it."""
+    upstream, repo, run = env
+    _write(upstream, "sdk/rust/a/BUILD.bazel", PLAIN_DEP)
+    assert run("vendor") == 2
+    assert ("sdk/rust/a/BUILD.bazel:10: depends on //src/lib/other, but src/lib/other is not "
+            "listed in vendor/crates.txt; list it, or remove the label with a patch under "
+            "patches/fuchsia/sdk/rust/a/") in capsys.readouterr().err
+
+
+def test_an_overlay_may_replace_only_a_stub_upstream_build_file(env, capsys):
+    upstream, repo, run = env
+    _write(upstream, "sdk/rust/b/BUILD.bazel", '# stub\nfilegroup(name = "b", srcs = [])\n')
+    assert run("vendor") == 0
+    assert (repo / "vendor/fuchsia/sdk/rust/b/BUILD.bazel").read_text() == B_OVERLAY
+    _write(upstream, "sdk/rust/b/BUILD.bazel",
+           'load("//build/bazel/rules/rust:defs.bzl", "rustc_library")\nrustc_library(name = "b")\n')
+    assert run("vendor") == 2
+    assert ("sdk/rust/b/BUILD.bazel:2: upstream's BUILD.bazel now defines rustc_library(), but "
+            "vendor/crates.txt lists this crate 'overlay'") in capsys.readouterr().err

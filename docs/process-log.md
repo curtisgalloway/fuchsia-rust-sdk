@@ -392,3 +392,43 @@ Prevention: write the process-log entry (and a notebook attempt entry when it ch
 the path) in the command right after the failure, before the fix.
 Fix belongs in: agent habit (lab-notebook skill already says so)
 Status: open
+
+## 2026-09-28T04:37-07:00 — failed command: package label assumed to name the crate target
+Chapter: [M9b](notebook/M9b.md)
+What happened: a build of 20 vendored packages named each as `//vendor/fuchsia/<path>`;
+`src/lib/diagnostics/inspect/derive/macro` has no target `macro` ("no such target"), so
+Bazel rejected the pattern set (the others built under `--keep_going`).
+Cost: one rerun, under a minute.
+Prevention: name vendored packages as `<path>:all` (or take target names from the
+closure's `targets`), since upstream target names often differ from the directory name.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T04:45-07:00 — failed command: overlay mapping applied from memory, not from M9a's files
+Chapter: [M9b](notebook/M9b.md)
+What happened: five new overlays omitted `visibility = ["//visibility:public"]` for GN's
+"no visibility" (M9a's overlays spell it out; a symbolic macro's target is otherwise
+private), and `vfs` kept the proc macro `paste` in `deps`. Two analysis errors on the
+first build of layers 4–11, one rebuild each config.
+Cost: one fix-and-rebuild cycle, a few minutes.
+Prevention: generate or check overlays against an existing one's rendered fields (or run
+the field cross-check) before the first build; list GN proc-macro deps separately.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T05:25-07:00 — instruction gap: M9b notebook entries batched, and a correction that replaced text
+Chapter: [M9b](notebook/M9b.md)
+What happened: the independent review of M9b found notebook entries written in batches,
+not at their events: two stamped 04:29 (the stub surprise, found about 04:25, and the
+`regen.py` decision), three at 04:35 (the vendor attempt, the `vfs` decision, a
+correction), three stamped 04:45 (the layers 4–11 failure, written after its fix, the
+cross-check and the disk entry). The 04:35 correction also replaced text in the entry
+above it (a scratch path) instead of only appending; it says so, but the original wording
+is gone. Stamps were not edited.
+Cost: a reviewer finding; coarser timing, and one entry no longer shows what was first
+written.
+Prevention: write the entry in the command right after the event (a failure before its
+fix); keep scratch paths out of the first draft rather than removing them afterwards, or
+append a correction that quotes nothing sensitive and leave the text.
+Fix belongs in: agent habit (lab-notebook skill already says so)
+Status: open

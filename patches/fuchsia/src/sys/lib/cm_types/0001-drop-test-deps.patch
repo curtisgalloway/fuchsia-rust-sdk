@@ -1,0 +1,28 @@
+SPDX-FileCopyrightText: 2026 Curtis Galloway
+SPDX-FileCopyrightText: The Fuchsia Authors
+SPDX-License-Identifier: Apache-2.0 AND BSD-2-Clause
+
+Build cm_types without its test deps (milestone M9b).
+
+test_deps are dropped: //rules:rustc.bzl makes no unit tests until milestone M16, and
+regen.py would otherwise fetch crates outside the closure (assert_matches, serde_json).
+
+The added lines are the overlay's (Apache-2.0); the context lines are Fuchsia's
+(BSD-2-Clause, LICENSES/BSD-2-Clause.txt). Applied by scripts/regen.py to the rewritten
+BUILD.bazel.
+
+--- a/src/sys/lib/cm_types/BUILD.bazel
++++ b/src/sys/lib/cm_types/BUILD.bazel
+@@ -14,10 +14,8 @@
+     srcs = ["src/lib.rs"],
+     crate_name = "cm_types",
+     edition = "2024",
+-    test_deps = [
+-        "@rust_crates//vendor:assert_matches",
+-        "@rust_crates//vendor:serde_json",
+-    ],
++    # Overlay: unit tests are milestone M16 (patch 0001).
++    test_deps = [],
+     visibility = ["//vendor/fuchsia:__subpackages__"],
+     with_unit_tests = True,
+     deps = [

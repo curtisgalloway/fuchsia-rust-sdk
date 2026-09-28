@@ -1,0 +1,52 @@
+SPDX-FileCopyrightText: 2026 Curtis Galloway
+SPDX-FileCopyrightText: The Fuchsia Authors
+SPDX-License-Identifier: Apache-2.0 AND BSD-2-Clause
+
+Build diagnostics-hierarchy for Fuchsia only, without test deps (milestone M9b).
+
+On host, upstream builds it with schemars (feature json_schema): outside pilot 1's
+closure (docs/closure/pilot1.json: this crate is used from Fuchsia code only). The host
+branch is emptied and the target marked Fuchsia-only.
+
+test_deps are dropped: //rules:rustc.bzl makes no unit tests until milestone M16, and
+regen.py would otherwise fetch crates outside the closure (assert_matches, serde_json,
+test-case) or fail on in-tree test deps it does not vendor (//src/lib/fuchsia, and on
+host //src/developer/ffx/lib/writer:lib).
+
+The added lines are the overlay's (Apache-2.0); the context lines are Fuchsia's
+(BSD-2-Clause, LICENSES/BSD-2-Clause.txt). Applied by scripts/regen.py to the rewritten
+BUILD.bazel.
+
+--- a/src/lib/diagnostics/hierarchy/rust/BUILD.bazel
++++ b/src/lib/diagnostics/hierarchy/rust/BUILD.bazel
+@@ -28,16 +28,8 @@
+         "@rust_crates//vendor:num-derive",
+         "@rust_crates//vendor:paste",
+     ],
+-    test_deps = [
+-        "//vendor/fuchsia/src/lib/fuchsia",
+-        "@rust_crates//vendor:assert_matches",
+-        "@rust_crates//vendor:serde_json",
+-        "@rust_crates//vendor:test-case",
+-    ] + select({
+-        # Contains a one-line check for a schema.
+-        "//rules:is_host_os": ["//vendor/fuchsia/src/developer/ffx/lib/writer:lib"],
+-        "//conditions:default": [],
+-    }),
++    # Overlay: unit tests are milestone M16 (patch 0001).
++    test_deps = [],
+     version = "0.1.0",
+     visibility = ["//vendor/fuchsia:__subpackages__"],
+     with_unit_tests = True,
+@@ -51,7 +43,10 @@
+         "@rust_crates//vendor:serde",
+         "@rust_crates//vendor:thiserror",
+     ] + select({
+-        "//rules:is_host_os": ["@rust_crates//vendor:schemars"],
++        # Overlay: no host build (patch 0001).
++        "//rules:is_host_os": [],
+         "//conditions:default": [],
+     }),
++    # Overlay: Fuchsia only (patch 0001).
++    target_compatible_with = ["@platforms//os:fuchsia"],
+ )

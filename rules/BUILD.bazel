@@ -8,3 +8,14 @@
 # and fidl_rust.bzl (its Rust bindings), which vendored FIDL libraries load (M8), and
 # build_info.bzl, the build arguments vendored BUILD files read (M8); fidl_rust_next.bzl,
 # the rust_next bindings and the allowlist the vendored fidl_next crates load (M8b).
+
+load(":host.bzl", "HOST_OS_CONSTRAINTS")
+
+# Upstream's //build/bazel/platforms:is_host_os, which scripts/regen.py maps here (M9b):
+# vendored BUILD files select() on it for their host branches. Upstream matches the host
+# platform's OS constraint; this matches the OS of the machine Bazel runs on (host.bzl).
+config_setting(
+    name = "is_host_os",
+    constraint_values = HOST_OS_CONSTRAINTS,
+    visibility = ["//vendor/fuchsia:__subpackages__"],
+)

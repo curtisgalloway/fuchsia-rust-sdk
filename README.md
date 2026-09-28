@@ -39,8 +39,8 @@ scripts/bazel test //tests/fidlgen/...    # both reproduce upstream's goldens; f
 ### Disk and environment profiles
 
 Disk limits belong to the environment (design C6). The default profile, `hosted`, fits
-the Anthropic-hosted container (about 30 GB of disk; budget 25 GiB in total, 12 GiB for
-Bazel's output base plus repository cache). Under it:
+the Anthropic-hosted container (about 30 GB of disk; budget 25 GiB in total, 15 GiB for
+Bazel's output base plus repository cache; 12 until M9b). Under it:
 
 - the IDK is extracted without what the build never uses (other API levels' prebuilts,
   riscv64 libraries, host tools for arm64 hosts), after its SHA-256 check: 3.6 GB

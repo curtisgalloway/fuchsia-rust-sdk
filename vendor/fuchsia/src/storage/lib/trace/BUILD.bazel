@@ -1,0 +1,47 @@
+# Copyright 2024 The Fuchsia Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+# SPDX-FileCopyrightText: 2024 The Fuchsia Authors
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Overlay BUILD file (design §4.2, R6; milestone M9b). Upstream has no BUILD.bazel here:
+# this is fuchsia.git src/storage/lib/trace/BUILD.gn at the lock's fuchsia_revision
+# (b5274053cc0f, blob fba9525293d1) translated by hand. scripts/regen.py copies it to
+# vendor/fuchsia/src/storage/lib/trace/BUILD.bazel. GN -> Bazel, as the M9a overlays
+# (overlays/sdk/lib/driver/runtime/rust/BUILD.bazel):
+#   - the rustc_library's name, crate name, edition, version, sources, features and deps
+#     unchanged; in-tree deps -> //vendor/fuchsia/<path>, //third_party/rust_crates:<c>
+#     -> @rust_crates//vendor:<c>;
+#   - GN visibility "//<dir>/*" -> "//vendor/fuchsia/<dir>:__subpackages__", ":*" and
+#     "//<dir>:*" -> "...:__pkg__"; no visibility -> public;
+#   - vendored = True (--cap-lints=allow), as regen.py adds to every upstream Rust rule;
+#   - Fuchsia-only (target_compatible_with): pilot 1's closure reaches it in the fuchsia
+#     context only, and its deps (fidl, fuchsia-async) are Fuchsia-only here;
+#   - with_unit_tests kept; test_deps and the test and package targets are not translated
+#     (unit tests are milestone M16).
+#
+# GN defines this target with the same-file template rust_storage_trace, evaluated here
+# for Fuchsia (enable_tracing = is_fuchsia): deps = [//src/lib/trace/rust:trace],
+# features = ["tracing"], sources = ["src/lib.rs"] (src/noop.rs only without tracing).
+# Not translated: the testonly storage_trace_{enabled,disabled}_rust variants and the
+# C++ source_sets and tests (outside pilot 1's closure).
+
+load("//rules:rustc.bzl", "rustc_library")
+
+package(default_applicable_licenses = ["//vendor/fuchsia:license"])
+
+rustc_library(
+    name = "trace",
+    crate_name = "storage_trace",
+    srcs = ["src/lib.rs"],
+    crate_features = ["tracing"],
+    edition = "2024",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+    vendored = True,
+    visibility = ["//vendor/fuchsia/src/storage:__subpackages__"],
+    with_unit_tests = True,
+    deps = ["//vendor/fuchsia/src/lib/trace/rust:trace"],
+    # GN test_deps (M16): //src/lib/fuchsia.
+)

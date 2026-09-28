@@ -1,0 +1,32 @@
+SPDX-FileCopyrightText: 2026 Curtis Galloway
+SPDX-FileCopyrightText: The Fuchsia Authors
+SPDX-License-Identifier: Apache-2.0 AND BSD-2-Clause
+
+Build client without its test deps (milestone M9b).
+
+test_deps are dropped: //rules:rustc.bzl makes no unit tests until milestone M16, and
+regen.py would otherwise fetch crates outside the closure (assert_matches) or fail on
+in-tree test deps it does not vendor
+(//src/lib/fuchsia-component/tests:fuchsia.component.client.test_rust).
+
+The added lines are the overlay's (Apache-2.0); the context lines are Fuchsia's
+(BSD-2-Clause, LICENSES/BSD-2-Clause.txt). Applied by scripts/regen.py to the rewritten
+BUILD.bazel.
+
+--- a/src/lib/fuchsia-component/client/BUILD.bazel
++++ b/src/lib/fuchsia-component/client/BUILD.bazel
+@@ -18,12 +18,8 @@
+     crate_name = "fuchsia_component_client",
+     edition = "2024",
+     target_compatible_with = ["@platforms//os:fuchsia"],
+-    test_deps = [
+-        "//vendor/fuchsia/src/lib/fuchsia-async",
+-        "//vendor/fuchsia/src/lib/fuchsia-component/tests:fuchsia.component.client.test_rust",
+-        "//vendor/fuchsia/src/storage/lib/vfs/rust:vfs",
+-        "@rust_crates//vendor:assert_matches",
+-    ],
++    # Overlay: unit tests are milestone M16 (patch 0001).
++    test_deps = [],
+     version = "0.1.0",
+     visibility = ["//vendor/fuchsia:__subpackages__"],
+     with_unit_tests = True,
