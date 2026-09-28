@@ -1175,3 +1175,19 @@ def test_idk_mode_needs_an_upstream_build_file(env, capsys):
     _write(repo, "vendor/crates.txt", "sdk/fidl/fuchsia.x idk\nsdk/rust/a upstream\nsdk/rust/b overlay\n")
     assert run("vendor") == 2
     assert "sdk/fidl/fuchsia.x is 'idk', but upstream has no BUILD.bazel there" in capsys.readouterr().err
+
+
+def test_an_aliased_rustc_test_is_not_noted_as_a_go_change():
+    text = ('load("//build/bazel/rules/rust:defs.bzl", "rustc_library", my_test = "rustc_test")\n\n'
+            'rustc_library(name = "l")\n\nmy_test(name = "t")\n')
+    notes = []
+    out = regen.rewrite_upstream_build(text, "f", set(), notes)
+    assert "my_test" not in out
+    assert notes == ["labels rewritten", "vendored = True added", "test targets dropped: my_test t"]
+
+
+def test_build_arguments_are_noted_in_the_header():
+    notes = []
+    regen.rewrite_upstream_build('load("@fuchsia_build_info//:args.bzl", "fuchsia_sync_detect_lock_cycles")\n',
+                                 "f", set(), notes)
+    assert "build arguments from //rules:build_info.bzl" in notes

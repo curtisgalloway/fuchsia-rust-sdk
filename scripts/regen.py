@@ -750,9 +750,11 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
     dropped: set[str] = set()
     fidl_macros: set[str] = set()
     load_nodes: set[int] = set()
+    go_loads = build_info = False
     for call, file, symbols in _loads(src):
         load_nodes.add(id(call))
         if file in _GO_LOADS:
+            go_loads = True
             edit = _go_load(src, call, file, symbols, go_rules, dropped)
             if edit is not None:
                 edits.append(edit)
@@ -788,6 +790,7 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
                     raise src.fail(call, f"loads {name} from {file}; the overlay's {_OVERLAY_BUILD_INFO} "
                                          f"defines only {', '.join(BUILD_INFO_ARGS)} (add it there)")
             edits.append((*src.span(call.args[0]), f'"{_OVERLAY_BUILD_INFO}"'))
+            build_info = True
         elif file == _RULES_RUST_DEFS:
             parts = []
             for local, name in symbols:
@@ -851,8 +854,10 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
         notes.append("labels rewritten")
         if rust_calls:
             notes.append("vendored = True added")
-        if go_rules or (dropped - set(_DROPPED_RUST_RULES)):
+        if go_loads:
             notes.append("Go loads mapped")
+        if build_info:
+            notes.append("build arguments from //rules:build_info.bzl")
         if fidl_macros:
             notes.append("sources from the IDK" if idk else "FIDL load mapped")
         if drop_edits:

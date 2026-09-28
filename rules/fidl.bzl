@@ -1,7 +1,9 @@
 # Copyright 2025 The Fuchsia Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+# (providers.bzl: Copyright 2021 The Fuchsia Authors.)
 #
+# SPDX-FileCopyrightText: 2021 The Fuchsia Authors
 # SPDX-FileCopyrightText: 2025 The Fuchsia Authors
 # SPDX-FileCopyrightText: 2026 Curtis Galloway
 # SPDX-License-Identifier: BSD-2-Clause
@@ -460,7 +462,7 @@ def _fidl_library_impl(
 
     if enable_rust_next:
         # TODO(https://fxbug.dev/454452299): Implement next-generation Rust bindings and conversions.
-        # Overlay: milestone M8b.
+        # Overlay: milestone M8b (M9 for the contains_drivers libraries).
         pass
 
 _fidl_library = macro(

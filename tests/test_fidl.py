@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CLOSURE = json.loads((ROOT / "docs/closure/pilot1.json").read_text())
 LISTED = {c.path: c.build for c in regen.read_vendor_list((ROOT / regen.VENDOR_LIST).read_text())}
 
-# The driver transport's crates (fidl.gni with enable_rust_drivers; milestone M8b).
+# The driver transport's crates (fidl.gni with enable_rust_drivers; milestone M9).
 DRIVER_TRANSPORT = {"//src/lib/fidl/rust/fidl_driver", "//sdk/lib/driver/runtime/rust"}
 
 

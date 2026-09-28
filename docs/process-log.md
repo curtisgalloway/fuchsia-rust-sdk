@@ -294,3 +294,16 @@ Cost: about 5 minutes; no step redone.
 Prevention: none on the project side; keep read-only work queued for such gaps.
 Fix belongs in: tool (harness)
 Status: open
+
+## 2026-09-28T02:51-07:00 — instruction gap: M8 notebook entries batched, and stamps edited in place
+Chapter: [M8](notebook/M8.md)
+What happened: several M8 entries were written in batches after the work they record,
+each batch under one stamp (four at 02:11, five at 02:31), not at the moment each
+happened. The entry "notebook entries stamped with a guessed time" above describes three
+stamps changed from 02:32 to 02:24 by editing the chapter in place, which the append-only
+rule forbids (a correction entry was the right form). Found by the independent review.
+Cost: coarse timing in the chapter; the earlier log entry understates the deviation.
+Prevention: append each entry right after its event, with `$(date …)` substituted; fix
+a wrong stamp with a correction entry, never an edit.
+Fix belongs in: agent habit (lab-notebook skill already says so)
+Status: open

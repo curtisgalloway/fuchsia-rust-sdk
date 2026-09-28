@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T02:34-07:00
+Updated: 2026-09-28T02:53-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -113,13 +113,13 @@ Outcome: complete — both generators run under Bazel and match upstream goldens
 - rules_go asks go.dev for SDK hashes unless MODULE.bazel.lock has `facts` (kept); `bazel mod` pollutes the lockfile
 
 ### [M8 — FIDL Rust binding rule (M8a: `rust` flavor; M8b uses M8b.md)](M8.md)
-Entries: 2026-09-28T02:06-07:00 through 2026-09-28T02:31-07:00
-Outcome: M8a implemented, review pending — 23 libraries' `rust` crates build for x64/arm64; split M8a/M8b (21 runtime crates)
+Entries: 2026-09-28T02:06-07:00 through 2026-09-28T02:53-07:00
+Outcome: M8a complete — 23 libraries' `rust` crates build for x64/arm64; split M8a/M8b (21 runtime crates); review: land after doc fixes
 - FIDL libraries via regen.py: upstream `sdk/fidl/*/BUILD.bazel` rewritten, `idk` mode takes `.fidl` from the IDK; `fuchsia.sys2` from fuchsia.git
 - Host FIDL at PLATFORM (`runtime_supported_api_levels`), Fuchsia at HEAD; tested (E0659 glob-ambiguity check on `NodeInfoDeprecated`)
 - `fidl`/`fuchsia-async`/`fuchsia-sync` Fuchsia-only by patch (host needs `forks/tokio`); regen.py checks provisional host-branch labels after patches
 - In-tree proc macro built as a Fuchsia `.so` under `//...`: `rustc_proc_macro` now host-only by default
-- Driver transport deferred (as upstream's Bazel rule): 10 overlay crates, M8b or M9
+- Driver transport deferred (as upstream's Bazel rule); orchestrator: M9 takes it (10 overlay crates)
 
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
