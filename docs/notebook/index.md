@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T18:06-07:00
+Updated: 2026-09-27T18:37-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -29,5 +29,15 @@ Outcome: complete — `product_bundles.json` → build `source_manifest.json` gi
 - fuchsia-bazel-rules CIPD lacks only 33.20260927.4.1; M1 pins IDK tarball + rules_fuchsia (decided)
 - One integration commit ≠ one fuchsia.git rev (v20); keep builds-agree check; independent review after checkpoint
 
+### [M1 — Repo scaffold and pinned release lock](M1.md)
+Entries: 2026-09-27T18:08-07:00 through 2026-09-27T18:37-07:00
+Outcome: complete — `resolve_pins.py` + `overlay.lock.json` for 33.20260927.4.1; two live runs byte-identical
+- `resolve_pins.py`: one commit's files via depth-1 blobless fetch + `cat-file` (no sparse checkout)
+- GCS has no SHA-256 for the IDK: stream 3 GB per run, check size + MD5 against GCS metadata
+- `rules_fuchsia` CIPD instances are shared across releases (18 version tags on one)
+- Review (before checkpoint): git inherited user config (C1); now isolated, tested with a hostile HOME
+- `read(amt)` accepts truncated HTTP bodies; `digest` checks Content-Length
+
 ## Threads
-- **Release → revision pinning:** [I1](I1.md) found the method; M1 implements it in `resolve_pins.py`.
+- **Release → revision pinning:** [I1](I1.md) found the method; [M1](M1.md) implements it in `resolve_pins.py`
+  and keeps the builds-agree check (live: `20.20240404.1.1` is rejected).
