@@ -1019,8 +1019,8 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 - Current milestone and status: **M6b in_progress, awaiting review** (branch `ms/M6b`
   from `b242fe5`; wip commits `2124b78` — patched crates in regen.py, `zx` builds (the
-  split point) — and `4449c69` — the 121 crates and the build list; evidence, plan and
-  notebook are uncommitted or in the next wip commit). Implementation and verification
+  split point) — `4449c69` — the 121 crates and the build list — and a wip commit with
+  the evidence, plan and notebook; tree clean). Implementation and verification
   are done; the independent review precedes the checkpoint `overlay: M6b — Pilot 1's
   crates.io crates build`.
 - Completed work and evidence: [M6b evidence](evidence/M6b.md) (all but Review).
