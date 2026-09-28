@@ -158,6 +158,10 @@ Outcome: complete — 6 overlays, no patches; all 68 in-tree crates but the driv
 - Pilot driver source compiles against it (scratch); GN's Rust driver template allows unused crate deps (M10)
 - Review: stronger REMOVED_DEPS test; M10 entry carries the unused-crate allowance and both manifest shards
 
+### [M10 — `fuchsia_rust_driver` rule; pilot 1 packages](M10.md)
+Entries: 2026-09-28T06:21-07:00 through 2026-09-28T06:21-07:00
+Outcome: open
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
