@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 # Rust drivers out of tree (the overlay) — Design
 
 Revision: 2026-09-27, draft 1 — approved by the owner 2026-09-27, including D6;
-amended 2026-09-27 per owner direction and M2 findings (C6, A2, R1, R2, §4.1, §4.2)
+amended 2026-09-27 per owner direction and M2/M3 findings (C6, A2, R1, R2, §4.1, §4.2)
 
 Source brief: [`brief.md`](brief.md), copied from `curtisgalloway/fuchsia-ci` at `b061204`
 (`docs/drivers/rust-driver-oot-plan.md`) (the
@@ -164,7 +164,9 @@ Facts found for this design (local tree at `b5274053`, 2026-09-27):
 - **R1. Pinned release lock.** Given an SDK version, a script produces
   `overlay.lock.json` with: the release revision, the CIPD instance IDs of the
   toolchain packages (Rust host, Rust Fuchsia target std, Rust host std, clang), the
-  `rules_fuchsia`/Bazel SDK version, and the SHA-256 of the release's
+  `rules_fuchsia`/Bazel SDK version, the emulator product bundle (`core.x64`) pinned
+  by a digest over its files' SHA-256s (owner decision 2026-09-27, added in M3), and
+  the SHA-256 of the release's
   `third_party/rust_crates/Cargo.lock`. *Check:* running it twice gives
   byte-identical output; each field names the upstream artifact it came from.
 - **R2. Fuchsia Rust toolchain.** The overlay registers Rust toolchains for
