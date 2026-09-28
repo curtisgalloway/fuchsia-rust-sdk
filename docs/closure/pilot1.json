@@ -1,0 +1,5539 @@
+{
+ "schema": 1,
+ "name": "pilot1",
+ "fuchsia_revision": "b5274053cc0f1ba03cd0902a3da575ac9c31c152",
+ "roots": [
+  "//sdk/lib/driver/component/rust",
+  "//sdk/lib/driver/runtime/rust",
+  "//examples/drivers/simple/rust:driver"
+ ],
+ "generated_by": "scripts/closure.py",
+ "method": "GN deps, public_deps, non_rust_deps and proc_macro_deps (not test_deps) from the roots; conditions evaluated per toolchain (fuchsia, host), unknown ones followed both ways; FIDL deps followed per flavor; crates.io deps followed through upstream's crate_universe BUILD files, select() limited to the Fuchsia targets and linux-x64 host",
+ "counts": {
+  "intree_crates": 66,
+  "intree_crates_with_upstream_bazel": 44,
+  "intree_rs_lines": 174652,
+  "crates_io_direct_aliases": 45,
+  "crates_io_direct_crates": 45,
+  "crates_io_transitive": 124,
+  "crates_io_transitive_patched": 5,
+  "crates_io_transitive_proc_macro": 17,
+  "crates_io_transitive_unfiltered_select": 124,
+  "fidl_libraries": 24,
+  "fidl_libraries_direct": 18,
+  "fidl_libraries_not_in_idk": 1,
+  "bind_libraries": 1,
+  "native_targets": 9,
+  "unresolved": 0
+ },
+ "upper_bound_counts": {
+  "intree_crates": 69,
+  "intree_rs_lines": 178543,
+  "crates_io_direct_aliases": 50,
+  "crates_io_transitive": 145,
+  "fidl_libraries": 25,
+  "only_in_upper_bound": {
+   "intree": [
+    "src/lib/fidl/rust/fidl_message",
+    "src/lib/fuchsia-emulated-handle",
+    "src/sys/lib/bitflags-serde-legacy"
+   ],
+   "crates_io_direct": [
+    "futures-lite",
+    "parking_lot",
+    "parking_lot_core",
+    "schemars",
+    "tokio"
+   ],
+   "fidl": [
+    "fuchsia.fdomain"
+   ]
+  }
+ },
+ "intree": [
+  {
+   "path": "examples/drivers/simple/rust",
+   "rs_lines": 126,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "driver",
+     "gn_template": "fuchsia_rust_driver",
+     "crate_type": "driver",
+     "crate_name": "driver",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "<root>"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/async/rust",
+   "rs_lines": 1179,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "rust",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "libasync",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/runtime/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/async/rust/dispatcher",
+   "rs_lines": 672,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "dispatcher",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "libasync_dispatcher",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/runtime/rust/core"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/async/rust/fidl",
+   "rs_lines": 417,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "fidl",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "libasync_fidl",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/async/rust/sys",
+   "rs_lines": 648,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "sys",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "libasync_sys",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/async/rust/fidl"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/c/rust",
+   "rs_lines": 251,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "zx-libc",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "zx_libc",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/fuchsia-runtime"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/driver/component/rust",
+   "rs_lines": 2898,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "rust",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fdf_component",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "<root>"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/driver/runtime/rust",
+   "rs_lines": 20,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "rust",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fdf",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "<root>"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/driver/runtime/rust/channel",
+   "rs_lines": 2506,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "channel",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fdf_channel",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/runtime/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/driver/runtime/rust/core",
+   "rs_lines": 1154,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "core",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fdf_core",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/driver/runtime/rust/env",
+   "rs_lines": 1038,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "env",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fdf_env",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/driver/runtime/rust/fdf_sys",
+   "rs_lines": 863,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "fdf_sys",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fdf_sys",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/driver/runtime/rust/fidl",
+   "rs_lines": 965,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "fidl",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fdf_fidl",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/lib/fuchsia-loom",
+   "rs_lines": 234,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fuchsia-loom",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_loom",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/fidl/rust_next/fidl_next_protocol:fidl_next_protocol_internal"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/rust/zx",
+   "rs_lines": 15612,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "zx",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "zx",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/rust/zx-status",
+   "rs_lines": 404,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "zx-status",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "zx_status",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/rust/zx"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/rust/zx-status-ext",
+   "rs_lines": 84,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "zx-status-ext",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "zx_status_ext",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/rust/zx"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/rust/zx-sys",
+   "rs_lines": 1118,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "zx-sys",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "zx_sys",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/rust/zx"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "sdk/rust/zx-types",
+   "rs_lines": 3346,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "zx-types",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "zx_types",
+     "edition": "2024",
+     "features": [
+      "zerocopy"
+     ],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/runtime/rust/fdf_sys"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/buf-read-ext",
+   "rs_lines": 79,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "buf-read-ext",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "buf_read_ext",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/diagnostics/selectors"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/detect-stall",
+   "rs_lines": 447,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "detect-stall",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "detect_stall",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/fuchsia-component/server"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/diagnostics/hierarchy/rust",
+   "rs_lines": 4105,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "diagnostics-hierarchy",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "diagnostics_hierarchy",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/diagnostics/inspect/rust:fuchsia-inspect"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/diagnostics/inspect/contrib/rust",
+   "rs_lines": 3324,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fuchsia-inspect-contrib",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_inspect_contrib",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/diagnostics/inspect/derive",
+   "rs_lines": 515,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fuchsia-inspect-derive",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_inspect_derive",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/diagnostics/inspect/contrib/rust:fuchsia-inspect-contrib"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/diagnostics/inspect/derive/macro",
+   "rs_lines": 466,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fuchsia-inspect-derive-macro",
+     "gn_template": "rustc_macro",
+     "crate_type": "proc-macro",
+     "crate_name": "fuchsia_inspect_derive_macro",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "host"
+     ],
+     "used_by": [
+      "//src/lib/diagnostics/inspect/derive:fuchsia-inspect-derive"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/diagnostics/inspect/format/rust",
+   "rs_lines": 3074,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "lib",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "inspect_format",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/diagnostics/inspect/rust:fuchsia-inspect"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/diagnostics/inspect/runtime/rust",
+   "rs_lines": 1085,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "lib",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "inspect_runtime",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/diagnostics/inspect/rust",
+   "rs_lines": 13020,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fuchsia-inspect",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_inspect",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/diagnostics/log/encoding/rust",
+   "rs_lines": 2307,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "rust",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "diagnostics_log_encoding",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/diagnostics/log/rust:no_startup_handle"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/diagnostics/log/rust",
+   "rs_lines": 3588,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "no_startup_handle",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "driver_diagnostics_log",
+     "edition": "2024",
+     "features": [
+      "no_startup_handle"
+     ],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/diagnostics/log/types",
+   "rs_lines": 454,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "types",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "diagnostics_log_types",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/diagnostics/log/rust:no_startup_handle"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/diagnostics/selectors",
+   "rs_lines": 3095,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "selectors",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "selectors",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/diagnostics/hierarchy/rust:diagnostics-hierarchy"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/directed_graph",
+   "rs_lines": 870,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "directed_graph",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "directed_graph",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/sys/lib/cm_rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/elf_parse",
+   "rs_lines": 1203,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "elf_parse",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "elf_parse",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/process_builder"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fdio/rust",
+   "rs_lines": 3886,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fdio",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fdio",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/fuchsia-component/client"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fdomain/client",
+   "rs_lines": 5345,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "flex_fidl",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "flex_client",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/storage/lib/vfs/rust:vfs"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fidl/rust/fidl",
+   "rs_lines": 8234,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fidl",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fidl",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fidl/rust_constants",
+   "rs_lines": 35,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "rust_constants",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fidl_constants",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/fidl/rust/fidl"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fidl/rust_next/fidl_next",
+   "rs_lines": 43,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fidl_next_internal",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fidl_next",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fidl/rust_next/fidl_next_bind",
+   "rs_lines": 2818,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fidl_next_bind_internal",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fidl_next_bind",
+     "edition": "2024",
+     "features": [
+      "fasync",
+      "fuchsia"
+     ],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fidl/rust_next/fidl_next_codec",
+   "rs_lines": 7192,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fidl_next_codec_internal",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fidl_next_codec",
+     "edition": "2024",
+     "features": [
+      "fuchsia"
+     ],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/fidl/rust_next/fidl_next:fidl_next_internal"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fidl/rust_next/fidl_next_protocol",
+   "rs_lines": 4290,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fidl_next_protocol_internal",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fidl_next_protocol",
+     "edition": "2024",
+     "features": [
+      "fuchsia"
+     ],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fidl/rust_next/fidl_next_util",
+   "rs_lines": 177,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fidl_next_util_internal",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fidl_next_util",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/fidl/rust_next/fidl_next:fidl_next_internal"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/from-enum",
+   "rs_lines": 115,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "from-enum",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "from_enum",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/sys/lib/cm_rust"
+     ],
+     "unknown_deps": 0
+    },
+    {
+     "target": "from-enum-derive",
+     "gn_template": "rustc_macro",
+     "crate_type": "proc-macro",
+     "crate_name": "from_enum_derive",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "host"
+     ],
+     "used_by": [
+      "//src/lib/from-enum"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fuchsia-async",
+   "rs_lines": 15603,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fuchsia-async",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_async",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fuchsia-async-macro",
+   "rs_lines": 300,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fuchsia-async-macro",
+     "gn_template": "rustc_macro",
+     "crate_type": "proc-macro",
+     "crate_name": "fuchsia_async_macro",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "host"
+     ],
+     "used_by": [
+      "//src/lib/fuchsia-async"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fuchsia-component",
+   "rs_lines": 17,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fuchsia-component",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_component",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fuchsia-component/client",
+   "rs_lines": 881,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "client",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_component_client",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/diagnostics/log/rust:no_startup_handle"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fuchsia-component/config",
+   "rs_lines": 68,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "config",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_component_config",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fuchsia-component/directory",
+   "rs_lines": 192,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "directory",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_component_directory",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/fuchsia-component"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fuchsia-component/escrow",
+   "rs_lines": 206,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "escrow",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_component_escrow",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/fuchsia-component"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fuchsia-component/runtime",
+   "rs_lines": 1775,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "runtime",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_component_runtime",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/fuchsia-component"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fuchsia-component/server",
+   "rs_lines": 1622,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "server",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_component_server",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/fuchsia-component"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fuchsia-fs",
+   "rs_lines": 5495,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fuchsia-fs",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_fs",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/fuchsia-component/client"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fuchsia-runtime",
+   "rs_lines": 538,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fuchsia-runtime",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_runtime",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fuchsia-sync",
+   "rs_lines": 1430,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "fuchsia-sync",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_sync",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/injectable-time",
+   "rs_lines": 240,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "injectable-time",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "injectable_time",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/diagnostics/inspect/rust:fuchsia-inspect"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/process_builder",
+   "rs_lines": 2966,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "process_builder",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "process_builder",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/sys/lib/namespace"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/storage/lib/vfs/rust",
+   "rs_lines": 17025,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "vfs",
+     "gn_template": "rustc_dylib",
+     "crate_type": "dylib",
+     "crate_name": "vfs",
+     "edition": null,
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/sys/lib/namespace"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/storage/lib/vfs/rust/name",
+   "rs_lines": 794,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "name",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "name",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/sys/lib/cm_types"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/sys/lib/cm_fidl_validator",
+   "rs_lines": 12186,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "cm_fidl_validator",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "cm_fidl_validator",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/sys/lib/cm_rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/sys/lib/cm_graph",
+   "rs_lines": 499,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "cm_graph",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "cm_graph",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/sys/lib/cm_fidl_validator"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/sys/lib/cm_rust",
+   "rs_lines": 5239,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "cm_rust",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "cm_rust",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/sys/lib/moniker"
+     ],
+     "unknown_deps": 0
+    },
+    {
+     "target": "cm_rust_derive",
+     "gn_template": "rustc_macro",
+     "crate_type": "proc-macro",
+     "crate_name": "cm_rust_derive",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "host"
+     ],
+     "used_by": [
+      "//src/sys/lib/cm_rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/sys/lib/cm_types",
+   "rs_lines": 2246,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "cm_types",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "cm_types",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/sys/lib/moniker",
+   "rs_lines": 1231,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "moniker",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "moniker",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/lib/diagnostics/selectors"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/sys/lib/namespace",
+   "rs_lines": 797,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "namespace",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "namespace",
+     "edition": "2024",
+     "features": [],
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/lib/driver/component/rust"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  }
+ ],
+ "crates_io": {
+  "direct": [
+   {
+    "alias": "anyhow",
+    "gn_target": "anyhow-v1_0_104",
+    "bazel_actual": "//third_party/rust_crates/vendor/anyhow-1.0.104:anyhow",
+    "crate_dir": "vendor/anyhow-1.0.104",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//sdk/lib/driver/component/rust"
+    ]
+   },
+   {
+    "alias": "async-trait",
+    "gn_target": "async-trait-v0_1_92($host_toolchain)",
+    "bazel_actual": "//third_party/rust_crates/vendor/async-trait-0.1.92:async_trait",
+    "crate_dir": "vendor/async-trait-0.1.92",
+    "contexts": [
+     "host"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/inspect/rust:fuchsia-inspect"
+    ]
+   },
+   {
+    "alias": "base64",
+    "gn_target": "base64-v0_22_1",
+    "bazel_actual": "//third_party/rust_crates/vendor/base64-0.22.1:base64",
+    "crate_dir": "vendor/base64-0.22.1",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/hierarchy/rust:diagnostics-hierarchy"
+    ]
+   },
+   {
+    "alias": "bitfield",
+    "gn_target": "bitfield-v0_19_5",
+    "bazel_actual": "//third_party/rust_crates/vendor/bitfield-0.19.5:bitfield",
+    "crate_dir": "vendor/bitfield-0.19.5",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/log/encoding/rust"
+    ]
+   },
+   {
+    "alias": "bitflags",
+    "gn_target": "bitflags-v2_13_0",
+    "bazel_actual": "//third_party/rust_crates/vendor/bitflags-2.13.0:bitflags",
+    "crate_dir": "vendor/bitflags-2.13.0",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//sdk/rust/zx"
+    ]
+   },
+   {
+    "alias": "bstr",
+    "gn_target": "bstr-v1_13_1",
+    "bazel_actual": "//third_party/rust_crates/vendor/bstr-1.13.1:bstr",
+    "crate_dir": "vendor/bstr-1.13.1",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//sdk/rust/zx"
+    ]
+   },
+   {
+    "alias": "byteorder",
+    "gn_target": "byteorder-v1_5_0",
+    "bazel_actual": "//third_party/rust_crates/ask2patch/byteorder:byteorder",
+    "crate_dir": "ask2patch/byteorder",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/inspect/format/rust:lib"
+    ]
+   },
+   {
+    "alias": "chrono",
+    "gn_target": "chrono-v0_4_45",
+    "bazel_actual": "//third_party/rust_crates/vendor/chrono-0.4.45:chrono",
+    "crate_dir": "vendor/chrono-0.4.45",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/injectable-time"
+    ]
+   },
+   {
+    "alias": "crossbeam",
+    "gn_target": "crossbeam-v0_8_4",
+    "bazel_actual": "//third_party/rust_crates/vendor/crossbeam-0.8.4:crossbeam",
+    "crate_dir": "vendor/crossbeam-0.8.4",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/fuchsia-async"
+    ]
+   },
+   {
+    "alias": "darling",
+    "gn_target": "darling-v0_23_0",
+    "bazel_actual": "//third_party/rust_crates/vendor/darling-0.23.0:darling",
+    "crate_dir": "vendor/darling-0.23.0",
+    "contexts": [
+     "host"
+    ],
+    "used_by": [
+     "//src/sys/lib/cm_rust:cm_rust_derive"
+    ]
+   },
+   {
+    "alias": "derivative",
+    "gn_target": "derivative-v2_2_0($host_toolchain)",
+    "bazel_actual": "//third_party/rust_crates/vendor/derivative-2.2.0:derivative",
+    "crate_dir": "vendor/derivative-2.2.0",
+    "contexts": [
+     "host"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/inspect/contrib/rust:fuchsia-inspect-contrib"
+    ]
+   },
+   {
+    "alias": "either",
+    "gn_target": "either-v1_18_0",
+    "bazel_actual": "//third_party/rust_crates/vendor/either-1.18.0:either",
+    "crate_dir": "vendor/either-1.18.0",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/hierarchy/rust:diagnostics-hierarchy"
+    ]
+   },
+   {
+    "alias": "flyweights",
+    "gn_target": "flyweights-v0_1_5",
+    "bazel_actual": "//third_party/rust_crates/vendor/flyweights-0.1.5:flyweights",
+    "crate_dir": "vendor/flyweights-0.1.5",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/sys/lib/cm_types"
+    ]
+   },
+   {
+    "alias": "fragile",
+    "gn_target": "fragile-v2_0_1",
+    "bazel_actual": "//third_party/rust_crates/vendor/fragile-2.0.1:fragile",
+    "crate_dir": "vendor/fragile-2.0.1",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/inspect/rust:fuchsia-inspect"
+    ]
+   },
+   {
+    "alias": "futures",
+    "gn_target": "futures-v0_3_34",
+    "bazel_actual": "//third_party/rust_crates/vendor/futures-0.3.34:futures",
+    "crate_dir": "vendor/futures-0.3.34",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//sdk/lib/driver/component/rust"
+    ]
+   },
+   {
+    "alias": "itertools",
+    "gn_target": "itertools-v0_14_0",
+    "bazel_actual": "//third_party/rust_crates/vendor/itertools-0.14.0:itertools",
+    "crate_dir": "vendor/itertools-0.14.0",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/selectors"
+    ]
+   },
+   {
+    "alias": "libc",
+    "gn_target": "libc-v0_2_189",
+    "bazel_actual": "//third_party/rust_crates/forks/libc-0.2.189:libc",
+    "crate_dir": "forks/libc-0.2.189",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//sdk/rust/zx"
+    ]
+   },
+   {
+    "alias": "lock_api",
+    "gn_target": "lock_api-v0_4_14",
+    "bazel_actual": "//third_party/rust_crates/vendor/lock_api-0.4.14:lock_api",
+    "crate_dir": "vendor/lock_api-0.4.14",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/fuchsia-sync"
+    ]
+   },
+   {
+    "alias": "log",
+    "gn_target": "log-v0_4_29",
+    "bazel_actual": "//third_party/rust_crates/vendor/log-0.4.29:log",
+    "crate_dir": "vendor/log-0.4.29",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//sdk/lib/driver/component/rust"
+    ]
+   },
+   {
+    "alias": "lru",
+    "gn_target": "lru-v0_18_5",
+    "bazel_actual": "//third_party/rust_crates/vendor/lru-0.18.5:lru",
+    "crate_dir": "vendor/lru-0.18.5",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/inspect/contrib/rust:fuchsia-inspect-contrib"
+    ]
+   },
+   {
+    "alias": "maplit",
+    "gn_target": "maplit-v1_0_2",
+    "bazel_actual": "//third_party/rust_crates/vendor/maplit-1.0.2:maplit",
+    "crate_dir": "vendor/maplit-1.0.2",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/inspect/rust:fuchsia-inspect"
+    ]
+   },
+   {
+    "alias": "memchr",
+    "gn_target": "memchr-v2_8_3",
+    "bazel_actual": "//third_party/rust_crates/ask2patch/memchr:memchr",
+    "crate_dir": "ask2patch/memchr",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/storage/lib/vfs/rust/name"
+    ]
+   },
+   {
+    "alias": "munge",
+    "gn_target": "munge-v0_4_7",
+    "bazel_actual": "//third_party/rust_crates/vendor/munge-0.4.7:munge",
+    "crate_dir": "vendor/munge-0.4.7",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/fidl/rust_next/fidl_next_codec:fidl_next_codec_internal"
+    ]
+   },
+   {
+    "alias": "num-derive",
+    "gn_target": "num-derive-v0_5_1($host_toolchain)",
+    "bazel_actual": "//third_party/rust_crates/vendor/num-derive-0.5.1:num_derive",
+    "crate_dir": "vendor/num-derive-0.5.1",
+    "contexts": [
+     "fuchsia",
+     "host"
+    ],
+    "used_by": [
+     "//src/lib/elf_parse",
+     "//src/lib/fuchsia-runtime"
+    ]
+   },
+   {
+    "alias": "num-traits",
+    "gn_target": "num-traits-v0_2_19",
+    "bazel_actual": "//third_party/rust_crates/vendor/num-traits-0.2.19:num_traits",
+    "crate_dir": "vendor/num-traits-0.2.19",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/fuchsia-runtime"
+    ]
+   },
+   {
+    "alias": "paste",
+    "gn_target": "paste-v1_0_15($host_toolchain)",
+    "bazel_actual": "//third_party/rust_crates/vendor/paste-1.0.15:paste",
+    "crate_dir": "vendor/paste-1.0.15",
+    "contexts": [
+     "host"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/log/rust:no_startup_handle"
+    ]
+   },
+   {
+    "alias": "pin-project",
+    "gn_target": "pin-project-v1_1_11",
+    "bazel_actual": "//third_party/rust_crates/vendor/pin-project-1.1.11:pin_project",
+    "crate_dir": "vendor/pin-project-1.1.11",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/inspect/runtime/rust:lib"
+    ]
+   },
+   {
+    "alias": "pin-project-lite",
+    "gn_target": "pin-project-lite-v0_2_17",
+    "bazel_actual": "//third_party/rust_crates/vendor/pin-project-lite-0.2.17:pin_project_lite",
+    "crate_dir": "vendor/pin-project-lite-0.2.17",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/fuchsia-async"
+    ]
+   },
+   {
+    "alias": "proc-macro2",
+    "gn_target": "proc-macro2-v1_0_107",
+    "bazel_actual": "//third_party/rust_crates/vendor/proc-macro2-1.0.107:proc_macro2",
+    "crate_dir": "vendor/proc-macro2-1.0.107",
+    "contexts": [
+     "host"
+    ],
+    "used_by": [
+     "//src/lib/fuchsia-async-macro"
+    ]
+   },
+   {
+    "alias": "quote",
+    "gn_target": "quote-v1_0_47",
+    "bazel_actual": "//third_party/rust_crates/vendor/quote-1.0.47:quote",
+    "crate_dir": "vendor/quote-1.0.47",
+    "contexts": [
+     "host"
+    ],
+    "used_by": [
+     "//src/lib/fuchsia-async-macro"
+    ]
+   },
+   {
+    "alias": "rand",
+    "gn_target": "rand-v0_10_2",
+    "bazel_actual": "//third_party/rust_crates/vendor/rand-0.10.2:rand",
+    "crate_dir": "vendor/rand-0.10.2",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/fuchsia-fs"
+    ]
+   },
+   {
+    "alias": "rustc-hash",
+    "gn_target": "rustc-hash-v2_1_3",
+    "bazel_actual": "//third_party/rust_crates/vendor/rustc-hash-2.1.3:rustc_hash",
+    "crate_dir": "vendor/rustc-hash-2.1.3",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/fuchsia-async"
+    ]
+   },
+   {
+    "alias": "serde",
+    "gn_target": "serde-v1_0_229",
+    "bazel_actual": "//third_party/rust_crates/vendor/serde-1.0.229:serde",
+    "crate_dir": "vendor/serde-1.0.229",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/sys/lib/cm_types"
+    ]
+   },
+   {
+    "alias": "slab",
+    "gn_target": "slab-v0_4_12",
+    "bazel_actual": "//third_party/rust_crates/vendor/slab-0.4.12:slab",
+    "crate_dir": "vendor/slab-0.4.12",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/fidl/rust/fidl"
+    ]
+   },
+   {
+    "alias": "smallvec",
+    "gn_target": "smallvec-v1_15_2",
+    "bazel_actual": "//third_party/rust_crates/vendor/smallvec-1.15.2:smallvec",
+    "crate_dir": "vendor/smallvec-1.15.2",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/fuchsia-async"
+    ]
+   },
+   {
+    "alias": "socket2",
+    "gn_target": "socket2-v0_6_4",
+    "bazel_actual": "//third_party/rust_crates/vendor/socket2-0.6.4:socket2",
+    "crate_dir": "vendor/socket2-0.6.4",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/fuchsia-async"
+    ]
+   },
+   {
+    "alias": "static_assertions",
+    "gn_target": "static_assertions-v1_1_0",
+    "bazel_actual": "//third_party/rust_crates/vendor/static_assertions-1.1.0:static_assertions",
+    "crate_dir": "vendor/static_assertions-1.1.0",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//sdk/rust/zx"
+    ]
+   },
+   {
+    "alias": "strum",
+    "gn_target": "strum-v0_28_0",
+    "bazel_actual": "//third_party/rust_crates/vendor/strum-0.28.0:strum",
+    "crate_dir": "vendor/strum-0.28.0",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/inspect/contrib/rust:fuchsia-inspect-contrib"
+    ]
+   },
+   {
+    "alias": "strum_macros",
+    "gn_target": "strum_macros-v0_28_0($host_toolchain)",
+    "bazel_actual": "//third_party/rust_crates/vendor/strum_macros-0.28.0:strum_macros",
+    "crate_dir": "vendor/strum_macros-0.28.0",
+    "contexts": [
+     "host"
+    ],
+    "used_by": [
+     "//src/sys/lib/cm_rust"
+    ]
+   },
+   {
+    "alias": "syn",
+    "gn_target": "syn-v2_0_119",
+    "bazel_actual": "//third_party/rust_crates/vendor/syn-2.0.119:syn",
+    "crate_dir": "vendor/syn-2.0.119",
+    "contexts": [
+     "host"
+    ],
+    "used_by": [
+     "//src/lib/fuchsia-async-macro"
+    ]
+   },
+   {
+    "alias": "thiserror",
+    "gn_target": "thiserror-v2_0_20",
+    "bazel_actual": "//third_party/rust_crates/vendor/thiserror-2.0.20:thiserror",
+    "crate_dir": "vendor/thiserror-2.0.20",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/log/rust:no_startup_handle"
+    ]
+   },
+   {
+    "alias": "tracing-mutex-0.3.2",
+    "gn_target": "tracing-mutex-v0_3_2",
+    "bazel_actual": "//third_party/rust_crates/forks/tracing-mutex-0.3.2:tracing_mutex",
+    "crate_dir": "forks/tracing-mutex-0.3.2",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/fuchsia-sync"
+    ]
+   },
+   {
+    "alias": "url",
+    "gn_target": "url-v2_5_8",
+    "bazel_actual": "//third_party/rust_crates/vendor/url-2.5.8:url",
+    "crate_dir": "vendor/url-2.5.8",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/sys/lib/cm_types"
+    ]
+   },
+   {
+    "alias": "winnow",
+    "gn_target": "winnow-v1_0_4",
+    "bazel_actual": "//third_party/rust_crates/vendor/winnow-1.0.4:winnow",
+    "crate_dir": "vendor/winnow-1.0.4",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//src/lib/diagnostics/selectors"
+    ]
+   },
+   {
+    "alias": "zerocopy",
+    "gn_target": "zerocopy-v0_8_48",
+    "bazel_actual": "//third_party/rust_crates/vendor/zerocopy-0.8.48:zerocopy",
+    "crate_dir": "vendor/zerocopy-0.8.48",
+    "contexts": [
+     "fuchsia"
+    ],
+    "used_by": [
+     "//sdk/rust/zx"
+    ]
+   }
+  ],
+  "transitive": [
+   {
+    "dir": "ask2patch/byteorder",
+    "kind": "ask2patch",
+    "name": "byteorder",
+    "version": "1.5.0",
+    "patched": true,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "MIT",
+     "Unlicense"
+    ],
+    "in_cargo_lock": false
+   },
+   {
+    "dir": "ask2patch/memchr",
+    "kind": "ask2patch",
+    "name": "memchr",
+    "version": "2.8.3",
+    "patched": true,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "MIT",
+     "Unlicense"
+    ],
+    "in_cargo_lock": false
+   },
+   {
+    "dir": "forks/libc-0.2.189",
+    "kind": "forks",
+    "name": "libc",
+    "version": "0.2.189",
+    "patched": true,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": false
+   },
+   {
+    "dir": "forks/tracing-mutex-0.3.2",
+    "kind": "forks",
+    "name": "tracing-mutex",
+    "version": "0.3.2",
+    "patched": true,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": false
+   },
+   {
+    "dir": "forks/zeroize",
+    "kind": "forks",
+    "name": "zeroize",
+    "version": "1.9.0",
+    "patched": true,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": false
+   },
+   {
+    "dir": "vendor/ahash-0.8.12",
+    "kind": "vendor",
+    "name": "ahash",
+    "version": "0.8.12",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/anyhow-1.0.104",
+    "kind": "vendor",
+    "name": "anyhow",
+    "version": "1.0.104",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/async-trait-0.1.92",
+    "kind": "vendor",
+    "name": "async-trait",
+    "version": "0.1.92",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/autocfg-1.5.0",
+    "kind": "vendor",
+    "name": "autocfg",
+    "version": "1.5.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/base64-0.22.1",
+    "kind": "vendor",
+    "name": "base64",
+    "version": "0.22.1",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/bitfield-0.19.5",
+    "kind": "vendor",
+    "name": "bitfield",
+    "version": "0.19.5",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/bitfield-macros-0.19.5",
+    "kind": "vendor",
+    "name": "bitfield-macros",
+    "version": "0.19.5",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/bitflags-2.13.0",
+    "kind": "vendor",
+    "name": "bitflags",
+    "version": "2.13.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/block-buffer-0.12.1",
+    "kind": "vendor",
+    "name": "block-buffer",
+    "version": "0.12.1",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/block-padding-0.4.2",
+    "kind": "vendor",
+    "name": "block-padding",
+    "version": "0.4.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/bstr-1.13.1",
+    "kind": "vendor",
+    "name": "bstr",
+    "version": "1.13.1",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/cfg-if-1.0.4",
+    "kind": "vendor",
+    "name": "cfg-if",
+    "version": "1.0.4",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/chacha20-0.10.2",
+    "kind": "vendor",
+    "name": "chacha20",
+    "version": "0.10.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/chrono-0.4.45",
+    "kind": "vendor",
+    "name": "chrono",
+    "version": "0.4.45",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/cipher-0.5.2",
+    "kind": "vendor",
+    "name": "cipher",
+    "version": "0.5.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/cpufeatures-0.3.0",
+    "kind": "vendor",
+    "name": "cpufeatures",
+    "version": "0.3.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/crossbeam-0.8.4",
+    "kind": "vendor",
+    "name": "crossbeam",
+    "version": "0.8.4",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/crossbeam-channel-0.5.15",
+    "kind": "vendor",
+    "name": "crossbeam-channel",
+    "version": "0.5.15",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/crossbeam-deque-0.8.6",
+    "kind": "vendor",
+    "name": "crossbeam-deque",
+    "version": "0.8.6",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/crossbeam-epoch-0.9.18",
+    "kind": "vendor",
+    "name": "crossbeam-epoch",
+    "version": "0.9.18",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/crossbeam-queue-0.3.12",
+    "kind": "vendor",
+    "name": "crossbeam-queue",
+    "version": "0.3.12",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/crossbeam-utils-0.8.23",
+    "kind": "vendor",
+    "name": "crossbeam-utils",
+    "version": "0.8.23",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/crypto-common-0.2.2",
+    "kind": "vendor",
+    "name": "crypto-common",
+    "version": "0.2.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/darling-0.23.0",
+    "kind": "vendor",
+    "name": "darling",
+    "version": "0.23.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/darling_core-0.23.0",
+    "kind": "vendor",
+    "name": "darling_core",
+    "version": "0.23.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/darling_macro-0.23.0",
+    "kind": "vendor",
+    "name": "darling_macro",
+    "version": "0.23.0",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/derivative-2.2.0",
+    "kind": "vendor",
+    "name": "derivative",
+    "version": "2.2.0",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/displaydoc-0.2.7",
+    "kind": "vendor",
+    "name": "displaydoc",
+    "version": "0.2.7",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/either-1.18.0",
+    "kind": "vendor",
+    "name": "either",
+    "version": "1.18.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/flyweights-0.1.5",
+    "kind": "vendor",
+    "name": "flyweights",
+    "version": "0.1.5",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "BSD-2-Clause"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/foldhash-0.2.0",
+    "kind": "vendor",
+    "name": "foldhash",
+    "version": "0.2.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Zlib"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/form_urlencoded-1.2.2",
+    "kind": "vendor",
+    "name": "form_urlencoded",
+    "version": "1.2.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/fragile-2.0.1",
+    "kind": "vendor",
+    "name": "fragile",
+    "version": "2.0.1",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/futures-0.3.34",
+    "kind": "vendor",
+    "name": "futures",
+    "version": "0.3.34",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/futures-channel-0.3.34",
+    "kind": "vendor",
+    "name": "futures-channel",
+    "version": "0.3.34",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/futures-core-0.3.34",
+    "kind": "vendor",
+    "name": "futures-core",
+    "version": "0.3.34",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/futures-executor-0.3.34",
+    "kind": "vendor",
+    "name": "futures-executor",
+    "version": "0.3.34",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/futures-io-0.3.34",
+    "kind": "vendor",
+    "name": "futures-io",
+    "version": "0.3.34",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/futures-macro-0.3.34",
+    "kind": "vendor",
+    "name": "futures-macro",
+    "version": "0.3.34",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/futures-sink-0.3.34",
+    "kind": "vendor",
+    "name": "futures-sink",
+    "version": "0.3.34",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/futures-task-0.3.34",
+    "kind": "vendor",
+    "name": "futures-task",
+    "version": "0.3.34",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/futures-util-0.3.34",
+    "kind": "vendor",
+    "name": "futures-util",
+    "version": "0.3.34",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/getrandom-0.3.4",
+    "kind": "vendor",
+    "name": "getrandom",
+    "version": "0.3.4",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/getrandom-0.4.3",
+    "kind": "vendor",
+    "name": "getrandom",
+    "version": "0.4.3",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/hashbrown-0.17.1",
+    "kind": "vendor",
+    "name": "hashbrown",
+    "version": "0.17.1",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/heck-0.5.0",
+    "kind": "vendor",
+    "name": "heck",
+    "version": "0.5.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/hybrid-array-0.4.13",
+    "kind": "vendor",
+    "name": "hybrid-array",
+    "version": "0.4.13",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/iana-time-zone-0.1.65",
+    "kind": "vendor",
+    "name": "iana-time-zone",
+    "version": "0.1.65",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/icu_collections-2.2.0",
+    "kind": "vendor",
+    "name": "icu_collections",
+    "version": "2.2.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/icu_locale_core-2.2.0",
+    "kind": "vendor",
+    "name": "icu_locale_core",
+    "version": "2.2.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/icu_normalizer-2.2.0",
+    "kind": "vendor",
+    "name": "icu_normalizer",
+    "version": "2.2.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/icu_normalizer_data-2.2.0",
+    "kind": "vendor",
+    "name": "icu_normalizer_data",
+    "version": "2.2.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/icu_properties-2.2.0",
+    "kind": "vendor",
+    "name": "icu_properties",
+    "version": "2.2.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/icu_properties_data-2.2.0",
+    "kind": "vendor",
+    "name": "icu_properties_data",
+    "version": "2.2.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/icu_provider-2.2.0",
+    "kind": "vendor",
+    "name": "icu_provider",
+    "version": "2.2.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/ident_case-1.0.1",
+    "kind": "vendor",
+    "name": "ident_case",
+    "version": "1.0.1",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/idna-1.1.0",
+    "kind": "vendor",
+    "name": "idna",
+    "version": "1.1.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/idna_adapter-1.2.2",
+    "kind": "vendor",
+    "name": "idna_adapter",
+    "version": "1.2.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/inout-0.2.2",
+    "kind": "vendor",
+    "name": "inout",
+    "version": "0.2.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/itertools-0.14.0",
+    "kind": "vendor",
+    "name": "itertools",
+    "version": "0.14.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/libm-0.2.16",
+    "kind": "vendor",
+    "name": "libm",
+    "version": "0.2.16",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/litemap-0.8.2",
+    "kind": "vendor",
+    "name": "litemap",
+    "version": "0.8.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/lock_api-0.4.14",
+    "kind": "vendor",
+    "name": "lock_api",
+    "version": "0.4.14",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/log-0.4.29",
+    "kind": "vendor",
+    "name": "log",
+    "version": "0.4.29",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/lru-0.18.5",
+    "kind": "vendor",
+    "name": "lru",
+    "version": "0.18.5",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/maplit-1.0.2",
+    "kind": "vendor",
+    "name": "maplit",
+    "version": "1.0.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/munge-0.4.7",
+    "kind": "vendor",
+    "name": "munge",
+    "version": "0.4.7",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/munge_macro-0.4.7",
+    "kind": "vendor",
+    "name": "munge_macro",
+    "version": "0.4.7",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/num-derive-0.5.1",
+    "kind": "vendor",
+    "name": "num-derive",
+    "version": "0.5.1",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/num-traits-0.2.19",
+    "kind": "vendor",
+    "name": "num-traits",
+    "version": "0.2.19",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/once_cell-1.21.4",
+    "kind": "vendor",
+    "name": "once_cell",
+    "version": "1.21.4",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/parking_lot-0.12.5",
+    "kind": "vendor",
+    "name": "parking_lot",
+    "version": "0.12.5",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/parking_lot_core-0.9.12",
+    "kind": "vendor",
+    "name": "parking_lot_core",
+    "version": "0.9.12",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/paste-1.0.15",
+    "kind": "vendor",
+    "name": "paste",
+    "version": "1.0.15",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/percent-encoding-2.3.2",
+    "kind": "vendor",
+    "name": "percent-encoding",
+    "version": "2.3.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/pin-project-1.1.11",
+    "kind": "vendor",
+    "name": "pin-project",
+    "version": "1.1.11",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/pin-project-internal-1.1.11",
+    "kind": "vendor",
+    "name": "pin-project-internal",
+    "version": "1.1.11",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/pin-project-lite-0.2.17",
+    "kind": "vendor",
+    "name": "pin-project-lite",
+    "version": "0.2.17",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/potential_utf-0.1.5",
+    "kind": "vendor",
+    "name": "potential_utf",
+    "version": "0.1.5",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/proc-macro2-1.0.107",
+    "kind": "vendor",
+    "name": "proc-macro2",
+    "version": "1.0.107",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/quote-1.0.47",
+    "kind": "vendor",
+    "name": "quote",
+    "version": "1.0.47",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/rand-0.10.2",
+    "kind": "vendor",
+    "name": "rand",
+    "version": "0.10.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/rand_core-0.10.1",
+    "kind": "vendor",
+    "name": "rand_core",
+    "version": "0.10.1",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/rustc-hash-2.1.3",
+    "kind": "vendor",
+    "name": "rustc-hash",
+    "version": "2.1.3",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/scopeguard-1.2.0",
+    "kind": "vendor",
+    "name": "scopeguard",
+    "version": "1.2.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/serde-1.0.229",
+    "kind": "vendor",
+    "name": "serde",
+    "version": "1.0.229",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/serde_core-1.0.229",
+    "kind": "vendor",
+    "name": "serde_core",
+    "version": "1.0.229",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/serde_derive-1.0.229",
+    "kind": "vendor",
+    "name": "serde_derive",
+    "version": "1.0.229",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/slab-0.4.12",
+    "kind": "vendor",
+    "name": "slab",
+    "version": "0.4.12",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/smallvec-1.15.2",
+    "kind": "vendor",
+    "name": "smallvec",
+    "version": "1.15.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/socket2-0.6.4",
+    "kind": "vendor",
+    "name": "socket2",
+    "version": "0.6.4",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/stable_deref_trait-1.2.1",
+    "kind": "vendor",
+    "name": "stable_deref_trait",
+    "version": "1.2.1",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/static_assertions-1.1.0",
+    "kind": "vendor",
+    "name": "static_assertions",
+    "version": "1.1.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/strsim-0.11.1",
+    "kind": "vendor",
+    "name": "strsim",
+    "version": "0.11.1",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/strum-0.28.0",
+    "kind": "vendor",
+    "name": "strum",
+    "version": "0.28.0",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/strum_macros-0.28.0",
+    "kind": "vendor",
+    "name": "strum_macros",
+    "version": "0.28.0",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/subtle-2.6.1",
+    "kind": "vendor",
+    "name": "subtle",
+    "version": "2.6.1",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "BSD-3-Clause"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/syn-1.0.109",
+    "kind": "vendor",
+    "name": "syn",
+    "version": "1.0.109",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/syn-2.0.119",
+    "kind": "vendor",
+    "name": "syn",
+    "version": "2.0.119",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/syn-3.0.3",
+    "kind": "vendor",
+    "name": "syn",
+    "version": "3.0.3",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/synstructure-0.13.2",
+    "kind": "vendor",
+    "name": "synstructure",
+    "version": "0.13.2",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/thiserror-2.0.20",
+    "kind": "vendor",
+    "name": "thiserror",
+    "version": "2.0.20",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/thiserror-impl-2.0.20",
+    "kind": "vendor",
+    "name": "thiserror-impl",
+    "version": "2.0.20",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/tinystr-0.8.3",
+    "kind": "vendor",
+    "name": "tinystr",
+    "version": "0.8.3",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/typenum-1.20.1",
+    "kind": "vendor",
+    "name": "typenum",
+    "version": "1.20.1",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/unicode-ident-1.0.19",
+    "kind": "vendor",
+    "name": "unicode-ident",
+    "version": "1.0.19",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT",
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/url-2.5.8",
+    "kind": "vendor",
+    "name": "url",
+    "version": "2.5.8",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/utf8_iter-1.0.4",
+    "kind": "vendor",
+    "name": "utf8_iter",
+    "version": "1.0.4",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/winnow-1.0.4",
+    "kind": "vendor",
+    "name": "winnow",
+    "version": "1.0.4",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/writeable-0.6.3",
+    "kind": "vendor",
+    "name": "writeable",
+    "version": "0.6.3",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/yoke-0.8.3",
+    "kind": "vendor",
+    "name": "yoke",
+    "version": "0.8.3",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/yoke-derive-0.8.2",
+    "kind": "vendor",
+    "name": "yoke-derive",
+    "version": "0.8.2",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/zerocopy-0.8.48",
+    "kind": "vendor",
+    "name": "zerocopy",
+    "version": "0.8.48",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": true,
+    "licenses": [
+     "Apache-2.0",
+     "BSD-2-Clause",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/zerocopy-derive-0.8.48",
+    "kind": "vendor",
+    "name": "zerocopy-derive",
+    "version": "0.8.48",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Apache-2.0",
+     "BSD-2-Clause",
+     "MIT"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/zerofrom-0.1.8",
+    "kind": "vendor",
+    "name": "zerofrom",
+    "version": "0.1.8",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/zerofrom-derive-0.1.7",
+    "kind": "vendor",
+    "name": "zerofrom-derive",
+    "version": "0.1.7",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/zerotrie-0.2.4",
+    "kind": "vendor",
+    "name": "zerotrie",
+    "version": "0.2.4",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/zerovec-0.11.6",
+    "kind": "vendor",
+    "name": "zerovec",
+    "version": "0.11.6",
+    "patched": false,
+    "proc_macro": false,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   },
+   {
+    "dir": "vendor/zerovec-derive-0.11.3",
+    "kind": "vendor",
+    "name": "zerovec-derive",
+    "version": "0.11.3",
+    "patched": false,
+    "proc_macro": true,
+    "build_script": false,
+    "licenses": [
+     "Unicode-3.0"
+    ],
+    "in_cargo_lock": true
+   }
+  ],
+  "unfiltered_select_count": 124
+ },
+ "fidl": [
+  {
+   "library": "fuchsia.component",
+   "label": "//sdk/fidl/fuchsia.component",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/sys/lib/namespace",
+    "fidl:fuchsia.component.runner",
+    "fidl:fuchsia.driver.framework"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.component.decl",
+   "label": "//sdk/fidl/fuchsia.component.decl",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//sdk/lib/driver/component/rust",
+    "fidl:fuchsia.driver.framework"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.component.resolution",
+   "label": "//sdk/fidl/fuchsia.component.resolution",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "fidl:fuchsia.component"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.component.runner",
+   "label": "//sdk/fidl/fuchsia.component.runner",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//sdk/lib/driver/component/rust",
+    "//src/sys/lib/namespace",
+    "fidl:fuchsia.driver.framework"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.component.runtime",
+   "label": "//sdk/fidl/fuchsia.component.runtime",
+   "flavors": [
+    "rust"
+   ],
+   "direct_flavors": [
+    "rust"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/lib/fuchsia-component/runtime"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.component.sandbox",
+   "label": "//sdk/fidl/fuchsia.component.sandbox",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/lib/fuchsia-component/escrow",
+    "fidl:fuchsia.component.runner",
+    "fidl:fuchsia.driver.framework"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.data",
+   "label": "//sdk/fidl/fuchsia.data",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/sys/lib/cm_rust",
+    "fidl:fuchsia.component.decl"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.device.fs",
+   "label": "//sdk/fidl/fuchsia.device.fs",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//sdk/lib/driver/component/rust",
+    "fidl:fuchsia.driver.framework"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.diagnostics",
+   "label": "//sdk/fidl/fuchsia.diagnostics",
+   "flavors": [
+    "rust",
+    "rust_common",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust_common"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/lib/diagnostics/hierarchy/rust:diagnostics-hierarchy",
+    "fidl:fuchsia.logger"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.diagnostics.types",
+   "label": "//sdk/fidl/fuchsia.diagnostics.types",
+   "flavors": [
+    "rust",
+    "rust_common",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/lib/diagnostics/log/rust:no_startup_handle",
+    "fidl:fuchsia.component.runner",
+    "fidl:fuchsia.diagnostics",
+    "fidl:fuchsia.logger"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.driver.framework",
+   "label": "//sdk/fidl/fuchsia.driver.framework",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//sdk/lib/driver/component/rust"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.inspect",
+   "label": "//sdk/fidl/fuchsia.inspect",
+   "flavors": [
+    "rust",
+    "rust_common"
+   ],
+   "direct_flavors": [
+    "rust",
+    "rust_common"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/lib/diagnostics/inspect/contrib/rust:fuchsia-inspect-contrib",
+    "//src/lib/diagnostics/selectors"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.io",
+   "label": "//sdk/fidl/fuchsia.io",
+   "flavors": [
+    "rust",
+    "rust_flex",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust",
+    "rust_flex",
+    "rust_next"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//sdk/lib/driver/component/rust",
+    "//src/storage/lib/vfs/rust:vfs",
+    "fidl:fuchsia.component.decl"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.ldsvc",
+   "label": "//sdk/fidl/fuchsia.ldsvc",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/lib/process_builder",
+    "fidl:fuchsia.process"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.logger",
+   "label": "//sdk/fidl/fuchsia.logger",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//sdk/lib/driver/component/rust",
+    "fidl:fuchsia.driver.framework"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.mem",
+   "label": "//sdk/fidl/fuchsia.mem",
+   "flavors": [
+    "rust",
+    "rust_common",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/lib/diagnostics/inspect/contrib/rust:fuchsia-inspect-contrib",
+    "fidl:fuchsia.component.runner",
+    "fidl:fuchsia.diagnostics"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.power.broker",
+   "label": "//sdk/fidl/fuchsia.power.broker",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "fidl:fuchsia.driver.framework"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.process",
+   "label": "//sdk/fidl/fuchsia.process",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [
+    "rust"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/sys/lib/namespace",
+    "fidl:fuchsia.component",
+    "fidl:fuchsia.component.runner"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.process.lifecycle",
+   "label": "//sdk/fidl/fuchsia.process.lifecycle",
+   "flavors": [
+    "rust"
+   ],
+   "direct_flavors": [
+    "rust"
+   ],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/lib/fuchsia-component/escrow"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.sys2",
+   "label": "//sdk/fidl/fuchsia.sys2",
+   "flavors": [
+    "rust"
+   ],
+   "direct_flavors": [
+    "rust"
+   ],
+   "sdk_category": "host_tool",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/sys/lib/cm_rust"
+   ],
+   "in_idk": false
+  },
+  {
+   "library": "fuchsia.unknown",
+   "label": "//sdk/fidl/fuchsia.unknown",
+   "flavors": [
+    "rust",
+    "rust_flex",
+    "rust_next"
+   ],
+   "direct_flavors": [],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "fidl:fuchsia.io"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.url",
+   "label": "//sdk/fidl/fuchsia.url",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "fidl:fuchsia.component.decl"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "fuchsia.version",
+   "label": "//sdk/fidl/fuchsia.version",
+   "flavors": [
+    "rust",
+    "rust_next"
+   ],
+   "direct_flavors": [],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "fidl:fuchsia.component.resolution"
+   ],
+   "in_idk": true
+  },
+  {
+   "library": "zx",
+   "label": "//zircon/vdso/zx",
+   "flavors": [
+    "rust",
+    "rust_common",
+    "rust_flex",
+    "rust_next"
+   ],
+   "direct_flavors": [],
+   "sdk_category": "partner",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "fidl:fuchsia.component.runner",
+    "fidl:fuchsia.device.fs",
+    "fidl:fuchsia.diagnostics",
+    "fidl:fuchsia.io"
+   ],
+   "in_idk": true
+  }
+ ],
+ "bind": [
+  {
+   "library": "fuchsia.test",
+   "label": "//src/devices/bind/fuchsia.test",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//examples/drivers/simple/rust:driver"
+   ],
+   "in_idk": true
+  }
+ ],
+ "native": [
+  {
+   "label": "//sdk/lib/async",
+   "gn_template": "zx_library",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//sdk/lib/driver/runtime/rust/core"
+   ]
+  },
+  {
+   "label": "//sdk/lib/async-default",
+   "gn_template": "zx_library",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//sdk/lib/async/rust/dispatcher"
+   ]
+  },
+  {
+   "label": "//sdk/lib/fdio",
+   "gn_template": "zx_library",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/lib/fuchsia-async"
+   ]
+  },
+  {
+   "label": "//sdk/lib/inspect:client_includes",
+   "gn_template": "expect_includes",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//sdk/lib/driver/component/rust"
+   ]
+  },
+  {
+   "label": "//sdk/lib/syslog:client_includes",
+   "gn_template": "expect_includes",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/lib/diagnostics/log/rust:no_startup_handle"
+   ]
+  },
+  {
+   "label": "//src/devices/bin/driver_runtime",
+   "gn_template": "sdk_shared_library",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//sdk/lib/driver/runtime/rust/env"
+   ]
+  },
+  {
+   "label": "//src/devices/lib/driver:driver_runtime",
+   "gn_template": "ifs_shared_library",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//sdk/lib/driver/runtime/rust/core"
+   ]
+  },
+  {
+   "label": "//zircon/system/ulib/sync",
+   "gn_template": "zx_library",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/lib/fuchsia-sync"
+   ]
+  },
+  {
+   "label": "//zircon/system/ulib/trace-engine",
+   "gn_template": "trace_engine_library",
+   "contexts": [
+    "fuchsia"
+   ],
+   "used_by": [
+    "//src/storage/lib/vfs/rust:vfs"
+   ]
+  }
+ ],
+ "unresolved": [],
+ "conditionals": [
+  {
+   "file": "sdk/lib/async-default/BUILD.gn",
+   "line": 33,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "sdk/lib/async-default/BUILD.gn",
+   "line": 38,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "sdk/lib/async/BUILD.gn",
+   "line": 33,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "sdk/lib/fdio/BUILD.gn",
+   "line": 16,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "sdk/lib/fdio/BUILD.gn",
+   "line": 28,
+   "condition": "!is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "sdk/lib/fdio/BUILD.gn",
+   "line": 60,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "sdk/lib/fdio/BUILD.gn",
+   "line": 73,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "sdk/lib/fuchsia-loom/BUILD.gn",
+   "line": 8,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "sdk/lib/fuchsia-loom/BUILD.gn",
+   "line": 64,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "sdk/lib/syslog/BUILD.gn",
+   "line": 42,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "sdk/rust/zx-status-ext/BUILD.gn",
+   "line": 34,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "sdk/rust/zx-status/BUILD.gn",
+   "line": 44,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "sdk/rust/zx-sys/BUILD.gn",
+   "line": 33,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "sdk/rust/zx-types/BUILD.gn",
+   "line": 12,
+   "condition": "is_kernel",
+   "in_target": "zx-types",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "else"
+   }
+  },
+  {
+   "file": "sdk/rust/zx-types/BUILD.gn",
+   "line": 56,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "sdk/rust/zx/BUILD.gn",
+   "line": 176,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "sdk/rust/zx/BUILD.gn",
+   "line": 181,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/buf-read-ext/BUILD.gn",
+   "line": 46,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/hierarchy/rust/BUILD.gn",
+   "line": 61,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/hierarchy/rust/BUILD.gn",
+   "line": 74,
+   "condition": "is_host",
+   "in_target": "diagnostics-hierarchy",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/hierarchy/rust/BUILD.gn",
+   "line": 92,
+   "condition": "is_host",
+   "in_target": "diagnostics-hierarchy",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/hierarchy/rust/BUILD.gn",
+   "line": 109,
+   "condition": "is_host",
+   "in_target": "diagnostics-hierarchy",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/inspect/contrib/rust/BUILD.gn",
+   "line": 48,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/inspect/derive/BUILD.gn",
+   "line": 36,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/inspect/derive/macro/BUILD.gn",
+   "line": 31,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/inspect/derive/macro/BUILD.gn",
+   "line": 36,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/inspect/format/rust/BUILD.gn",
+   "line": 60,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/inspect/format/rust/BUILD.gn",
+   "line": 99,
+   "condition": "is_fuchsia",
+   "in_target": "lib",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/inspect/runtime/rust/BUILD.gn",
+   "line": 34,
+   "condition": "current_build_target_api_level == \"PLATFORM\" || current_build_target_api_level == \"HEAD\"",
+   "in_target": "lib",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/inspect/rust/BUILD.gn",
+   "line": 66,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/inspect/rust/BUILD.gn",
+   "line": 113,
+   "condition": "is_fuchsia",
+   "in_target": "fuchsia-inspect",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/inspect/rust/BUILD.gn",
+   "line": 146,
+   "condition": "is_fuchsia",
+   "in_target": "fuchsia-inspect",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/log/encoding/rust/BUILD.gn",
+   "line": 75,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/log/encoding/rust/BUILD.gn",
+   "line": 111,
+   "condition": "is_host",
+   "in_target": "rust",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/log/rust/BUILD.gn",
+   "line": 58,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/log/rust/BUILD.gn",
+   "line": 79,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/log/rust/BUILD.gn",
+   "line": 95,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/log/types/BUILD.gn",
+   "line": 33,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/log/types/BUILD.gn",
+   "line": 43,
+   "condition": "is_fuchsia",
+   "in_target": "types",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/log/types/BUILD.gn",
+   "line": 59,
+   "condition": "is_fuchsia",
+   "in_target": "types",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/diagnostics/selectors/BUILD.gn",
+   "line": 49,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/directed_graph/BUILD.gn",
+   "line": 44,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fdio/rust/BUILD.gn",
+   "line": 113,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fdio/rust/BUILD.gn",
+   "line": 118,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fdomain/client/BUILD.gn",
+   "line": 86,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fdomain/client/BUILD.gn",
+   "line": 162,
+   "condition": "is_fuchsia",
+   "in_target": "flex_fidl",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust/fidl/BUILD.gn",
+   "line": 45,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust/fidl/BUILD.gn",
+   "line": 88,
+   "condition": "is_fuchsia",
+   "in_target": "fidl",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_constants/BUILD.gn",
+   "line": 31,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next/BUILD.gn",
+   "line": 50,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_bind/BUILD.gn",
+   "line": 49,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_bind/BUILD.gn",
+   "line": 71,
+   "condition": "is_fuchsia",
+   "in_target": "fidl_next_bind_internal",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_bind/BUILD.gn",
+   "line": 76,
+   "condition": "is_fuchsia",
+   "in_target": "fidl_next_bind_internal",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_bind/BUILD.gn",
+   "line": 90,
+   "condition": "is_fuchsia",
+   "in_target": "fidl_next_bind_internal",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_codec/BUILD.gn",
+   "line": 49,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_codec/BUILD.gn",
+   "line": 91,
+   "condition": "is_fuchsia",
+   "in_target": "fidl_next_codec_internal",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_codec/BUILD.gn",
+   "line": 102,
+   "condition": "is_fuchsia",
+   "in_target": "fidl_next_codec_internal",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_codec/BUILD.gn",
+   "line": 123,
+   "condition": "is_fuchsia",
+   "in_target": "fidl_next_codec_internal",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_protocol/BUILD.gn",
+   "line": 15,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_protocol/BUILD.gn",
+   "line": 109,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_protocol/BUILD.gn",
+   "line": 140,
+   "condition": "is_fuchsia",
+   "in_target": "fidl_next_protocol_internal",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_protocol/BUILD.gn",
+   "line": 146,
+   "condition": "is_fuchsia",
+   "in_target": "fidl_next_protocol_internal",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_protocol/BUILD.gn",
+   "line": 173,
+   "condition": "is_fuchsia",
+   "in_target": "fidl_next_protocol_internal",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fidl/rust_next/fidl_next_util/BUILD.gn",
+   "line": 49,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/from-enum/BUILD.gn",
+   "line": 34,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-async-macro/BUILD.gn",
+   "line": 33,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-async/BUILD.gn",
+   "line": 67,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-async/BUILD.gn",
+   "line": 85,
+   "condition": "is_fuchsia",
+   "in_target": "fuchsia-async",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-async/BUILD.gn",
+   "line": 123,
+   "condition": "is_fuchsia",
+   "in_target": "fuchsia-async",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-async/BUILD.gn",
+   "line": 137,
+   "condition": "is_fuchsia",
+   "in_target": "fuchsia-async",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-component/client/BUILD.gn",
+   "line": 43,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-component/client/BUILD.gn",
+   "line": 48,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-component/directory/BUILD.gn",
+   "line": 43,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-component/directory/BUILD.gn",
+   "line": 48,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-fs/BUILD.gn",
+   "line": 64,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-fs/BUILD.gn",
+   "line": 128,
+   "condition": "is_fuchsia",
+   "in_target": "fuchsia-fs",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-runtime/BUILD.gn",
+   "line": 42,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-runtime/BUILD.gn",
+   "line": 47,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-sync/BUILD.gn",
+   "line": 55,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-sync/BUILD.gn",
+   "line": 117,
+   "condition": "fuchsia_sync_detect_lock_cycles",
+   "in_target": "fuchsia-sync",
+   "build_args": {
+    "fuchsia_sync_detect_lock_cycles": null
+   },
+   "outcome": {
+    "fuchsia": "unknown",
+    "host": "unknown"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-sync/BUILD.gn",
+   "line": 127,
+   "condition": "is_fuchsia",
+   "in_target": "fuchsia-sync",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/fuchsia-sync/BUILD.gn",
+   "line": 132,
+   "condition": "fuchsia_sync_detect_lock_cycles",
+   "in_target": "fuchsia-sync",
+   "build_args": {
+    "fuchsia_sync_detect_lock_cycles": null
+   },
+   "outcome": {
+    "fuchsia": "unknown",
+    "host": "unknown"
+   }
+  },
+  {
+   "file": "src/lib/injectable-time/BUILD.gn",
+   "line": 47,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/lib/injectable-time/BUILD.gn",
+   "line": 66,
+   "condition": "is_fuchsia",
+   "in_target": "injectable-time",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/storage/lib/vfs/rust/BUILD.gn",
+   "line": 106,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/storage/lib/vfs/rust/BUILD.gn",
+   "line": 177,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/storage/lib/vfs/rust/name/BUILD.gn",
+   "line": 43,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/cm_fidl_validator/BUILD.gn",
+   "line": 43,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/cm_graph/BUILD.gn",
+   "line": 35,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/cm_rust/BUILD.gn",
+   "line": 54,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/cm_rust/BUILD.gn",
+   "line": 68,
+   "condition": "is_host",
+   "in_target": "cm_rust",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/cm_rust/BUILD.gn",
+   "line": 71,
+   "condition": "is_host",
+   "in_target": "cm_rust",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/cm_rust/BUILD.gn",
+   "line": 84,
+   "condition": "is_host",
+   "in_target": "cm_rust",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/cm_rust/BUILD.gn",
+   "line": 105,
+   "condition": "is_host",
+   "in_target": "cm_rust",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/cm_types/BUILD.gn",
+   "line": 45,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/cm_types/BUILD.gn",
+   "line": 71,
+   "condition": "is_fuchsia",
+   "in_target": "cm_types",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/sys/lib/moniker/BUILD.gn",
+   "line": 44,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/moniker/BUILD.gn",
+   "line": 58,
+   "condition": "is_host",
+   "in_target": "moniker",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/moniker/BUILD.gn",
+   "line": 61,
+   "condition": "is_host",
+   "in_target": "moniker",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/moniker/BUILD.gn",
+   "line": 77,
+   "condition": "is_host",
+   "in_target": "moniker",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/sys/lib/namespace/BUILD.gn",
+   "line": 32,
+   "condition": "is_fuchsia",
+   "in_target": "namespace",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "zircon/system/ulib/sync/BUILD.gn",
+   "line": 34,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "zircon/system/ulib/sync/BUILD.gn",
+   "line": 39,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "zircon/system/ulib/sync/BUILD.gn",
+   "line": 62,
+   "condition": "is_fuchsia",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  }
+ ],
+ "import_errors": []
+}

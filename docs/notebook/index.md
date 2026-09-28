@@ -77,6 +77,10 @@ Outcome: complete — `regen.py vendor`/`--check`; `zx-types`, `zx-sys`, `zx-sta
 - Review: regex rewriter missed `@rules_rust` loads; now ast-based, fails closed at file:line
 - Git: depth-1 blobless fetch, then one by-ID fetch of the needed blobs (~16 s per run)
 
+### [M6 — Pilot 1 closure and its crates.io crates](M6.md)
+Entries: 2026-09-27T22:23-07:00 through 2026-09-27T22:23-07:00
+Outcome: open
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
