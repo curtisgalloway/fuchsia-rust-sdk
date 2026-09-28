@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+# The @fuchsia_go repository: the release's Go SDK, fuchsia.git's fuchsia/go CIPD package
+# as pinned by overlay.lock.json (field "go"). Nothing builds here: MODULE.bazel passes
+# README.md, a file at the SDK root, to rules_go's go_sdk.wrap, which makes its own SDK
+# repository from this directory (as fuchsia.git's toplevel.MODULE.bazel does with
+# host_prebuilts/go/README.md).
+
+exports_files(["README.md"])

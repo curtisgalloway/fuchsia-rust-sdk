@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+# The Rust FIDL generator (design §4.2 "FIDL bindings", R5; milestone M7), built from
+# source: upstream's go_binary in vendor/fuchsia/tools/fidl/fidlgen_rust (copied by
+# scripts/regen.py), with rules_go and the release's Go SDK (MODULE.bazel). Host-only,
+# as upstream declares it (HOST_CONSTRAINTS).
+#
+#   scripts/bazel run //tools/fidlgen_rust -- --help
+
+alias(
+    name = "fidlgen_rust",
+    actual = "//vendor/fuchsia/tools/fidl/fidlgen_rust",
+    visibility = ["//visibility:public"],
+)

@@ -362,7 +362,8 @@ def read_lock(root: Path) -> tuple[str, str]:
 # double-quoted string stops the run and names file:line.
 
 # Loads kept as they are in upstream in-tree BUILD files.
-_KEEP_LOADS = ("@rules_license//rules:license.bzl", "@rules_license//rules:package_info.bzl")
+_KEEP_LOADS = ("@rules_license//rules:license.bzl", "@rules_license//rules:package_info.bzl",
+               "@platforms//host:constraints.bzl")
 _UPSTREAM_RUST_RULES = "//build/bazel/rules/rust:defs.bzl"
 # rules_rust rules an upstream BUILD file calls directly (e.g. src/lib/fuchsia-async-macro
 # uses rust_proc_macro). Decision (M5 review): map them to the overlay's wrappers, which
@@ -376,6 +377,26 @@ _RULES_RUST_TO_WRAPPER = {
     "rust_proc_macro": "rustc_proc_macro",
 }
 _RUST_CALL_NAME = re.compile(r"rustc?_")
+
+# Go (milestone M7: tools/fidl/fidlgen_rust and tools/fidl/lib/fidlgen, which upstream
+# builds with rules_go). Upstream loads rules_go as @io_bazel_rules_go, and so does the
+# overlay (MODULE.bazel's repo_name). go_library and go_binary are kept. Test rules are
+# dropped with their calls: the tests need Go modules (go-cmp) the overlay does not
+# fetch (C1), and fidlgentest's goldens need the fidlc test IR. Each maps as follows:
+#   load file -> {loaded symbol: kept symbol in the new load, or None to drop its calls}
+# A load file maps either to itself (kept, possibly with fewer symbols) or to another
+# file; any symbol not listed fails.
+_RULES_GO_DEFS = "@io_bazel_rules_go//go:def.bzl"
+_GO_LOADS = {
+    _RULES_GO_DEFS: (_RULES_GO_DEFS, {"go_library": "go_library", "go_binary": "go_binary", "go_test": None}),
+    # upstream's wrapper adds only constraints the call site already passes (and the
+    # PLATFORM API level, which the overlay's host tools always are); go_binary with the
+    # same attributes is what it runs.
+    "//build/bazel/rules/host:defs.bzl": (_RULES_GO_DEFS, {"go_binary_host_tool": "go_binary"}),
+    "//build/bazel/platforms:constraints.bzl": ("//rules:host.bzl", {"HOST_OS_CONSTRAINTS": "HOST_OS_CONSTRAINTS"}),
+    "//tools/fidl/lib/fidlgentest:fidlgentest_go_test.bzl": (None, {"fidlgentest_go_test": None}),
+}
+_GO_CALL_NAME = re.compile(r"go_")
 _PLAIN_STRING = re.compile(r'"(?:[^"\\\n]|\\.)*"')
 
 
@@ -464,8 +485,9 @@ def _apply(text: str, edits: list[tuple[int, int, str]]) -> str:
     return text
 
 
-def _wrapper_calls(src: _Source, wrappers: dict[str, str]) -> list[ast.Call]:
-    """Calls of loaded wrapper macros; any other rust_*/rustc_* call fails."""
+def _wrapper_calls(src: _Source, wrappers: dict[str, str], go_rules: frozenset[str] = frozenset()) -> list[ast.Call]:
+    """Calls of loaded wrapper macros; any other rust_*/rustc_*/go_* call fails, except
+    calls of the Go rules in `go_rules` (loaded from a file regen.py maps)."""
     calls = []
     for node in ast.walk(src.tree):
         if not isinstance(node, ast.Call):
@@ -474,7 +496,8 @@ def _wrapper_calls(src: _Source, wrappers: dict[str, str]) -> list[ast.Call]:
         name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else None
         if isinstance(func, ast.Name) and name in wrappers:
             calls.append(node)
-        elif name and _RUST_CALL_NAME.match(name):
+        elif name and (_RUST_CALL_NAME.match(name) or _GO_CALL_NAME.match(name)) \
+                and not (isinstance(func, ast.Name) and name in go_rules):
             raise src.fail(node, f"{name}() is not loaded from a rules file regen.py maps; "
                                  f"write an overlay ({OVERLAYS}/<path>/BUILD.bazel)")
     return calls
@@ -501,9 +524,10 @@ def _vendored_edits(src: _Source, calls: list[ast.Call]) -> list[tuple[int, int,
 def _check_all_vendored(text: str, where: str) -> None:
     """Every wrapper call in `text` must pass vendored = True (checked after rewriting)."""
     src = _Source(text, where)
-    wrappers = {local: name for call, f, syms in _loads(src) if f == "//rules:rustc.bzl"
-                for local, name in syms}
-    for call in _wrapper_calls(src, wrappers):
+    loads = _loads(src)
+    wrappers = {local: name for call, f, syms in loads if f == "//rules:rustc.bzl" for local, name in syms}
+    go_rules = frozenset(local for call, f, syms in loads if f == _RULES_GO_DEFS for local, name in syms)
+    for call in _wrapper_calls(src, wrappers, go_rules):
         if not any(k.arg == "vendored" and isinstance(k.value, ast.Constant) and k.value.value is True
                    for k in call.keywords):
             raise src.fail(call, f"{call.func.id} call without vendored = True")
@@ -538,15 +562,77 @@ _CRATE_LABEL_HELP = (f"only crates.io crates ({RUST_CRATES_VENDOR}) and patched 
                      f"({', '.join(f'{RUST_CRATES}/{k}' for k in PATCHED_KINDS)}) are supported")
 
 
-def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str]) -> str:
-    """Rewrite an upstream in-tree BUILD.bazel for vendor/fuchsia/ (see module doc)."""
+def _statement_span(src: _Source, node: ast.stmt) -> tuple[int, int]:
+    """The span of a whole top-level statement: its lines, their newline, and one blank
+    line before it, so removing it leaves the file's spacing as it was."""
+    start = src.starts[node.lineno - 1]
+    end = src.starts[node.end_lineno]
+    if node.lineno >= 2 and src.lines[node.lineno - 2].strip() == "":
+        start = src.starts[node.lineno - 2]
+    return start, end
+
+
+def _drop_calls(src: _Source, dropped: set[str]) -> tuple[list[tuple[int, int, str]], set[int]]:
+    """Edits removing every call of a dropped (test) rule, and the ids of those calls.
+
+    Each must be a whole top-level statement; a call used in any other way fails, since
+    removing it would change the meaning of the code around it.
+    """
+    edits, nodes = [], set()
+    top = {id(stmt.value): stmt for stmt in src.tree.body if isinstance(stmt, ast.Expr)}
+    for node in ast.walk(src.tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in dropped:
+            if id(node) not in top:
+                raise src.fail(node, f"{node.func.id}() is dropped by regen.py, so it must be a "
+                                     f"top-level statement; write an overlay ({OVERLAYS}/<path>/BUILD.bazel)")
+            start, end = _statement_span(src, top[id(node)])
+            edits.append((start, end, ""))
+            nodes.add(id(node))
+    return edits, nodes
+
+
+def _go_load(src: _Source, call: ast.Call, file: str, symbols: list[tuple[str, str]],
+             go_rules: set[str], dropped: set[str]) -> tuple[int, int, str] | None:
+    """The edit for a load regen.py maps for Go (_GO_LOADS), or None to keep it as is."""
+    target, mapping = _GO_LOADS[file]
+    kept = []
+    for local, name in symbols:
+        if name not in mapping:
+            raise src.fail(call, f"loads {name} from {file}; regen.py maps only {', '.join(mapping)}")
+        if mapping[name] is None:
+            dropped.add(local)
+            continue
+        if target == _RULES_GO_DEFS:
+            go_rules.add(local)
+        kept.append(f'"{name}"' if local == mapping[name] else f'{local} = "{mapping[name]}"')
+    if not kept:
+        return (*_statement_span(src, next(st for st in src.tree.body
+                                            if isinstance(st, ast.Expr) and st.value is call)), "")
+    if file == target and len(kept) == len(symbols):
+        return None
+    start, end = src.span(call)
+    return (start, end, f'load("{target}", ' + ", ".join(kept) + ")")
+
+
+def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
+                           notes: list[str] | None = None) -> str:
+    """Rewrite an upstream in-tree BUILD.bazel for vendor/fuchsia/ (see module doc).
+
+    `notes`, when given, receives a phrase per kind of change made, for the header.
+    """
     src = _Source(text, where)
     edits: list[tuple[int, int, str]] = []
     wrappers: dict[str, str] = {}
+    go_rules: set[str] = set()
+    dropped: set[str] = set()
     load_nodes: set[int] = set()
     for call, file, symbols in _loads(src):
         load_nodes.add(id(call))
-        if file == _UPSTREAM_RUST_RULES:
+        if file in _GO_LOADS:
+            edit = _go_load(src, call, file, symbols, go_rules, dropped)
+            if edit is not None:
+                edits.append(edit)
+        elif file == _UPSTREAM_RUST_RULES:
             for local, name in symbols:
                 if name not in RUSTC_MACROS:
                     raise src.fail(call, f"loads {name} from {file}; the overlay's //rules:rustc.bzl "
@@ -590,10 +676,21 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str]) -> s
             raise src.fail(node, f"{s}: no overlay mapping for this label")
         raise src.fail(node, f"depends on {s}, but {pkg} is not listed in {VENDOR_LIST}")
 
-    edits += _string_edits(src, label, load_nodes)
-    edits += _vendored_edits(src, _wrapper_calls(src, wrappers))
+    drop_edits, drop_nodes = _drop_calls(src, dropped)
+    edits += drop_edits
+    edits += _string_edits(src, label, load_nodes | drop_nodes)
+    rust_calls = _wrapper_calls(src, wrappers, frozenset(go_rules | dropped))
+    edits += _vendored_edits(src, rust_calls)
     out = _apply(text, edits)
     _check_all_vendored(out, where)
+    if notes is not None:
+        notes.append("labels rewritten")
+        if rust_calls:
+            notes.append("vendored = True added")
+        if go_rules or dropped:
+            notes.append("Go loads mapped")
+        if drop_edits:
+            notes.append("test targets dropped")
     return out
 
 
@@ -851,8 +948,9 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
                 raise RegenError(f"{VENDOR_LIST}: {crate.path} is 'upstream', but upstream has no "
                                  f"BUILD.bazel there; write {OVERLAYS}/{crate.path}/BUILD.bazel "
                                  "and list it as 'overlay'")
-            text = rewrite_upstream_build(contents[build].decode(), build, vendored)
-            text = _header(rev, build, "labels rewritten, vendored = True added") + text
+            notes: list[str] = []
+            text = rewrite_upstream_build(contents[build].decode(), build, vendored, notes)
+            text = _header(rev, build, ", ".join(notes)) + text
         else:
             if not overlay.is_file():
                 raise RegenError(f"{VENDOR_LIST}: {crate.path} is 'overlay', but "

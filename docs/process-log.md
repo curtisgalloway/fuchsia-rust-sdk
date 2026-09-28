@@ -247,3 +247,16 @@ Cost: coarse timing in the chapter and log.
 Prevention: append the log entry at the failure, before the retry.
 Fix belongs in: agent habit (lab-notebook skill already says so)
 Status: open
+
+## 2026-09-28T01:09-07:00 — failed command: `git stash pop` blocked by a lockfile Bazel rewrote
+Chapter: [M7](notebook/M7.md)
+What happened: to compare resolved module versions before and after adding rules_go I
+ran `git stash`, `bazel mod graph` on the base, then `git stash pop`. The base run
+rewrote `MODULE.bazel.lock`, so the pop aborted ("Your local changes … would be
+overwritten"); the stash was kept. Recovered with `git checkout -- MODULE.bazel.lock`
+and `git stash pop`; nothing lost (untracked files were never stashed).
+Cost: one extra step; a risk of losing uncommitted work had the recovery been wrong.
+Prevention: compare against the base in a separate worktree (or with a WIP commit
+first), never by stashing a tree that a Bazel command will write to.
+Fix belongs in: agent habit
+Status: open

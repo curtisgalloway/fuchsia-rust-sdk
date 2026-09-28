@@ -23,6 +23,8 @@ Git sources read "<repo> <revision>:<path>", a revspec for `git cat-file -p`.
   rust_host_std         CIPD instance, x86_64-unknown-linux-gnu std (the host package
                         has none; proc macros and host tools need it)
   clang                 CIPD instance, clang for linux-amd64 (@fuchsia_clang)
+  go                    CIPD instance, Fuchsia's Go SDK for linux-amd64 (rules_go's SDK,
+                        which builds fidlgen_rust; milestone M7)
   bazel_sdk             SHA-256 of the release's IDK core.tar.gz (linux-amd64);
                         "url" is where to download it
   rules_fuchsia         CIPD instance of fuchsia/development/rules_fuchsia at the
@@ -38,6 +40,12 @@ Git sources read "<repo> <revision>:<path>", a revspec for `git cat-file -p`.
                         bytes as served (see bundle_digest). Upstream pins none of these
                         files by content hash, so resolving streams every file (~364 MB
                         for 33.20260927.4.1) without storing it.
+  fidlgen_rust_next     the release's prebuilt FIDL generator for rust_next bindings
+                        (host_x64), from the public debug-symbol store (docs/evidence/I2.md):
+                        "build_id" is the ELF build ID the release's build manifests
+                        (build-ids.json) give its GN label, "url" the store's
+                        buildid/<id>/executable object, and "value" the SHA-256 of that
+                        object's bytes as served (decoded; see resolve_fidlgen_rust_next).
 """
 
 from __future__ import annotations
@@ -51,6 +59,7 @@ import json
 import os
 import re
 import stat
+import struct
 import subprocess
 import sys
 import tempfile
@@ -76,12 +85,17 @@ TOOLCHAIN_PACKAGES = (
     ("rust_target", "fuchsia/third_party/rust/target/fuchsia"),
     ("rust_host_std", "fuchsia/third_party/rust/target/x86_64-unknown-linux-gnu"),
     ("clang", "fuchsia/third_party/clang/${platform}"),
+    ("go", "fuchsia/go/${platform}"),
 )
 RUST_FIELDS = ("rust_host", "rust_target", "rust_host_std")
 RULES_FUCHSIA_PACKAGE = "fuchsia/development/rules_fuchsia"
 TOOLCHAIN_MANIFEST = "manifests/toolchain"
 CARGO_LOCK = "third_party/rust_crates/Cargo.lock"
 EMULATOR_PRODUCT = "core.x64"
+# The rust_next FIDL generator (milestone M7): the GN label the release's build-ids.json
+# files map its ELF build ID to, and the store the executable is fetched from.
+FIDLGEN_RUST_NEXT_LABEL = "//tools/fidl/fidlgen_rust_next:fidlgen_rust_next.actual(//build/toolchain:host_x64)"
+RELEASE_BUCKET = f"{GCS}/fuchsia-public-artifacts-release"
 # Files are hashed in parallel; each request streams one file.
 BUNDLE_WORKERS = 8
 
@@ -587,6 +601,119 @@ def resolve_product_bundle(up: Upstream, version: str, product: str = EMULATOR_P
     }}
 
 
+# --- fidlgen_rust_next (milestone M7) ----------------------------------------------
+
+_ELF_MAGIC = b"\x7fELF"
+_EM_X86_64 = 62
+_SHT_NOTE = 7
+_NT_GNU_BUILD_ID = 3
+
+
+def elf_build_ids(field: str, data: bytes, what: str) -> set[str]:
+    """The GNU build IDs (hex) in the SHT_NOTE sections of a little-endian ELF64 x86-64 file.
+
+    Anything else, and any header or note that runs past the end of the file, is a
+    field-named error.
+    """
+    if len(data) < 64 or data[:4] != _ELF_MAGIC:
+        raise ResolveError(field, f"{what}: not an ELF file")
+    if data[4] != 2 or data[5] != 1:
+        raise ResolveError(field, f"{what}: not a little-endian ELF64 file (class {data[4]}, data {data[5]})")
+    machine = struct.unpack_from("<H", data, 18)[0]
+    if machine != _EM_X86_64:
+        raise ResolveError(field, f"{what}: e_machine {machine}, expected x86-64 ({_EM_X86_64})")
+    shoff = struct.unpack_from("<Q", data, 40)[0]
+    shentsize, shnum = struct.unpack_from("<HH", data, 58)
+    if shnum == 0 or shentsize < 64 or shoff + shnum * shentsize > len(data):
+        raise ResolveError(field, f"{what}: bad section header table")
+    ids: set[str] = set()
+    for i in range(shnum):
+        sh = shoff + i * shentsize
+        sh_type = struct.unpack_from("<I", data, sh + 4)[0]
+        if sh_type != _SHT_NOTE:
+            continue
+        offset, size = struct.unpack_from("<QQ", data, sh + 24)
+        if offset + size > len(data):
+            raise ResolveError(field, f"{what}: note section {i} runs past the end of the file")
+        pos, end = offset, offset + size
+        while pos + 12 <= end:
+            namesz, descsz, ntype = struct.unpack_from("<III", data, pos)
+            name_end = pos + 12 + namesz
+            desc = name_end + (-namesz % 4)
+            desc_end = desc + descsz
+            if desc_end > end:
+                raise ResolveError(field, f"{what}: note in section {i} runs past its section")
+            if ntype == _NT_GNU_BUILD_ID and data[pos + 12:name_end] == b"GNU\0":
+                ids.add(data[desc:desc_end].hex())
+            pos = desc_end + (-descsz % 4)
+    return ids
+
+
+def resolve_fidlgen_rust_next(up: Upstream, version: str, product: str = EMULATOR_PRODUCT) -> dict:
+    """The prebuilt rust_next FIDL generator, tied to the release by its build manifests.
+
+    Every product build of the release publishes build-ids.json (ELF build ID -> GN
+    label). The ID labelled FIDLGEN_RUST_NEXT_LABEL must be present in the `product`
+    build (core.x64, the lock's product_bundle), and every build that names that label
+    must give the same, single ID; builds that do not name it (core.vim3 builds only a
+    host_x64-novariant copy) are skipped. The executable is fetched from the debug-symbol
+    store by that ID, its .note.gnu.build-id must equal it, and the lock pins the
+    SHA-256 of the bytes as served. GCS stores the object gzip-encoded and decodes it for
+    a client that does not send Accept-Encoding: gzip (urllib sends none), so the bytes
+    hashed here are the ELF file, as Bazel's download sees them. Fails closed on any
+    missing, extra or mismatching piece.
+    """
+    field = "fidlgen_rust_next"
+    pb_url = f"{GCS}/fuchsia/development/{version}/product_bundles.json"
+    try:
+        bundles = _json(field, up.get(pb_url), pb_url, list)
+    except FetchError as e:
+        raise ResolveError(field, str(e)) from None
+    builds: dict[str, str] = {}  # build id -> product name
+    for b in bundles:
+        b = _obj(field, b, f"{pb_url} entry")
+        m = re.search(r"/builds/(\d+)/", str(b.get("transfer_manifest_url", "")))
+        if not m:
+            raise ResolveError(field, f"{pb_url}: no build id in {b.get('transfer_manifest_url')!r}")
+        builds[m.group(1)] = str(b.get("name"))
+    main = [build for build, name in builds.items() if name == product]
+    if len(main) != 1:
+        raise ResolveError(field, f"{pb_url}: {len(main)} builds named {product}")
+    found: dict[str, str] = {}  # build-ids.json URL -> build ID
+    for build in sorted(builds):
+        url = f"{RELEASE_BUCKET}/builds/{build}/build-ids.json"
+        try:
+            ids = _json(field, up.get(url), url)
+        except FetchError as e:
+            raise ResolveError(field, str(e)) from None
+        named = sorted(k for k, v in ids.items() if v == FIDLGEN_RUST_NEXT_LABEL)
+        if len(named) > 1:
+            raise ResolveError(field, f"{url}: {len(named)} build IDs for {FIDLGEN_RUST_NEXT_LABEL}")
+        if named:
+            found[url] = named[0]
+        elif build == main[0]:
+            raise ResolveError(field, f"{url} ({product}): no build ID for {FIDLGEN_RUST_NEXT_LABEL}")
+    if len(set(found.values())) != 1:
+        raise ResolveError(field, f"builds disagree on {FIDLGEN_RUST_NEXT_LABEL}: {sorted(set(found.values()))}")
+    build_id = next(iter(found.values()))
+    if not _SHA1.fullmatch(build_id):
+        raise ResolveError(field, f"build ID {build_id!r} is not 40 hex digits")
+    exe_url = f"{RELEASE_BUCKET}/buildid/{build_id}/executable"
+    try:
+        data = up.get(exe_url)
+    except FetchError as e:
+        raise ResolveError(field, str(e)) from None
+    notes = elf_build_ids(field, data, exe_url)
+    if notes != {build_id}:
+        raise ResolveError(field, f"{exe_url}: .note.gnu.build-id is {sorted(notes)}, expected {build_id}")
+    return {field: {
+        "build_id": build_id,
+        "url": exe_url,
+        "value": hashlib.sha256(data).hexdigest(),
+        "source": [pb_url, *sorted(found), exe_url],
+    }}
+
+
 def resolve(up: Upstream, version: str) -> dict:
     """Resolve every field, or raise ResolveError naming the first that fails."""
     if not _VERSION.fullmatch(version):
@@ -603,6 +730,7 @@ def resolve(up: Upstream, version: str) -> dict:
     }
     lock.update(resolve_bazel_sdk(up, version, lock["integration_revision"]["value"]))
     lock.update(resolve_product_bundle(up, version))
+    lock.update(resolve_fidlgen_rust_next(up, version))
     return lock
 
 

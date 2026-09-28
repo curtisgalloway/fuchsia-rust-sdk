@@ -9,6 +9,11 @@
 - `fuchsia_rust_toolchain`: the release's pinned Rust toolchain (design D3): the host
   compiler, the Fuchsia target std libraries and the host (x86_64-unknown-linux-gnu) std,
   three CIPD instances merged into one tree the way upstream's prebuilt directory is.
+- `fuchsia_go`: the release's pinned Go SDK (fuchsia.git's `fuchsia/go` CIPD package),
+  which MODULE.bazel hands to rules_go with `go_sdk.wrap` as upstream does (M7).
+- `fidlgen_rust_next`: the release's prebuilt rust_next FIDL generator, fetched from the
+  public debug-symbol store by the lock's SHA-256 (M7; docs/evidence/I2.md). It runs
+  through //tools/fidlgen_rust_next.
 
 `@fuchsia_sdk` and `@fuchsia_clang` need rules from `@rules_fuchsia`, so they come from a
 second extension (`fuchsia.bzl`).
@@ -121,6 +126,27 @@ idk_repository = repository_rule(
     },
 )
 
+def _prebuilt_tool_impl(rctx):
+    # Bazel fails the fetch if the bytes hash to anything but the lock's SHA-256.
+    rctx.download(url = rctx.attr.url, output = rctx.attr.tool, sha256 = rctx.attr.sha256, executable = True)
+    rctx.file("BUILD.bazel", "\n".join([
+        "# The prebuilt %s pinned by overlay.lock.json (build ID %s)." % (rctx.attr.tool, rctx.attr.build_id),
+        "# //tools/%s wraps it in a runnable target." % rctx.attr.tool,
+        "exports_files([\"%s\"])" % rctx.attr.tool,
+        "",
+    ]))
+
+prebuilt_tool = repository_rule(
+    implementation = _prebuilt_tool_impl,
+    doc = "One executable downloaded by SHA-256; the file is exported, not run in place.",
+    attrs = {
+        "url": attr.string(mandatory = True),
+        "sha256": attr.string(mandatory = True),
+        "tool": attr.string(mandatory = True, doc = "File name of the executable in the repository."),
+        "build_id": attr.string(mandatory = True, doc = "The ELF build ID, for the record."),
+    },
+)
+
 def _cipd_repo(name, lock, fields, **kwargs):
     pkgs = [cipd_package(lock, f) for f in fields]
     cipd_repository(
@@ -140,6 +166,15 @@ def _lock_repos_impl(module_ctx):
         lock,
         ["rust_host", "rust_target", "rust_host_std"],
         build_file = Label("//toolchain:rust.BUILD.bazel"),
+    )
+    _cipd_repo("fuchsia_go", lock, ["go"], build_file = Label("//toolchain:go.BUILD.bazel"))
+    fidlgen = lock_field(lock, "fidlgen_rust_next")
+    prebuilt_tool(
+        name = "fidlgen_rust_next",
+        url = fidlgen["url"],
+        sha256 = fidlgen["value"],
+        tool = "fidlgen_rust_next",
+        build_id = fidlgen["build_id"],
     )
     return module_ctx.extension_metadata(reproducible = True)
 

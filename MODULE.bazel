@@ -43,9 +43,19 @@ single_version_override(
     version = "0.69.0",
 )
 
-# Pinned by overlay.lock.json: rules_fuchsia, the IDK and the Rust toolchain.
+# Pinned by overlay.lock.json: rules_fuchsia, the IDK, the Rust toolchain, the Go SDK and
+# the prebuilt fidlgen_rust_next.
 lock_repos = use_extension("//toolchain:repositories.bzl", "lock_repos")
-use_repo(lock_repos, "fuchsia_idk", "fuchsia_rust_toolchain", "rules_fuchsia")
+use_repo(lock_repos, "fidlgen_rust_next", "fuchsia_go", "fuchsia_idk", "fuchsia_rust_toolchain", "rules_fuchsia")
+
+# rules_go builds fidlgen_rust from vendored source (M7), at the version and under the
+# repo name fuchsia.git uses at the lock revision (build/bazel/toplevel.MODULE.bazel).
+# The SDK is the release's own Go (the lock's "go" field, @fuchsia_go), wrapped as
+# upstream wraps its prebuilt; no Go SDK or module is downloaded from anywhere else.
+bazel_dep(name = "rules_go", version = "0.61.1", repo_name = "io_bazel_rules_go")
+
+go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
+go_sdk.wrap(root_file = "@fuchsia_go//:README.md")
 
 # Generated with rules_fuchsia's own rules: @fuchsia_sdk (from the IDK) and @fuchsia_clang.
 fuchsia_repos = use_extension("//toolchain:fuchsia.bzl", "fuchsia_repos")
