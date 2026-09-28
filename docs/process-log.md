@@ -177,3 +177,17 @@ edit (`git diff -- docs/implementation-plan.md | grep '^[-+]## '`); only the
 completed milestone's heading may change.
 Fix belongs in: project-plan skill (close-out step 4) or orchestrate-milestones review
 Status: open
+
+## 2026-09-27T21:39-07:00 — instruction gap: orchestrator landed a checkpoint that dropped plan entries
+Chapter: [M3](notebook/M3.md)
+What happened: M3's checkpoint commit removed 364 lines of the plan (entries M4–M10
+and I2). The orchestrator verified branch, tests, evidence and plan status before
+landing, but not that unrelated plan sections survived, so main lacked those entries
+from PR #6 until M4 restored them (found by M4's implementer).
+Cost: one milestone's worth of main without the M4–M10/I2 definitions; M4 had to
+reconstruct its own entry from history.
+Prevention: before each landing the orchestrator compares `## ` headings of the plan
+and design against the base, and line counts of every doc file, and sends any
+unexplained drop back to the implementer (applied from M4's landing on).
+Fix belongs in: orchestrate-milestones skill (step 4 "Finished: verify before landing").
+Status: open
