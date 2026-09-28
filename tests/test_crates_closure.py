@@ -25,6 +25,14 @@ def test_roots_are_the_closures_direct_aliases():
     assert set(roots) <= set(CRATES["aliases"])
 
 
+def test_each_alias_picks_the_closures_version():
+    """Where Cargo.lock has two versions (syn 1/2/3, getrandom 0.3/0.4), the alias follows
+    upstream's alias file, which the closure also records per GN alias (bazel_actual)."""
+    aliases = regen.parse_aliases((ROOT / "third_party/crates/BUILD.vendor.bazel").read_text())
+    for d in CLOSURE["crates_io"]["direct"]:
+        assert "//third_party/rust_crates" + aliases[d["alias"]][1:] == d["bazel_actual"], d["alias"]
+
+
 def test_only_the_closures_crates_are_generated():
     """Not all of Cargo.lock: exactly crates_io.transitive (121 at 33.20260927.4.1)."""
     generated = {c["path"]: c for c in CRATES["crates"]}

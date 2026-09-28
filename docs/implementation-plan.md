@@ -77,7 +77,7 @@ in the cloud.
 | M4 | `rustc_*` rules with API-level cfgs (R3) | M2 | cloud | complete |
 | M5 | Vendor stage of `regen.py` + `--check`; `zx-types`, `zx-sys`, `zx` build (R6 mechanism, R2) | M4 | cloud | complete |
 | M6a | Pilot 1 closure measured (D8, R12 data): `closure.py`, `docs/closure/pilot1.json` | M5 | cloud | complete |
-| M6b | Pilot 1's crates.io crates build, incl. the patched ones and `zx` (R4) | M6a | cloud | pending |
+| M6b | Pilot 1's crates.io crates build, incl. the patched ones and `zx` (R4) | M6a | cloud | in_progress (review) |
 | I2 | Prebuilt `fidlgen_rust` / `fidlgen_rust_next`: published or not | — | cloud | pending |
 | M7 | Both FIDL generators available as Bazel host tools (R5 tools) | I2, M6b | cloud | pending |
 | M8 | `fidl_rust.bzl`, `rust` + `rust_next` flavors; pilot 1 FIDL closure compiles (R5) | M7 | cloud | pending |
@@ -326,79 +326,31 @@ would be UNKNOWN; the report is refreshed by hand until M14.
 ## M6b — Pilot 1's crates.io crates build
 
 **Design coverage:** R4 (pilot 1 subset), D6, C1, C3, C4; R2 (`zx`, deferred from M5).
-**Dependencies:** M6a (`docs/closure/pilot1.json`), M5 (`regen.py`, `@rust_crates`).
-Later entries that name "M6" for crates (M7's host crates, M14's crates stage) mean M6b.
-**In scope:**
-- The patched crates the closure reaches, vendored from fuchsia.git's
-  `third_party/rust_crates/{forks,ask2patch}/` at the revision by `regen.py` and
-  committed (option A, design §4.2): measured set `ask2patch/byteorder`,
-  `ask2patch/memchr`, `forks/libc-0.2.189`, `forks/zeroize` (the plan's earlier `tokio`
-  is not reached; `forks/tracing-mutex-0.3.2` is not needed, because the overlay sets
-  `fuchsia_sync_detect_lock_cycles = false`, decided after the M6a review).
-- `zx`: `sdk/rust/zx upstream` in `vendor/crates.txt`, `//vendor/fuchsia/sdk/rust/zx` in
-  `tests/vendor/BUILD.bazel` (its crates.io closure: 12 crates, 6 new, 2 patched).
-- The rest of pilot 1's crates.io closure: the 44 direct aliases in `pilot1.json` and
-  their 121 crates, from upstream's crate_universe BUILD files with each `.crate` pinned
-  by the release `Cargo.lock` SHA-256 (M5's route).
-
-**Out of scope:** in-tree crates beyond `zx` (M8/M9); running crate_universe locally
-(decided: option A); per-crate repositories unless disk or fetch time requires them.
-
-### Implementation steps
-1. **Patched crates in `regen.py`.** Accept `//third_party/rust_crates/{forks,ask2patch}/
-   <dir>` labels in crate BUILD files and aliases (M5 fails closed on them today). Copy
-   each directory from fuchsia.git (the M5 `GitSource`) into a regen-owned, committed
-   tree — proposed: `third_party/crates/src/<forks|ask2patch>/<dir>/` with the BUILD file
-   kept beside the others as `BUILD.<kind>.<dir>.bazel`, so no main-repository package is
-   created and `--check` covers the sources. `toolchain/crates.bzl` lays these out in
-   `@rust_crates` from the committed files instead of downloading. Each crate keeps its
-   own `LICENSE*` files; add `REUSE.toml` annotations per crate and the license texts it
-   needs (`LICENSES/MIT.txt`, `Unlicense.txt`; `Apache-2.0.txt` exists). Over the 121
-   crates the license kinds are MIT, Apache-2.0, Unicode-3.0, BSD-2-Clause, Unlicense,
-   Zlib and BSD-3-Clause (`pilot1.json` `crates_io.transitive[].licenses`).
-2. **`zx`** (first checkpoint candidate): vendor it, build for both Fuchsia targets
-   (upstream marks it Fuchsia-only), add its `cap_lints` test.
-3. **Crate roots from the closure.** A committed input listing the direct aliases to
-   generate (proposed: `vendor/crates_io.txt`, checked against `pilot1.json`'s
-   `crates_io.direct`), in addition to the aliases vendored BUILD files use.
-4. **Build all of them.** `@rust_crates` targets are tagged `manual`, so `//...` skips
-   them: add a build list (proposed: a generated test package that depends on every
-   direct alias, or `bazel build` over a query of `@rust_crates//vendor:*`) for x64 and
-   arm64, and proc macros for host. 15 crates have build scripts (`cargo_build_script`),
-   the likeliest failures.
-5. Network-off check: after one warm fetch, the three builds pass with
-   `--repository_disable_download`.
-
-### Acceptance criteria
-- [ ] Every crates.io crate in the pilot 1 closure builds for both Fuchsia targets;
-  proc-macro crates build for host.
-- [ ] Only the closure's crates are generated, not all of `Cargo.lock` (count recorded;
-  M6a measured 121: 117 crates.io + 4 patched).
-- [ ] A build with the network off, after one warm fetch, succeeds (checksummed and
-  cached; no resolution step).
-- [ ] `zx` builds for both Fuchsia targets.
-- [ ] Each patched crate's committed files equal fuchsia.git's at the revision
-  (`regen.py --check` clean; a one-byte edit fails naming the file); each keeps its
-  upstream license files and REUSE lint passes.
-- [ ] Disk within the hosted budget (C6), recorded.
-
-### Testing and review
-- Verify with `uv run pytest` (fake-tree tests for patched crates, as M5's), `regen.py
-  --check`, the three `//...` builds, the crate build list under both Fuchsia configs,
-  `bazel test //...`.
-- Review focus: version choice where `Cargo.lock` has two versions (per the GN alias,
-  brief A.2 note; `pilot1.json` records each alias's crate directory), patched-crate
-  provenance and licenses, build scripts under the overlay's toolchains, `MODULE.bazel.lock`
-  stable.
-
-### Session sizing
-121 crates against M5's 6; the patched-crate mechanism is new. Split point: steps 1–2
-(patched crates + `zx`, 12 crates) as one checkpoint, then steps 3–5. If step 1–2 take
-most of the session, stop there with an incomplete handoff rather than starting the full
-set.
-
-### Evidence and findings
-Status: pending · Evidence: [M6b](evidence/M6b.md) · Notebook: [M6b](notebook/M6b.md) (M6a's are `M6.md`)
+**Dependencies:** M6a, M5. Later entries that name "M6" for crates (M7's host crates,
+M14's crates stage) mean M6b.
+**Status:** in_progress — implementation and verification done; awaiting the
+independent review, which precedes the checkpoint commit. The detailed entry is in the
+evidence file.
+**Outcome:** `regen.py` follows and commits the patched crates (`forks/`, `ask2patch/`)
+under `third_party/crates/src/<kind>/<dir>/` (byte for byte, BUILD file beside the
+others as `BUILD.<kind>.<dir>.bazel`), and `toolchain/crates.bzl` links them into
+`@rust_crates`; `vendor/crates_io.txt` adds pilot 1's 44 direct aliases as roots. The
+generated set is exactly the closure's 121 crates (117 crates.io + `forks/libc-0.2.189`,
+`forks/zeroize`, `ask2patch/byteorder`, `ask2patch/memchr`), checked against
+`pilot1.json` in pytest. `zx` is vendored and builds for x64 and arm64. A generated build
+list (`//third_party/crates:aliases`, `:host_all`) makes the three `//...` builds compile
+the set: for Fuchsia every crate the target side needs (x64 99 target + 22 exec, arm64
+98 + 22), for host all 121; crate_universe's per-platform features mean host-only crates
+(e.g. `synstructure`) do not build for Fuchsia. With `@rust_crates` deleted, downloads
+disabled and the network blocked, the three builds and `bazel test //...` pass; the 15
+build scripts need no overrides and run with sandbox networking off. `--check` names a
+one-byte edit under `src/`; REUSE annotations per patched crate (+ `MIT`, `Unlicense`
+texts). pytest 340, reuse lint, three builds, `bazel test //...` (25 + 1 skipped),
+`regen.py --check` pass; disk 10.30 / 25 GiB; `MODULE.bazel.lock` unchanged.
+**Evidence:** [M6b](evidence/M6b.md) · **Notebook:** [M6b](notebook/M6b.md)
+**Open limitations:** `--check` needs network access to fuchsia.git; `vendor/crates_io.txt`
+and the patched crates' REUSE annotations are maintained by hand (pytest and reuse lint
+catch drift); `num-derive` and `paste` build only for host until M9 uses them.
 
 ---
 
@@ -1051,24 +1003,35 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   for Fuchsia. None mattered for pilot 1 (0 gaps, 0 UNKNOWN conditions). M14 folds the
   walker into `regen.py` and could let it drive the crate roots.
 
+- **Incompatible targets drop out of `//...` silently (found in M6b).** A filegroup
+  with one member incompatible under a config (e.g. `//third_party/crates:aliases` if a
+  new crate were Fuchsia-incompatible) is skipped by `//...` without an error, as are
+  Fuchsia-only targets on host. M6b's evidence builds the groups as explicit targets;
+  a standing check (an analysis test per config, or explicit targets in the project
+  checks) would keep the crate build list from shrinking unnoticed.
+- **crates.io roots by hand (found in M6b; for M14).** `vendor/crates_io.txt` copies
+  `pilot1.json`'s `crates_io.direct` (pytest keeps them equal); when M14 folds the
+  walker into `regen.py`, the closure can drive the roots, and pilot 2's aliases join.
+  A new patched crate also needs a hand-written `REUSE.toml` annotation (reuse lint
+  fails until then).
+
 ## Next session
 
-- Current milestone and status: **M6a complete** (branch `ms/M6` from `04f1542`; wip
-  commits `f48c2a8`, `cc007a4`, `f401025`, then the checkpoint `overlay: M6a — Pilot 1
-  closure measured` with the review fixes). M6 was split (accepted by the orchestrator):
-  M6a is the walker and the closure report, M6b the crates build.
-- Completed work and evidence: [M6 evidence](evidence/M6.md), including the review
-  findings and resolutions; `docs/closure/pilot1.json`.
-- Uncommitted state: none.
-- Remaining work, blockers, and decisions: none for M6a. Decided in the review:
-  `fuchsia_sync_detect_lock_cycles = false`. For M6b, the entry proposes
-  `third_party/crates/src/<forks|ask2patch>/<dir>/` for patched sources and
-  `vendor/crates_io.txt` for crate roots. Unchanged: the R7 reading for pilot 1 (before
-  M10); M17 placement.
+- Current milestone and status: **M6b in_progress, awaiting review** (branch `ms/M6b`
+  from `b242fe5`; wip commits `2124b78` — patched crates in regen.py, `zx` builds (the
+  split point) — and `4449c69` — the 121 crates and the build list; evidence, plan and
+  notebook are uncommitted or in the next wip commit). Implementation and verification
+  are done; the independent review precedes the checkpoint `overlay: M6b — Pilot 1's
+  crates.io crates build`.
+- Completed work and evidence: [M6b evidence](evidence/M6b.md) (all but Review).
+- Remaining work, blockers, and decisions: the review, its fixes, the evidence's Review
+  section, the checkpoint commit. For the orchestrator: design R4's patched-crate list
+  ("… `tokio`") could name the measured set; the criterion-1 reading (every crate in
+  the configuration it is used in; all for host) is in the evidence. Unchanged: the R7
+  reading for pilot 1 (before M10); M17 placement.
 - Context boundary: normal.
-- Resume action: begin **M6b** (then M7; I2 and I3 can run beside it).
-- Read first for M6b: the M6b entry, [M6 evidence](evidence/M6.md) ("Results",
-  "Decision: split"), `docs/closure/pilot1.json` (`crates_io`), [M5 evidence](evidence/M5.md)
-  (decisions 1–3), `scripts/regen.py` (`generate_crates`, `rewrite_crate_build`),
-  `toolchain/crates.bzl`, [notebook index](notebook/index.md). M6b opens its own
-  chapter and evidence, `M6b.md` (M6a used `M6.md`).
+- Resume action: finish **M6b** (review → fixes → checkpoint); then M7 (I2 first; I3
+  can run beside it).
+- Read first: the M6b entry, [M6b evidence](evidence/M6b.md), [notebook index](notebook/index.md)
+  and the [M6b chapter](notebook/M6b.md), `scripts/regen.py` (`generate_crates`,
+  `_copy_patched`, `crates_build`), `toolchain/crates.bzl`.

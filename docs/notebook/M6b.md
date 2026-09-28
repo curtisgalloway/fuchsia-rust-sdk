@@ -94,3 +94,12 @@ network. Static scan of the build.rs files: they spawn only `$RUSTC` (libc's
 toolchain rustc; CC is set (clang for Fuchsia, /usr/bin/gcc for exec: backlog "hermetic
 host C toolchain") but no build script compiles C. No overrides needed. Disk 10.30/25 GiB.
 Logs: runs/M6b/netoff_*.log, nonet_sandbox_*.log, aquery_bs_x64.txt.
+
+## 2026-09-28T00:08-07:00 — checkpoint (awaiting review)
+State: in progress — all six criteria verified ([evidence](../evidence/M6b.md)); the
+independent review, its fixes and the checkpoint commit remain. Added since the last
+entry: `tests/test_crates_closure.py` (roots = `pilot1.json` direct aliases, generated =
+the 121 transitive crates with names/versions/proc-macro/patched, alias versions =
+`bazel_actual`), per-config cquery counts (x64 99 target + 22 exec, arm64 98 + 22, host
+121), evidence, plan entry/backlog/handoff. A second `regen.py vendor` is byte-identical.
+pytest 340. Next: stop for the orchestrator's review.
