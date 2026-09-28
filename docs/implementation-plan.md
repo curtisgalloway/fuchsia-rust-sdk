@@ -931,6 +931,15 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   harness should share code. Not needed for milestone 1.
 - **Other Rust drivers (design F10).** `aml-rtc` and `virtio-gpu-display` are
   candidates for a third pilot or for R7 reference comparisons (see M10).
+- **Making `fuchsia-cloud-dev` more useful (owner interest, 2026-09-27).** Its README
+  now lists its limits (x64 only, prebuilt image, `edu` only, SDK pin not published for
+  every release, C++ only). Follow-ups this project could feed:
+  - Follow the newest release by pinning the IDK and `rules_fuchsia` as M1 does,
+    instead of the `fuchsia-bazel-rules` CIPD package.
+  - Offer this overlay as a Bazel module there for Rust, after G1.
+  - Add QEMU devices beyond `edu` for driver work (one `-device` argument each).
+  - Unverified: a `core.arm64` product bundle under TCG for arm64 at run time;
+    in-container product assembly for replacing shipped drivers (disk may not allow).
 
 ## Next session
 
