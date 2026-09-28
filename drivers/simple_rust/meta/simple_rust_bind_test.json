@@ -1,0 +1,66 @@
+[
+  {
+    "parent": "pci",
+    "tests": [
+      {
+        "name": "edu: spec 00_06_0 parent 0 properties",
+        "expected": "match",
+        "device": {
+          "fuchsia.Service": "\"fuchsia.hardware.pci.Service\"",
+          "fuchsia.BIND_PCI_VID": "0x1234",
+          "fuchsia.BIND_PCI_DID": "0x11e8",
+          "fuchsia.BIND_PCI_CLASS": "0x0",
+          "fuchsia.BIND_PCI_SUBCLASS": "0xff",
+          "fuchsia.BIND_PCI_INTERFACE": "0x0",
+          "fuchsia.BIND_PCI_REVISION": "0x10",
+          "fuchsia.BIND_PCI_TOPO": "0x30"
+        }
+      },
+      {
+        "name": "virtio-gpu 00_04_0: other VID/DID",
+        "expected": "abort",
+        "device": {
+          "fuchsia.Service": "\"fuchsia.hardware.pci.Service\"",
+          "fuchsia.BIND_PCI_VID": "0x1af4",
+          "fuchsia.BIND_PCI_DID": "0x1050"
+        }
+      },
+      {
+        "name": "edu VID, other DID",
+        "expected": "abort",
+        "device": {
+          "fuchsia.BIND_PCI_VID": "0x1234",
+          "fuchsia.BIND_PCI_DID": "0x1111"
+        }
+      }
+    ]
+  },
+  {
+    "parent": "acpi",
+    "tests": [
+      {
+        "name": "edu: spec 00_06_0 parent 1 properties",
+        "expected": "match",
+        "device": {
+          "fuchsia.BIND_PROTOCOL": "fuchsia.acpi.BIND_PROTOCOL.DEVICE",
+          "fuchsia.BIND_ACPI_BUS_TYPE": "fuchsia.acpi.BIND_ACPI_BUS_TYPE.PCI",
+          "fuchsia.BIND_PCI_TOPO": "0x30"
+        }
+      },
+      {
+        "name": "acpi parent as a raw number (0x1e)",
+        "expected": "match",
+        "device": {
+          "fuchsia.BIND_PROTOCOL": "0x1e"
+        }
+      },
+      {
+        "name": "PCI node's protocol (0x1c) on the acpi parent",
+        "expected": "abort",
+        "device": {
+          "fuchsia.BIND_PROTOCOL": "0x1c"
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,26 @@
+// SPDX-FileCopyrightText: 2026 Curtis Galloway
+// SPDX-License-Identifier: Apache-2.0
+
+// Bind rules for pilot 1 on the emulator (investigation I3). Upstream's rule names
+// gizmo.example, a bind library outside the IDK; this one binds to QEMU's `edu` PCI
+// device, which scripts/emu adds (`-device edu`) and no core.x64 driver claims.
+//
+// The PCI bus publishes each device as a composite node spec with two parents: the PCI
+// device and its ACPI node. A driver that binds to such a spec must be a composite
+// driver; a plain rule on the PCI node registers but never binds. The rule is the one
+// fuchsia-cloud-dev's qemu_edu driver binds with; meta/simple_rust_bind_test.json checks
+// it against the properties of the emulator's spec for the device (docs/evidence/I3.md).
+composite simple_rust;
+
+using fuchsia.acpi;
+using fuchsia.pci;
+
+primary parent "pci" {
+  // The edu device's IDs (QEMU docs/specs/edu.txt).
+  fuchsia.BIND_PCI_VID == 0x1234;
+  fuchsia.BIND_PCI_DID == 0x11e8;
+}
+
+optional parent "acpi" {
+  fuchsia.BIND_PROTOCOL == fuchsia.acpi.BIND_PROTOCOL.DEVICE;
+}
