@@ -5,6 +5,8 @@ SPDX-License-Identifier: Apache-2.0
 
 # fuchsia-rust-sdk
 
+> Not an official Google or Fuchsia project. Fuchsia is a trademark of Google LLC.
+
 An overlay for building Fuchsia DFv2 drivers written in Rust outside `fuchsia.git`,
 against a released Fuchsia SDK, to run on a device whose OS comes from the same
 release. Every per-release input is pinned in [`overlay.lock.json`](overlay.lock.json),
@@ -12,9 +14,42 @@ which `uv run scripts/resolve_pins.py <sdk-version>` produces from anonymous ups
 lookups. See the [design](docs/design.md) and the
 [implementation plan](docs/implementation-plan.md).
 
-To write a driver, start with the [driver guide](docs/driver-guide.md): copy pilot 1
+**To write a driver, start with the [driver guide](docs/driver-guide.md):** copy pilot 1
 (`drivers/simple_rust`), write its bind rule, build it for both targets and bind it on
 the emulator.
+
+## Status
+
+Milestone 1 is complete (2026-09-28). An upstream Rust DFv2 driver (pilot 1,
+fuchsia.git's `examples/drivers/simple/rust`, here `drivers/simple_rust`) builds out of
+tree against the released SDK `33.20260927.4.1`, for x64 and arm64, and binds on the
+`core.x64` emulator. The gate was run from a clean clone; see the
+[G1 evidence](docs/evidence/G1.md). Next in the [plan](docs/implementation-plan.md) are
+pilot 2 (`aml-saradc`, bound on VIM3 hardware) and regenerating the overlay for each new
+release; both wait on the owner's go-ahead.
+
+## Limits
+
+- **DFv2 only**; no Banjo, no DFv1 (design C2).
+- **Bind targets on the emulator:** QEMU's `edu` device, or a device `core.x64`
+  emulates that no shipped driver claims first. arm64 builds load only on hardware.
+- **One release at a time:** the SDK and the OS on the emulator or device must both be
+  the lock's release (design C3); a driver built for one release runs only on it.
+- **FIDL:** libraries in the release's IDK; a library outside the IDK only through the
+  recorded non-IDK route (design D7, [driver guide](docs/driver-guide.md) "Limits at
+  this release"), and its interface is not a published contract.
+- **Build host:** linux-x64 (design C5).
+
+## How this was built
+
+The [design](docs/design.md) states the requirements (R1–R12) and constraints; it starts
+from a brief in the owner's private repository, which is not published (see the design's
+header). The [implementation plan](docs/implementation-plan.md) splits the work into
+milestones with acceptance criteria. Each finished milestone has an evidence file under
+`docs/evidence/` (checks run, outputs, review findings) and a lab-notebook chapter
+([index](docs/notebook/index.md)); the [process log](docs/process-log.md) records where
+the process itself cost time. The work was done by Claude Code agents under the owner's
+direction, with an independent review before each milestone landed.
 
 ## Build
 
@@ -116,3 +151,13 @@ detects the rest.
 optional and should stay a thin wrapper that runs `scripts/emu setup` (guarded by
 `CLAUDE_CODE_REMOTE=true`, output to a log file outside the checkout); the harness does
 not depend on one. Other commands wait while a setup holds its lock.
+
+## Contributing, security and license
+
+Issues are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) for what a pull request must
+pass. Report vulnerabilities privately as [SECURITY.md](SECURITY.md) describes.
+
+This repository's own code is Apache-2.0 ([LICENSE](LICENSE)). Code vendored from
+`fuchsia.git` keeps its BSD-2-Clause license and `PATENTS`, and vendored crates keep
+their own licenses; every file's license is recorded by SPDX header or in
+[`REUSE.toml`](REUSE.toml) (`uv run reuse lint`).
