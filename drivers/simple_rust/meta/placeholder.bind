@@ -1,0 +1,10 @@
+// SPDX-FileCopyrightText: 2026 Curtis Galloway
+// SPDX-License-Identifier: Apache-2.0
+
+// Placeholder bind rules (milestone M10): upstream's rule names gizmo.example, a bind
+// library outside the IDK, so pilot 1 builds with this one until I3 sets the rule for
+// the emulator's edu device (M11). It uses only an IDK bind library and matches no node
+// that core.x64 publishes.
+using fuchsia.test;
+
+fuchsia.test.TEST_CHILD == "simple_rust_driver_placeholder";

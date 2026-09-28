@@ -40,6 +40,8 @@ rustc_library(
         "//vendor/fuchsia/src:__subpackages__",
         "//vendor/fuchsia/third_party/tcpdump/tests:__subpackages__",
         "//vendor/fuchsia/tools:__subpackages__",
+        # Overlay: the overlay's driver packages (patch 0002).
+        "//drivers:__subpackages__",
     ],  # @bazel2gn:raw_overwrite:[ "//*" ]
     deps = [
         "//vendor/fuchsia/sdk/rust/zx-status",

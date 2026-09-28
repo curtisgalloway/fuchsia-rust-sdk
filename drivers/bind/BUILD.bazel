@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+# Rust crates of the IDK's bind libraries (milestone M10), as GN's bind_library makes
+# `<target>_rust` (crate `bind_<name>`). Named as GN names them, so a driver's BUILD.gn
+# dep //src/devices/bind/fuchsia.test:fuchsia.test_rust becomes
+# //drivers/bind:fuchsia.test_rust.
+
+load("//rules:bind_rust.bzl", "fuchsia_bind_rust_library")
+
+fuchsia_bind_rust_library(
+    name = "fuchsia.test_rust",
+    library = "@fuchsia_sdk//bind/fuchsia.test",
+    library_name = "fuchsia.test",
+    visibility = ["//drivers:__subpackages__"],
+)

@@ -7,7 +7,9 @@
 # vendored Go BUILD files load their host constraints from (M7); fidl.bzl (fidl_library)
 # and fidl_rust.bzl (its Rust bindings), which vendored FIDL libraries load (M8), and
 # build_info.bzl, the build arguments vendored BUILD files read (M8); fidl_rust_next.bzl,
-# the rust_next bindings and the allowlist the vendored fidl_next crates load (M8b).
+# the rust_next bindings and the allowlist the vendored fidl_next crates load (M8b);
+# fuchsia_rust_driver.bzl (the driver rule and its package tests) and bind_rust.bzl (a
+# bind library's Rust crate), M10.
 
 load(":host.bzl", "HOST_OS_CONSTRAINTS")
 
@@ -18,4 +20,11 @@ config_setting(
     name = "is_host_os",
     constraint_values = HOST_OS_CONSTRAINTS,
     visibility = ["//vendor/fuchsia:__subpackages__"],
+)
+
+# The scripts of fuchsia_driver_elf_test and fuchsia_driver_manifest_test
+# (fuchsia_rust_driver.bzl, M10).
+exports_files(
+    ["driver_elf_test.sh", "driver_manifest_test.sh"],
+    visibility = ["//visibility:public"],
 )

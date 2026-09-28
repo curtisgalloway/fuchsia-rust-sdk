@@ -140,3 +140,13 @@ path = ["tests/fidlgen/testdata/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "The Fuchsia Authors"
 SPDX-License-Identifier = "BSD-2-Clause"
+
+# Pilot 1 (milestone M10): copied unchanged from fuchsia.git
+# examples/drivers/simple/rust/ at the lock's fuchsia_revision (src/lib.rs, and
+# meta/simple_rust_driver.cml, dmlc's checked-in output). They keep upstream's header;
+# Fuchsia's LICENSE is LICENSES/BSD-2-Clause.txt. Blob IDs in docs/evidence/M10.md.
+[[annotations]]
+path = ["drivers/simple_rust/src/lib.rs", "drivers/simple_rust/meta/simple_rust_driver.cml"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "The Fuchsia Authors"
+SPDX-License-Identifier = "BSD-2-Clause"

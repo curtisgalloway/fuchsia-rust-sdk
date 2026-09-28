@@ -1,0 +1,24 @@
+SPDX-FileCopyrightText: 2026 Curtis Galloway
+SPDX-FileCopyrightText: The Fuchsia Authors
+SPDX-License-Identifier: Apache-2.0 AND BSD-2-Clause
+
+Make the fidl crate visible to the overlay's own driver packages (milestone M10).
+
+Upstream Bazel limits it to the packages listed (its examples, src, sdk/lib, ...), which
+regen.py maps under //vendor/fuchsia; GN makes it visible everywhere (`//*`, the
+@bazel2gn comment). A driver ported out of tree names it directly as its BUILD.gn does
+(pilot 1's src/lib.rs uses fidl::endpoints), so //drivers is added. The added line is
+the overlay's (Apache-2.0); the context lines are Fuchsia's (BSD-2-Clause,
+LICENSES/BSD-2-Clause.txt). Applied by scripts/regen.py after patch 0001.
+
+--- a/src/lib/fidl/rust/fidl/BUILD.bazel
++++ b/src/lib/fidl/rust/fidl/BUILD.bazel
+@@ -40,6 +40,8 @@
+         "//vendor/fuchsia/src:__subpackages__",
+         "//vendor/fuchsia/third_party/tcpdump/tests:__subpackages__",
+         "//vendor/fuchsia/tools:__subpackages__",
++        # Overlay: the overlay's driver packages (patch 0002).
++        "//drivers:__subpackages__",
+     ],  # @bazel2gn:raw_overwrite:[ "//*" ]
+     deps = [
+         "//vendor/fuchsia/sdk/rust/zx-status",
