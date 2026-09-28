@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+#
+# The @rust_crates//vendor aliases scripts/regen.py generates in addition to those the
+# vendored BUILD files use (design R4; milestone M6b), one per line, sorted: the direct
+# crates.io deps of the pilots' closures (docs/closure/<pilot>.json, crates_io.direct).
+# Their crates, and every crate those depend on, go to third_party/crates/.

@@ -36,6 +36,14 @@ name = "baz"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3333333333333333333333333333333333333333333333333333333333333333"
+
+[[package]]
+name = "memo"
+version = "2.0.0"
+
+[[package]]
+name = "qux"
+version = "0.3.0"
 '''
 
 A_BUILD = '''\
@@ -94,6 +102,12 @@ alias(
     actual = "//third_party/rust_crates/vendor/baz-0.1.0:baz",
     tags = ["manual"],
 )
+
+alias(
+    name = "qux",
+    actual = "//third_party/rust_crates/forks/qux-0.3.0:qux",
+    tags = ["manual"],
+)
 '''
 
 
@@ -148,7 +162,17 @@ def make_upstream(root: Path) -> Path:
     _write(root, "third_party/rust_crates/vendor/BUILD.bazel", ALIASES)
     _write(root, "third_party/rust_crates/vendor/foo-1.0.0/BUILD.bazel", _crate_build(
         "foo", "1.0.0", ["//third_party/rust_crates/vendor/bar-0.2.0-rc.1:bar"]))
-    _write(root, "third_party/rust_crates/vendor/bar-0.2.0-rc.1/BUILD.bazel", _crate_build("bar", "0.2.0-rc.1"))
+    _write(root, "third_party/rust_crates/vendor/bar-0.2.0-rc.1/BUILD.bazel", _crate_build(
+        "bar", "0.2.0-rc.1", ["//third_party/rust_crates/ask2patch/memo:memo"]))
+    # Patched crates (M6b): sources only in fuchsia.git, copied with their license files.
+    _write(root, "third_party/rust_crates/ask2patch/memo/BUILD.bazel", _crate_build("memo", "2.0.0"))
+    _write(root, "third_party/rust_crates/ask2patch/memo/LICENSE-MIT", "MIT text\n")
+    _write(root, "third_party/rust_crates/ask2patch/memo/src/lib.rs", "pub fn memo() {}\n")
+    _write(root, "third_party/rust_crates/ask2patch/memo/gen.sh", "#!/bin/sh\n", 0o755)
+    _write(root, "third_party/rust_crates/forks/qux-0.3.0/BUILD.bazel", _crate_build(
+        "qux", "0.3.0", ["//third_party/rust_crates/forks/qux-0.3.0:build_script_build",
+                         "//third_party/rust_crates/vendor/baz-0.1.0:baz"]))
+    _write(root, "third_party/rust_crates/forks/qux-0.3.0/src/lib.rs", "pub fn qux() {}\n")
     _write(root, "third_party/rust_crates/vendor/baz-0.1.0/BUILD.bazel", _crate_build("baz", "0.1.0"))
     return root
 
@@ -159,6 +183,7 @@ def make_repo(root: Path, upstream: Path) -> Path:
             "cargo_lock_sha256": {"value": lock_sha, "source": []}}
     _write(root, "overlay.lock.json", json.dumps(lock))
     _write(root, "vendor/crates.txt", "# comment\nsdk/rust/a upstream\nsdk/rust/b overlay  # ours\n")
+    _write(root, "vendor/crates_io.txt", "# none yet\n")
     _write(root, "overlays/sdk/rust/b/BUILD.bazel", B_OVERLAY)
     return root
 
@@ -268,6 +293,29 @@ def test_rewrite_maps_every_label_kind():
     assert undo == A_BUILD
 
 
+def test_rewrite_maps_patched_crates_into_rust_crates():
+    """M6b: an in-tree label straight into a patched crate goes to its @rust_crates package."""
+    text = 'x = ["//third_party/rust_crates/forks/libc-0.2.189:libc", "//third_party/rust_crates/ask2patch/memchr"]\n'
+    assert regen.rewrite_upstream_build(text, "f", set()) == \
+        'x = ["@rust_crates//forks/libc-0.2.189:libc", "@rust_crates//ask2patch/memchr"]\n'
+
+
+@pytest.mark.parametrize("pkg, expected", [
+    ("third_party/rust_crates/vendor/foo-1.0.0", "vendor/foo-1.0.0"),
+    ("third_party/rust_crates/forks/libc-0.2.189", "forks/libc-0.2.189"),
+    ("third_party/rust_crates/forks/bluetooth/bt-bass", "forks/bluetooth/bt-bass"),
+    ("third_party/rust_crates/ask2patch/memchr", "ask2patch/memchr"),
+    ("third_party/rust_crates/vendor", None),
+    ("third_party/rust_crates/vendor/a/b", None),
+    ("third_party/rust_crates/forks", None),
+    ("third_party/rust_crates/other/x", None),
+    ("third_party/rust_crates", None),
+    ("sdk/rust/zx", None),
+])
+def test_crate_dir(pkg, expected):
+    assert regen.crate_dir(pkg) == expected
+
+
 def test_rewrite_target_in_vendored_package():
     text = 'x = ["//sdk/rust/b:b", "//sdk/rust/b:other"]\n'
     assert regen.rewrite_upstream_build(text, "f", {"sdk/rust/b"}) == \
@@ -298,8 +346,10 @@ def test_visibility_may_name_packages_that_are_not_vendored():
 
 @pytest.mark.parametrize("label, message", [
     ("//sdk/rust/missing", "sdk/rust/missing is not listed in vendor/crates.txt"),
-    ("//third_party/rust_crates/forks/libc-0.2.189:libc", "patched and forked crates come in milestone M6"),
-    ("//third_party/rust_crates/ask2patch/memchr", "patched and forked crates come in milestone M6"),
+    ("//third_party/rust_crates:Cargo.toml", "only crates.io crates (third_party/rust_crates/vendor) and patched"),
+    ("//third_party/rust_crates/vendor/foo-1.0.0:foo", "use an alias from third_party/rust_crates/vendor"),
+    ("//third_party/rust_crates/other/x", "only crates.io crates"),
+    ("//third_party/rust_crates/forks", "only crates.io crates"),
     ("//build/bazel/rules/other:thing", "no overlay mapping for this label"),
     ("//:something", "no overlay mapping for this label"),
 ])
@@ -368,11 +418,17 @@ def test_overlay_checks():
 def test_crate_build_rewrite_and_closure():
     text, deps = regen.rewrite_crate_build(
         _crate_build("foo", "1.0.0", ["//third_party/rust_crates/vendor/bar-0.2.0-rc.1:bar"]), "f")
-    assert deps == {"bar-0.2.0-rc.1"}
+    assert deps == {"vendor/bar-0.2.0-rc.1"}
     assert '"//vendor/bar-0.2.0-rc.1:bar"' in text
     assert '"@rules_rust//rust/platform:x86_64-unknown-fuchsia"' in text
-    with pytest.raises(regen.RegenError, match="f:1: .*milestone M6"):
-        regen.rewrite_crate_build('deps = ["//third_party/rust_crates/ask2patch/memchr"]', "f")
+    text, deps = regen.rewrite_crate_build(
+        'deps = ["//third_party/rust_crates/ask2patch/memchr", "//third_party/rust_crates/forks/x-1:bs"]', "f")
+    assert text == 'deps = ["//ask2patch/memchr", "//forks/x-1:bs"]'
+    assert deps == {"ask2patch/memchr", "forks/x-1"}
+    with pytest.raises(regen.RegenError, match="f:1: .*only crates.io crates"):
+        regen.rewrite_crate_build('deps = ["//third_party/rust_crates/other/memchr"]', "f")
+    with pytest.raises(regen.RegenError, match="f:1: .*unexpected label"):
+        regen.rewrite_crate_build('deps = ["//sdk/rust/zx"]', "f")
     with pytest.raises(regen.RegenError, match="not a plain double-quoted string"):
         regen.rewrite_crate_build("deps = ['//third_party/rust_crates/vendor/x-1.0.0:x']", "f")
 
@@ -415,16 +471,29 @@ def test_vendor_writes_the_expected_trees(env):
     c = repo / "third_party/crates"
     spec = json.loads((c / "crates.json").read_text())
     assert spec["aliases"] == ["foo"]  # baz is not used, so not fetched
-    assert [(e["name"], e["version"], e["sha256"][:4], e["url"]) for e in spec["crates"]] == [
+    assert [(e["name"], e["version"], e["sha256"][:4], e["url"]) for e in spec["crates"] if "sha256" in e] == [
         ("bar", "0.2.0-rc.1", "2222", "https://static.crates.io/crates/bar/bar-0.2.0-rc.1.crate"),
         ("foo", "1.0.0", "1111", "https://static.crates.io/crates/foo/foo-1.0.0.crate"),
     ]
+    # The patched crate reached through bar: copied, not downloaded (M6b).
+    assert spec["crates"][0] == {
+        "build_file": "BUILD.ask2patch.memo.bazel", "name": "memo", "path": "ask2patch/memo",
+        "version": "2.0.0", "files": ["LICENSE-MIT", "gen.sh", "src/lib.rs"]}
+    memo = c / "src/ask2patch/memo"
+    for rel in ("LICENSE-MIT", "gen.sh", "src/lib.rs"):
+        assert (memo / rel).read_bytes() == (upstream / "third_party/rust_crates/ask2patch/memo" / rel).read_bytes()
+    assert (memo / "gen.sh").stat().st_mode & 0o111 and not (memo / "src/lib.rs").stat().st_mode & 0o111
+    assert not (memo / "BUILD.bazel").exists()
+    assert '"//ask2patch/memo:memo"' in (c / "BUILD.bar-0.2.0-rc.1.bazel").read_text()
+    assert (c / "BUILD.ask2patch.memo.bazel").read_text().startswith(
+        f"# Generated by scripts/regen.py from fuchsia.git {REV}:third_party/rust_crates/ask2patch/memo/BUILD.bazel\n")
     assert spec["cargo_lock"].endswith(f"{REV}:third_party/rust_crates/Cargo.lock")
     assert '"//vendor/bar-0.2.0-rc.1:bar"' in (c / "BUILD.foo-1.0.0.bazel").read_text()
     aliases = (c / "BUILD.vendor.bazel").read_text()
     assert 'name = "foo",\n    actual = "//vendor/foo-1.0.0:foo"' in aliases and '"baz"' not in aliases
     assert sorted(p.name for p in c.iterdir()) == [
-        "BUILD.bar-0.2.0-rc.1.bazel", "BUILD.bazel", "BUILD.foo-1.0.0.bazel", "BUILD.vendor.bazel", "crates.json"]
+        "BUILD.ask2patch.memo.bazel", "BUILD.bar-0.2.0-rc.1.bazel", "BUILD.bazel", "BUILD.foo-1.0.0.bazel",
+        "BUILD.vendor.bazel", "crates.json", "src"]
 
 
 def test_vendor_is_reproducible_and_removes_stale_files(env):
@@ -484,6 +553,76 @@ def test_check_detects_an_input_change(env, capsys):
     ov.write_text(ov.read_text() + "# changed\n")
     assert run("--check") == 1
     assert "vendor/fuchsia/sdk/rust/b/BUILD.bazel: content differs" in capsys.readouterr().err
+
+
+# --- patched crates and crate roots (M6b) ---------------------------------------------
+
+
+def test_crates_io_list_adds_roots_and_follows_patched_crates(env):
+    """vendor/crates_io.txt adds aliases; a fork's self-label and its vendor deps are followed."""
+    _, repo, run = env
+    (repo / "vendor/crates_io.txt").write_text("# roots\nqux\n")
+    assert run("vendor") == 0
+    c = repo / "third_party/crates"
+    spec = json.loads((c / "crates.json").read_text())
+    assert spec["aliases"] == ["foo", "qux"]
+    assert [e["path"] for e in spec["crates"]] == [
+        "ask2patch/memo", "forks/qux-0.3.0", "vendor/bar-0.2.0-rc.1", "vendor/baz-0.1.0", "vendor/foo-1.0.0"]
+    qux = (c / "BUILD.forks.qux-0.3.0.bazel").read_text()
+    assert '"//forks/qux-0.3.0:build_script_build"' in qux and '"//vendor/baz-0.1.0:baz"' in qux
+    assert 'name = "qux",\n    actual = "//forks/qux-0.3.0:qux"' in (c / "BUILD.vendor.bazel").read_text()
+
+
+def test_in_tree_label_into_a_patched_crate_is_a_root(env):
+    upstream, repo, run = env
+    build = upstream / "sdk/rust/a/BUILD.bazel"
+    build.write_text(build.read_text().replace(
+        '"//third_party/rust_crates/vendor:foo",', '"//third_party/rust_crates/vendor:foo",\n'
+        '        "//third_party/rust_crates/forks/qux-0.3.0:qux",'))
+    assert run("vendor") == 0
+    assert '"@rust_crates//forks/qux-0.3.0:qux"' in (repo / "vendor/fuchsia/sdk/rust/a/BUILD.bazel").read_text()
+    spec = json.loads((repo / "third_party/crates/crates.json").read_text())
+    assert "forks/qux-0.3.0" in [e["path"] for e in spec["crates"]]
+    assert spec["aliases"] == ["foo"]
+
+
+def test_check_names_a_one_byte_edit_in_a_patched_crate(env, capsys):
+    _, repo, run = env
+    assert run("vendor") == 0
+    f = repo / "third_party/crates/src/ask2patch/memo/src/lib.rs"
+    f.write_bytes(f.read_bytes().replace(b"memo", b"mema"))
+    assert run("--check") == 1
+    err = capsys.readouterr().err
+    assert "third_party/crates/src/ask2patch/memo/src/lib.rs: content differs" in err
+    assert "1 file(s) drift" in err
+
+
+def test_crates_io_list_parsing_errors():
+    assert regen.read_crates_io_list("# c\nanyhow\n\nlibc  # patched\nzerocopy\n") == ["anyhow", "libc", "zerocopy"]
+    for bad, msg in [("a b", "expected one alias name"), ("//x", "expected one alias name"),
+                     ("a\na", "listed twice"), ("b\na", "out of order")]:
+        with pytest.raises(regen.RegenError, match=msg):
+            regen.read_crates_io_list(bad)
+
+
+@pytest.mark.parametrize("edit, message", [
+    (lambda up, repo: (repo / "vendor/crates_io.txt").unlink(), "vendor/crates_io.txt: missing"),
+    (lambda up, repo: (repo / "vendor/crates_io.txt").write_text("nope\n"), "has no alias 'nope'"),
+    (lambda up, repo: _write(up, "third_party/rust_crates/Cargo.lock",
+                             CARGO_LOCK.replace(b'name = "memo"', b'name = "memo2"')) or make_repo(repo, up),
+     "ask2patch/memo/BUILD.bazel: memo 2.0.0 is not a local (patched) package"),
+    (lambda up, repo: _write(up, "third_party/rust_crates/ask2patch/memo/sub/BUILD", "# x\n"),
+     "third_party/rust_crates/ask2patch/memo/sub/BUILD: a patched crate may not contain another BUILD"),
+    (lambda up, repo: _write(up, "third_party/rust_crates/vendor/bar-0.2.0-rc.1/BUILD.bazel",
+                             _crate_build("bar", "0.2.0-rc.1", ["//third_party/rust_crates/forks/gone:gone"])),
+     "third_party/rust_crates/forks/gone/BUILD.bazel: no such file"),
+])
+def test_patched_crate_errors_name_the_input(env, capsys, edit, message):
+    upstream, repo, run = env
+    edit(upstream, repo)
+    assert run("vendor") == 2
+    assert message in capsys.readouterr().err
+    assert not (repo / "third_party/crates").exists()
 
 
 def _patch(old: str, new: str, path="sdk/rust/a/src/lib.rs") -> str:

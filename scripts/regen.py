@@ -15,6 +15,8 @@ Inputs, all committed:
   vendor/crates.txt        one "<upstream path> <upstream|overlay>" per line: which
                            fuchsia.git directories to copy, and where each one's
                            BUILD.bazel comes from (upstream's, rewritten, or ours)
+  vendor/crates_io.txt     @rust_crates//vendor aliases to generate besides those the
+                           vendored BUILD files use (the pilots' direct crates.io deps)
   overlays/<path>/BUILD.bazel     hand-written BUILD file for an "overlay" crate
   patches/fuchsia/<path>/*.patch  applied in name order after the BUILD files
 
@@ -27,14 +29,18 @@ Outputs, generated and committed (D6); never edit them by hand:
                            under vendor/fuchsia/ as they cover the upstream tree (C4)
   vendor/fuchsia/BUILD.bazel        the license target upstream BUILD files name as
                            //:license
-  third_party/crates/      the crates.io crates the vendored BUILD files depend on:
-                           upstream's crate_universe-generated BUILD files
-                           (fuchsia.git third_party/rust_crates/vendor/<crate>/BUILD.bazel)
+  third_party/crates/      the crates the vendored BUILD files and vendor/crates_io.txt
+                           name, and everything they depend on: upstream's
+                           crate_universe-generated BUILD files (fuchsia.git
+                           third_party/rust_crates/<vendor|forks|ask2patch>/<dir>/BUILD.bazel)
                            with labels rewritten, and crates.json, which lists each
-                           crate's static.crates.io URL and the SHA-256 the release's
-                           Cargo.lock gives it. //toolchain:crates.bzl turns this into
-                           the @rust_crates repository; the build downloads each crate
-                           by that checksum and resolves nothing.
+                           crates.io crate's static.crates.io URL and the SHA-256 the
+                           release's Cargo.lock gives it. Patched crates (forks/,
+                           ask2patch/; sources only in fuchsia.git) are copied byte for
+                           byte to src/<kind>/<dir>/ (M6b), and crates.json lists their
+                           files. //toolchain:crates.bzl turns this into the @rust_crates
+                           repository; the build downloads each crates.io crate by that
+                           checksum and resolves nothing.
 
 Rewriting upstream BUILD.bazel files (parsed with Python's ast; comments untouched):
   load("//build/bazel/rules/rust:defs.bzl", ...)  -> load("//rules:rustc.bzl", ...)
@@ -46,14 +52,15 @@ Rewriting upstream BUILD.bazel files (parsed with Python's ast; comments untouch
   //build/config/rust/lints:<x>            -> //rules/lints:<x>
   //:license, //:__subpackages__, //:__pkg__  -> //vendor/fuchsia:<same>
   //third_party/rust_crates/vendor:<x>     -> @rust_crates//vendor:<x>
+  //third_party/rust_crates/<forks|ask2patch>/<dir>[:<t>] -> @rust_crates//<kind>/<dir>[:<t>]
   //<path>[:<t>], <path> listed            -> //vendor/fuchsia/<path>[:<t>]
   //<path>:__pkg__ / :__subpackages__      -> //vendor/fuchsia/<path>:<same> (visibility)
 Every call of one of those Rust rules gets `vendored = True`: the overlay builds
 upstream code at HEAD, which upstream builds at PLATFORM, so its lints are upstream's
 concern (M4 review). The rewriter fails closed, naming file:line: any other //-label
-(for example a patched crate from third_party/rust_crates/forks, which is milestone
-M6), a label that is not a plain double-quoted string, a rust_*/rustc_* call it cannot
-mark, or a Rust rule that already sets `vendored`.
+(for example a crate directory under third_party/rust_crates/vendor named without its
+alias), a label that is not a plain double-quoted string, a rust_*/rustc_* call it
+cannot mark, or a Rust rule that already sets `vendored`.
 
 Git access (C1): one depth-1, blobless fetch of the revision into a scratch directory,
 then one fetch of exactly the blobs needed, by object ID, with git isolated from user
@@ -84,6 +91,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FUCHSIA_GIT = resolve_pins.FUCHSIA_GIT
 
 VENDOR_LIST = "vendor/crates.txt"
+CRATES_IO_LIST = "vendor/crates_io.txt"
 VENDOR_OUT = "vendor/fuchsia"
 CRATES_OUT = "third_party/crates"
 OVERLAYS = "overlays"
@@ -100,6 +108,13 @@ CARGO_LOCK = f"{RUST_CRATES}/Cargo.lock"
 CRATES_IO_SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
 CRATE_URL = "https://static.crates.io/crates/{name}/{name}-{version}.crate"
 CRATES_REPO = "rust_crates"
+# Locally patched crates (milestone M6b): third_party/rust_crates/<kind>/<dir> upstream,
+# whose sources exist only in fuchsia.git. regen.py commits them under
+# third_party/crates/src/<kind>/<dir>/ (D6); crates.bzl lays them out in @rust_crates.
+PATCHED_KINDS = ("forks", "ask2patch")
+CRATES_SRC = "src"
+# Files that would make a package (or a repository boundary) inside a patched crate.
+_PACKAGE_MARKERS = ("BUILD", "BUILD.bazel", "WORKSPACE", "WORKSPACE.bazel", "MODULE.bazel", "REPO.bazel")
 
 RUSTC_MACROS = ("rustc_library", "rustc_binary", "rustc_proc_macro")
 PACKAGE_FILES = ("BUILD.bazel", "BUILD.gn")
@@ -300,6 +315,31 @@ def read_vendor_list(text: str, where: str = VENDOR_LIST) -> list[Crate]:
     return crates
 
 
+_ALIAS_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.+-]*")
+
+
+def read_crates_io_list(text: str, where: str = CRATES_IO_LIST) -> list[str]:
+    """Parse vendor/crates_io.txt: one @rust_crates//vendor alias per line, '#' comments.
+
+    These are crate roots in addition to the aliases vendored BUILD files name: the
+    direct crates.io deps of the pilots' closures (docs/closure/*.json, crates_io.direct),
+    so their crates are generated before the in-tree crates that use them are vendored.
+    """
+    names: list[str] = []
+    for n, line in enumerate(text.splitlines(), 1):
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if not _ALIAS_NAME.fullmatch(line):
+            raise RegenError(f"{where}:{n}: expected one alias name, got {line!r}")
+        if line in names:
+            raise RegenError(f"{where}:{n}: {line} is listed twice")
+        if names and line < names[-1]:
+            raise RegenError(f"{where}:{n}: {line} is out of order (keep the list sorted)")
+        names.append(line)
+    return names
+
+
 def read_lock(root: Path) -> tuple[str, str]:
     """(fuchsia_revision, cargo_lock_sha256) from overlay.lock.json."""
     lock = json.loads((root / "overlay.lock.json").read_text())
@@ -476,6 +516,28 @@ def _split_label(label: str) -> tuple[str, str]:
     return pkg, (colon + target) if colon else ""
 
 
+def crate_dir(pkg: str) -> str | None:
+    """The crate directory, relative to third_party/rust_crates, of an upstream package.
+
+    "third_party/rust_crates/vendor/foo-1.0.0" -> "vendor/foo-1.0.0" (a crates.io crate);
+    "third_party/rust_crates/forks/libc-0.2.189" -> "forks/libc-0.2.189" (patched, M6b);
+    anything else, including the vendor alias package itself, -> None.
+    """
+    if not pkg.startswith(RUST_CRATES + "/"):
+        return None
+    rel = pkg[len(RUST_CRATES) + 1:]
+    kind, _, rest = rel.partition("/")
+    if kind == "vendor" and rest and "/" not in rest:
+        return rel
+    if kind in PATCHED_KINDS and rest:
+        return rel
+    return None
+
+
+_CRATE_LABEL_HELP = (f"only crates.io crates ({RUST_CRATES_VENDOR}) and patched crates "
+                     f"({', '.join(f'{RUST_CRATES}/{k}' for k in PATCHED_KINDS)}) are supported")
+
+
 def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str]) -> str:
     """Rewrite an upstream in-tree BUILD.bazel for vendor/fuchsia/ (see module doc)."""
     src = _Source(text, where)
@@ -516,9 +578,11 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str]) -> s
             return f"//{VENDOR_OUT}{target}"
         if pkg == RUST_CRATES_VENDOR and target:
             return f"@{CRATES_REPO}//vendor" + target
+        d = crate_dir(pkg)
+        if d and not d.startswith("vendor/"):
+            return f"@{CRATES_REPO}//{d}{target}"
         if pkg == RUST_CRATES or pkg.startswith(RUST_CRATES + "/"):
-            raise src.fail(node, f"{s}: only crates.io crates from {RUST_CRATES_VENDOR} "
-                                 "are supported; patched and forked crates come in milestone M6")
+            raise src.fail(node, f"{s}: {_CRATE_LABEL_HELP}; use an alias from {RUST_CRATES_VENDOR}")
         if pkg in vendored_paths or (pkg and target in (":__pkg__", ":__subpackages__")):
             # Visibility may name packages that are not vendored; it needs no target.
             return f"//{VENDOR_OUT}/{pkg}{target}"
@@ -552,8 +616,9 @@ def build_strings(text: str, where: str) -> list[str]:
 def rewrite_crate_build(text: str, where: str) -> tuple[str, set[str]]:
     """Rewrite an upstream crate_universe BUILD file for the @rust_crates repository.
 
-    Returns the text and the crate directories (third_party/rust_crates/vendor/<dir>)
-    its labels name, so the caller can follow the closure.
+    Returns the text and the crate directories its labels name, relative to
+    third_party/rust_crates ("vendor/<crate>-<version>", "forks/<dir>", "ask2patch/<dir>"),
+    so the caller can follow the closure. In @rust_crates each keeps that path.
     """
     src = _Source(text, where)
     deps: set[str] = set()
@@ -562,13 +627,12 @@ def rewrite_crate_build(text: str, where: str) -> tuple[str, set[str]]:
         if s.startswith(_BUILTIN_PREFIXES) or not s.startswith("//"):
             return s
         pkg, target = _split_label(s)
-        prefix = RUST_CRATES_VENDOR + "/"
-        if pkg.startswith(prefix) and "/" not in pkg[len(prefix):]:
-            deps.add(pkg[len(prefix):])
-            return "//vendor/" + pkg[len(prefix):] + target
+        d = crate_dir(pkg)
+        if d:
+            deps.add(d)
+            return f"//{d}{target}"
         if pkg.startswith(RUST_CRATES):
-            raise src.fail(node, f"{s}: only crates.io crates from {RUST_CRATES_VENDOR} "
-                                 "are supported; patched and forked crates come in milestone M6")
+            raise src.fail(node, f"{s}: {_CRATE_LABEL_HELP}")
         raise src.fail(node, f"{s}: unexpected label in a crate_universe BUILD file")
 
     return _apply(text, _string_edits(src, label, set())), deps
@@ -598,6 +662,13 @@ def cargo_lock_checksums(text: str) -> dict[tuple[str, str], str]:
         if pkg.get("source") == CRATES_IO_SOURCE and "checksum" in pkg:
             out[(pkg["name"], pkg["version"])] = pkg["checksum"]
     return out
+
+
+def cargo_lock_local(text: str) -> set[tuple[str, str]]:
+    """(name, version) of every package without a source (path dependencies and
+    [patch] entries: the patched crates under forks/ and ask2patch/)."""
+    return {(pkg["name"], pkg["version"]) for pkg in tomllib.loads(text).get("package", [])
+            if "source" not in pkg}
 
 
 # --- generation ------------------------------------------------------------------
@@ -770,18 +841,41 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
         _write(vendor, build, text.encode())
 
     apply_patches(root, vendor, crates, home)
-    generate_crates(vendor, source, out / CRATES_OUT, cargo_lock_sha256)
+    list_file = root / CRATES_IO_LIST
+    if not list_file.is_file():
+        raise RegenError(f"{CRATES_IO_LIST}: missing (list the crates.io aliases to generate, "
+                         "one per line; it may list none)")
+    generate_crates(vendor, source, out / CRATES_OUT, cargo_lock_sha256,
+                    read_crates_io_list(list_file.read_text()))
 
 
-def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: str) -> None:
-    """third_party/crates/: the crates.io closure of @rust_crates labels under `vendor`."""
+def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: str,
+                    extra_aliases: list[str] = ()) -> None:
+    """third_party/crates/: the closure of the @rust_crates labels under `vendor`, plus
+    the aliases in `extra_aliases` (vendor/crates_io.txt).
+
+    crates.io crates are downloaded at build time by the SHA-256 in crates.json; patched
+    crates (forks/, ask2patch/) are copied here from fuchsia.git, under src/<kind>/<dir>/,
+    with their BUILD.bazel moved beside the others (so no package is created in the
+    main repository and --check covers every source file).
+    """
     prefix = f"@{CRATES_REPO}//vendor:"
-    roots = {s[len(prefix):] for build in vendor.rglob("BUILD.bazel")
-             for s in build_strings(build.read_text(), str(build)) if s.startswith(prefix)}
+    repo_prefix = f"@{CRATES_REPO}//"
+    strings = [s for build in sorted(vendor.rglob("BUILD.bazel"))
+               for s in build_strings(build.read_text(), str(build))]
+    roots = {s[len(prefix):] for s in strings if s.startswith(prefix)} | set(extra_aliases)
+    # Labels straight into a patched crate (rewrite_upstream_build maps them).
+    direct: set[str] = set()
+    for s in strings:
+        if s.startswith(repo_prefix) and not s.startswith(prefix):
+            d = crate_dir(f"{RUST_CRATES}/" + _split_label("//" + s[len(repo_prefix):])[0])
+            if d is None or d.startswith("vendor/"):
+                raise RegenError(f"{s}: not a crate regen.py can generate ({_CRATE_LABEL_HELP})")
+            direct.add(d)
     out.mkdir(parents=True)
     rev = source.revision
     header_note = "labels rewritten for the @rust_crates repository"
-    if not roots:
+    if not roots and not direct:
         crates_json: dict = {"aliases": [], "crates": []}
     else:
         alias_file = f"{RUST_CRATES_VENDOR}/BUILD.bazel"
@@ -791,50 +885,58 @@ def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: 
             raise RegenError(f"{CARGO_LOCK}: SHA-256 {lock_sha} at {rev}, but overlay.lock.json "
                              f"has cargo_lock_sha256 {cargo_lock_sha256}")
         checksums = cargo_lock_checksums(texts[CARGO_LOCK].decode())
+        local = cargo_lock_local(texts[CARGO_LOCK].decode())
         aliases = parse_aliases(texts[alias_file].decode())
         alias_blocks = []
-        todo: list[str] = []
+        todo: set[str] = set(direct)
         for name in sorted(roots):
             actual = aliases.get(name)
             if actual is None:
                 raise RegenError(f"@{CRATES_REPO}//vendor:{name}: upstream {alias_file} has no alias {name!r}")
             text, deps = rewrite_crate_build(f'"{actual}"', alias_file)
             alias_blocks.append(f'alias(\n    name = "{name}",\n    actual = {text},\n)\n')
-            todo.extend(sorted(deps))
+            todo |= deps
         seen: set[str] = set()
         entries = []
-        frontier = sorted(set(todo))
+        build_files: dict[str, str] = {}
+        frontier = sorted(todo)
         while frontier:
             # One read (one blob fetch) per level of the dependency graph.
             seen.update(frontier)
-            files = {d: f"{RUST_CRATES_VENDOR}/{d}/BUILD.bazel" for d in frontier}
+            files = {d: f"{RUST_CRATES}/{d}/BUILD.bazel" for d in frontier}
             raws = source.read(sorted(files.values()))
             nxt: set[str] = set()
             for d in frontier:
                 upstream = files[d]
                 raw = raws[upstream].decode()
                 name, version = _package_info(raw, upstream)
-                if d != f"{name}-{version}":
-                    raise RegenError(f"{upstream}: package_info says {name} {version}, not {d}")
-                sha = checksums.get((name, version))
-                if sha is None:
-                    raise RegenError(f"{upstream}: {name} {version} is not a crates.io package in {CARGO_LOCK}")
                 text, deps = rewrite_crate_build(raw, upstream)
-                build_file = f"BUILD.{d}.bazel"
+                if d.startswith("vendor/"):
+                    if d != f"vendor/{name}-{version}":
+                        raise RegenError(f"{upstream}: package_info says {name} {version}, not {d[7:]}")
+                    sha = checksums.get((name, version))
+                    if sha is None:
+                        raise RegenError(f"{upstream}: {name} {version} is not a crates.io package in {CARGO_LOCK}")
+                    build_file = f"BUILD.{d[7:]}.bazel"
+                    entry = {"sha256": sha, "strip_prefix": d[7:],
+                             "url": CRATE_URL.format(name=name, version=version)}
+                else:
+                    if (name, version) not in local:
+                        raise RegenError(f"{upstream}: {name} {version} is not a local (patched) "
+                                         f"package in {CARGO_LOCK}")
+                    build_file = f"BUILD.{d.replace('/', '.')}.bazel"
+                    entry = {"files": _copy_patched(source, d, out)}
+                if build_file in build_files:
+                    raise RegenError(f"{upstream}: {build_file} would also be written for "
+                                     f"{build_files[build_file]}")
+                build_files[build_file] = d
                 _write(out, build_file, (_crate_header(rev, upstream, header_note) + text).encode())
-                entries.append({
-                    "build_file": build_file,
-                    "name": name,
-                    "path": f"vendor/{d}",
-                    "sha256": sha,
-                    "strip_prefix": d,
-                    "url": CRATE_URL.format(name=name, version=version),
-                    "version": version,
-                })
+                entries.append({"build_file": build_file, "name": name, "path": d,
+                                "version": version, **entry})
                 nxt |= deps
             frontier = sorted(nxt - seen)
         entries.sort(key=lambda e: e["path"])
-        aliases_text = (_crate_header(rev, alias_file, "only the aliases vendored crates use; " + header_note)
+        aliases_text = (_crate_header(rev, alias_file, "only the aliases the overlay uses; " + header_note)
                         + '\npackage(default_visibility = ["//visibility:public"])\n\n'
                         + "\n".join(alias_blocks))
         _write(out, "BUILD.vendor.bazel", aliases_text.encode())
@@ -842,11 +944,27 @@ def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: 
     crates_json = {
         "cargo_lock": f"{FUCHSIA_GIT} {rev}:{CARGO_LOCK}",
         "cargo_lock_sha256": cargo_lock_sha256,
-        "vendor_build_file": "BUILD.vendor.bazel" if roots else None,
+        "vendor_build_file": "BUILD.vendor.bazel" if roots or direct else None,
         **crates_json,
     }
     _write(out, "crates.json", (json.dumps(crates_json, indent=2, sort_keys=True) + "\n").encode())
     _write(out, "BUILD.bazel", _CRATES_BUILD.format(generated=GENERATED_BY).encode())
+
+
+def _copy_patched(source: Source, d: str, out: Path) -> list[str]:
+    """Copy fuchsia.git's third_party/rust_crates/<d>/ to <out>/src/<d>/, except its
+    BUILD.bazel (written as BUILD.<kind>.<dir>.bazel). Returns the files, relative to it."""
+    base = f"{RUST_CRATES}/{d}"
+    modes = source.files(base)
+    rels = sorted(f[len(base) + 1:] for f in modes if f != f"{base}/BUILD.bazel")
+    for rel in rels:
+        if PurePosixPath(rel).name in _PACKAGE_MARKERS:
+            raise RegenError(f"{base}/{rel}: a patched crate may not contain another "
+                             f"{PurePosixPath(rel).name}; @rust_crates keeps the crate as one package")
+    contents = source.read([f"{base}/{rel}" for rel in rels])
+    for rel in rels:
+        _write(out, f"{CRATES_SRC}/{d}/{rel}", contents[f"{base}/{rel}"], modes[f"{base}/{rel}"])
+    return rels
 
 
 # --- install and check -----------------------------------------------------------
