@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T01:53-07:00
+Updated: 2026-09-28T02:34-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -112,6 +112,15 @@ Outcome: complete — both generators run under Bazel and match upstream goldens
 - Goldens: 17/20 until upstream's per-library flags (`--api-coverage`, `--include-drivers`) were passed
 - rules_go asks go.dev for SDK hashes unless MODULE.bazel.lock has `facts` (kept); `bazel mod` pollutes the lockfile
 
+### [M8 — FIDL Rust binding rule (M8a: `rust` flavor; M8b uses M8b.md)](M8.md)
+Entries: 2026-09-28T02:06-07:00 through 2026-09-28T02:31-07:00
+Outcome: M8a implemented, review pending — 23 libraries' `rust` crates build for x64/arm64; split M8a/M8b (21 runtime crates)
+- FIDL libraries via regen.py: upstream `sdk/fidl/*/BUILD.bazel` rewritten, `idk` mode takes `.fidl` from the IDK; `fuchsia.sys2` from fuchsia.git
+- Host FIDL at PLATFORM (`runtime_supported_api_levels`), Fuchsia at HEAD; tested (E0659 glob-ambiguity check on `NodeInfoDeprecated`)
+- `fidl`/`fuchsia-async`/`fuchsia-sync` Fuchsia-only by patch (host needs `forks/tokio`); regen.py checks provisional host-branch labels after patches
+- In-tree proc macro built as a Fuchsia `.so` under `//...`: `rustc_proc_macro` now host-only by default
+- Driver transport deferred (as upstream's Bazel rule): 10 overlay crates, M8b or M9
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
@@ -121,6 +130,7 @@ Outcome: complete — both generators run under Bazel and match upstream goldens
   [M6](M6.md) adds nothing (no Bazel input changed; total 8.99 GiB).
   [M6b](M6b.md) adds 1.3 GiB (121 crates built for x64, arm64, host and exec; total 10.30 GiB).
   [M7](M7.md) adds about 1 GiB (the release's Go SDK, rules_go, the Go builds; total 11.29 GiB).
+  [M8](M8.md) adds 0.4 GiB (bindings for three configs; total 11.71 GiB, Bazel 10.81 of 12).
 - **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
   Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
   [M4](M4.md) derives the Rust cfgs from that file and asserts the HEAD branch at build time.
@@ -138,3 +148,6 @@ Outcome: complete — both generators run under Bazel and match upstream goldens
 - **FIDL generators:** [I2](I2.md) finds `fidlgen_rust_next` only in the public debug store
   and `fidlgen_rust` unpublished; [M7](M7.md) pins the first per release in the lock and
   builds the second from vendored Go with the release's Go SDK; both match upstream goldens.
+  [M8](M8.md) runs them from `rules/fidl_rust.bzl` on IR from the IDK's `fidlc`.
+- **Host vs Fuchsia API level:** [M4](M4.md) puts host cfgs at PLATFORM (rules_fuchsia's
+  flag fails unset); [M8](M8.md) generates host FIDL at PLATFORM too, tested.
