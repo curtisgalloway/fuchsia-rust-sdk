@@ -262,7 +262,20 @@ def _test_launcher(ctx, script, args, files):
         runfiles = ctx.runfiles(files = files + [script]),
     )
 
+# llvm-readelf's "Machine:" for each target CPU.
+_MACHINES = {
+    "_aarch64": "AArch64",
+    "_x86_64": "X86-64",
+}
+
 def _fuchsia_driver_elf_test_impl(ctx):
+    machines = [
+        machine
+        for attr, machine in _MACHINES.items()
+        if ctx.target_platform_has_constraint(getattr(ctx.attr, attr)[platform_common.ConstraintValueInfo])
+    ]
+    if len(machines) != 1:
+        fail("%s: the target platform's CPU is not one of %s" % (ctx.label, _MACHINES.values()))
     resources, srcs = _resources_file(ctx, ctx.attr.package)
     return [_test_launcher(ctx, ctx.file._script, [
         ctx.file._readelf.short_path,
@@ -271,6 +284,7 @@ def _fuchsia_driver_elf_test_impl(ctx):
         " ".join(sorted(ctx.attr.exported_symbols)),
         " ".join(sorted(ctx.attr.allowed_needed)),
         " ".join(SYSTEM_LIBS),
+        machines[0],
     ], srcs + [resources, ctx.file._readelf])]
 
 fuchsia_driver_elf_test = rule(
@@ -280,9 +294,11 @@ fuchsia_driver_elf_test = rule(
 
 - `--dyn-syms`: the defined, non-local dynamic symbols are exactly `exported_symbols`
   (default: `__fuchsia_driver_registration__`, design F3).
-- `--dynamic`: the driver's `DT_NEEDED` libraries are all in `allowed_needed` (the
-  reference driver's set, docs/evidence/M10.md), and every ELF file in the package finds
-  each library it needs at `lib/` or among SYSTEM_LIBS.
+- `--dynamic`: the driver's soname is its file name; its `DT_NEEDED` libraries are all
+  in `allowed_needed` (the reference driver's set, docs/evidence/M10.md); every ELF file
+  in the package finds each library it needs at `lib/` or among SYSTEM_LIBS.
+- `--file-header`: every ELF file in the package is for the target platform's CPU (a
+  package built under the arm64 config holds arm64 binaries).
 
 The checked files are the packaged (stripped) ones, as the driver host loads them.
 """,
@@ -312,6 +328,8 @@ The checked files are the packaged (stripped) ones, as the driver host loads the
             default = Label("//rules:driver_elf_test.sh"),
             allow_single_file = True,
         ),
+        "_aarch64": attr.label(default = Label("@platforms//cpu:aarch64")),
+        "_x86_64": attr.label(default = Label("@platforms//cpu:x86_64")),
     },
 )
 

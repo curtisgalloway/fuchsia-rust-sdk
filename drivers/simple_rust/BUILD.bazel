@@ -78,6 +78,9 @@ fuchsia_driver_elf_test(
     driver = "driver/simple_rust_driver.so",
     package = ":pkg",
     size = "small",
+    # Built for the Fuchsia configs only: the package's transition would otherwise build
+    # the driver for x64 in host builds too.
+    target_compatible_with = ["@platforms//os:fuchsia"],
 )
 
 # The syslog and inspect client shards, which GN's expect_includes enforce (M9b, M9c).
@@ -86,4 +89,7 @@ fuchsia_driver_manifest_test(
     component = "meta/simple_rust_driver.cm",
     package = ":pkg",
     size = "small",
+    # Built for the Fuchsia configs only: the package's transition would otherwise build
+    # the driver for x64 in host builds too.
+    target_compatible_with = ["@platforms//os:fuchsia"],
 )

@@ -5,9 +5,11 @@
 # The test fuchsia_driver_elf_test runs (//rules:fuchsia_rust_driver.bzl; design R7,
 # milestone M10). Arguments: llvm-readelf, the package's resource list (lines
 # "<dest>=<runfiles path>"), the driver's dest (driver/<name>.so), the expected exported
-# symbols, the allowed DT_NEEDED set and the system libraries (each space-separated).
+# symbols, the allowed DT_NEEDED set and the system libraries (each space-separated),
+# and the machine llvm-readelf names for the target CPU (X86-64, AArch64).
 set -euo pipefail
 readelf="$1"; resources="$2"; driver="$3"; exported="$4"; allowed="$5"; system="$6"
+machine="$7"
 
 src_of() { awk -F= -v d="$1" '$1 == d { print $2 }' "$resources"; }
 needed_of() { "$readelf" --dynamic --wide "$1" | sed -n 's/.*(NEEDED).*\[\(.*\)\].*/\1/p' | sort; }
@@ -51,8 +53,9 @@ for lib in $needed; do
   fi
 done
 
-# 4. Every ELF file in the package (the driver and lib/) finds each library it needs in
-# the package's lib/ or among the system libraries, so the loader can resolve them all.
+# 4. Every ELF file in the package (the driver and lib/) is for the target CPU, and finds
+# each library it needs in the package's lib/ or among the system libraries, so the
+# loader can resolve them all.
 checked=0
 while IFS='=' read -r dest path; do
   case "$dest" in driver/*.so | lib/*) ;; *) continue ;; esac
@@ -62,6 +65,10 @@ while IFS='=' read -r dest path; do
     continue
   fi
   checked=$((checked + 1))
+  if ! "$readelf" --file-header "$path" | grep -q "^ *Machine: .*$machine\$"; then
+    echo "FAIL: $dest is not for $machine" >&2
+    status=1
+  fi
   for lib in $libs; do
     if ! has "$system" "$lib" && [[ -z "$(src_of "lib/$lib")" ]]; then
       echo "FAIL: $dest needs $lib, which is neither at lib/$lib nor a system library" >&2
@@ -73,6 +80,6 @@ if [[ $checked -lt 2 ]]; then
   echo "FAIL: read $checked ELF files; expected the driver and its lib/ files" >&2
   status=1
 elif [[ $status == 0 ]]; then
-  echo "ok: every library the $checked ELF files need is packaged or a system library [$system]"
+  echo "ok: the $checked ELF files are $machine, and every library they need is packaged or a system library [$system]"
 fi
 exit $status
