@@ -57,9 +57,10 @@ fuchsia_driver_bind_bytecode(
     deps = _BIND_LIBRARIES,
 )
 
-# `bindc test --lint` (GN: driver_bind_rules' `tests`): the rule matches the properties of both parents of the composite
-# node spec the PCI bus publishes for the edu device on the lock's core.x64 (and not
-# another PCI device's). The spec's properties are from `ffx driver composite show`.
+# `bindc test --lint` (GN: driver_bind_rules' `tests`): the rule matches the properties
+# of both parents of the composite node spec the PCI bus publishes for the edu device on
+# the lock's core.x64 (and not another PCI device's). The spec's properties are from
+# `ffx driver composite show`.
 fuchsia_driver_bind_test(
     name = "bind_test",
     size = "small",

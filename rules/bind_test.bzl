@@ -29,7 +29,8 @@ def _fuchsia_driver_bind_test_impl(ctx):
     script = ctx.actions.declare_file(ctx.label.name + ".sh")
     ctx.actions.write(
         script,
-        "#!/bin/bash\nset -euo pipefail\nexec " + " ".join([_quote(a) for a in args]) + "\n",
+        # "$@" passes --test_arg values through to bindc, as rules_fuchsia's wrapper does.
+        "#!/bin/bash\nset -euo pipefail\nexec " + " ".join([_quote(a) for a in args]) + ' "$@"\n',
         is_executable = True,
     )
     return [DefaultInfo(
