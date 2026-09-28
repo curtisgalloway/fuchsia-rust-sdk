@@ -307,3 +307,24 @@ Prevention: append each entry right after its event, with `$(date …)` substitu
 a wrong stamp with a correction entry, never an edit.
 Fix belongs in: agent habit (lab-notebook skill already says so)
 Status: open
+
+## 2026-09-28T03:17-07:00 — failed command: diff test across packages hit a visibility error
+Chapter: [M8b](notebook/M8b.md)
+What happened: a parity `diff_test` placed in `tests/fidl` referenced `tests/fidlgen`'s
+genrules, which are package-private ("target '//tests/fidlgen:fuchsia_mem_rust_next' is not
+visible"). Moved the test into `tests/fidlgen`. Recorded after the fact (it happened about
+03:06); the notebook's 03:0x tests entry records the move.
+Cost: one extra build-and-test cycle (seconds).
+Prevention: check the visibility of targets a new test names before placing it.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T03:17-07:00 — failed command: plan edit script assumed the wrong indentation
+Chapter: [M8b](notebook/M8b.md)
+What happened: a Python replace script for the plan's backlog asserted on text written
+without the two-space continuation indent the plan uses, so it aborted before writing
+(nothing changed); rerun with the right text. Recorded after the fact (about 03:13).
+Cost: one retried step.
+Prevention: grep the exact lines (`cat -A`) before scripting a multi-line replacement.
+Fix belongs in: agent habit
+Status: open
