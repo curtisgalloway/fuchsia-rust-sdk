@@ -124,8 +124,8 @@ scripts/bazel test  --config=fuchsia_arm64 //drivers/my_driver/...
 ```
 
 Expect `bind_test`, `elf_test` and `manifest_test` to pass for each. A host `scripts/bazel
-test //drivers/my_driver/...` runs only `bind_test` (the other two are Fuchsia-only). The
-package is `bazel-bin/drivers/my_driver/my_driver.far`.
+test` skips all three (they are Fuchsia-only). The package is
+`bazel-bin/drivers/my_driver/my_driver.far`.
 
 If you add a dependency, `elf_test` may report a new `DT_NEEDED` library: add it to
 `allowed_needed` only after checking an in-tree driver in the release's product bundle
