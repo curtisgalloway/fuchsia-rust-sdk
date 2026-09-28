@@ -1210,19 +1210,20 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M11 in review.** Branch `ms/M11` from `88651a1`;
+- Current milestone and status: **M11 complete.** Branch `ms/M11` from `88651a1`;
   `wip` commits (chapter, first bind, runtime copies, reboot path and
-  `device_categories`, checks and the `scripts/emu.py` docstring, evidence, plan). No
-  checkpoint commit yet; nothing pushed.
-- Completed work and evidence: [M11 evidence](evidence/M11.md) (C3 table, register
-  output, `driver list`, `composite show 00_06_0`, `list-devices -v`, `ffx log`, the replay
-  sequence for G1, the four backlog answers, project checks, disk).
-- Uncommitted state: none expected; the emulator is stopped and the scratch directory
-  deleted.
-- Remaining work, blockers, and decisions: the independent review (the plan's method),
-  fixes, then the closing notebook entry, the index row, M11's entry moved into the
-  evidence, `complete`, and the checkpoint commit `overlay: M11 — Pilot 1 binds on the
-  emulator`. Unchanged: M17 placement.
+  `device_categories`, checks and the `scripts/emu.py` docstring, evidence, plan, review
+  findings, review fixes), then the checkpoint commit `overlay: M11 — Pilot 1 binds on
+  the emulator`.
+- Completed work and evidence: [M11 evidence](evidence/M11.md) (the entry as planned, C3
+  table, register output, `driver list`, `composite show 00_06_0`, `list-devices -v`,
+  `ffx log`, the replay sequence for G1, the four backlog answers, project checks, disk,
+  review).
+- Uncommitted state: none expected after the checkpoint; the emulator is stopped and the
+  scratch directory deleted.
+- Remaining work, blockers, and decisions: none for M11. Unchanged: M17 placement. A
+  separate `docs:` commit after the checkpoint applies the owner-approved plan edits
+  (driver guide in G1, M18 API docs, stop after G1).
 - Context boundary: normal.
 - Resume action: after M11's checkpoint, **G1** (milestone 1 gate from a clean clone;
   step 4 replays the M11 sequence in the evidence).

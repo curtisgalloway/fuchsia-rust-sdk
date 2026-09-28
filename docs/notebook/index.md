@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T08:11-07:00
+Updated: 2026-09-28T08:25-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -177,11 +177,12 @@ Outcome: complete — edu = `PCI0.bus.00_06_0` + composite spec `00_06_0` (pci +
 - `virtio-gpu-display` (Rust) binds the same spec shape as parents `pci`/`acpi`; `static-checks` wants `device_categories`; review: land after fixes (2 minor, 2 nits, fixed)
 
 ### [M11 — Pilot 1 binds on the emulator](M11.md)
-Entries: 2026-09-28T07:58-07:00 through 2026-09-28T08:11-07:00
-Outcome: open (in review) — pilot 1 binds to `PCI0.bus.00_06_0.00_06_0` on the first registration; driver source unchanged
-- One driver runtime in the host: `driver_host` links it, so the packaged `lib/` copies are never loaded
+Entries: 2026-09-28T07:58-07:00 through 2026-09-28T08:25-07:00
+Outcome: complete — pilot 1 binds to `PCI0.bus.00_06_0.00_06_0` on the first registration; driver source unchanged; G1 replay in the evidence
+- One driver runtime in the host: `driver_host` links it, so the packaged `lib/` copies are never loaded (virtio-gpu-display only consistent: same blob)
 - `scripts/emu driver`'s reboot path works (reboot, re-register, bound)
-- `device_categories` blocks nothing; `vfs` statics not observed; new: two Rust `std` copies per driver host
+- `device_categories` blocks nothing; `vfs` statics not observed; new: two Rust `std` copies per driver host (same libc heap)
+- Review: land after fixes (3 minor, 4 nits, fixed); scratch path removed from the opening entry in place (disclosed)
 
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
