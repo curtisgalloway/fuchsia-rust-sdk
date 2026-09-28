@@ -42,4 +42,33 @@ if [[ ! -x "${bin}" ]]; then
   mv -f "${tmp}" "${bin}"
   trap - EXIT
 fi
-exec "${bin}" "$@"
+
+# Environment profile (design C6): after a command that can fetch, apply the profile's
+# repository-cache policy. Under the hosted profile this removes the IDK tarball (3 GB)
+# that Bazel keeps in its repository cache after fetching @fuchsia_idk; under a profile
+# that caches it (large-disk), scripts/disk_report.py does nothing. See
+# scripts/overlay_profile.py. Set OVERLAY_NO_PRUNE=1 to skip this step.
+startup=()
+command=""
+for arg in "$@"; do
+  if [[ "${arg}" == -* ]]; then
+    startup+=("${arg}")
+  else
+    command="${arg}"
+    break
+  fi
+done
+case "${command}" in
+  build|test|run|coverage|fetch|query|cquery|aquery|sync|mod|vendor) ;;
+  *) exec "${bin}" "$@" ;;
+esac
+status=0
+"${bin}" "$@" || status=$?
+if [[ -z "${OVERLAY_NO_PRUNE:-}" ]]; then
+  if repo_cache="$("${bin}" "${startup[@]}" info repository_cache 2>/dev/null)" &&
+      [[ -n "${repo_cache}" ]]; then
+    python3 "${root}/scripts/disk_report.py" --prune-cache "${repo_cache}" ||
+      echo "scripts/bazel: warning: the repository-cache policy was not applied" >&2
+  fi
+fi
+exit "${status}"

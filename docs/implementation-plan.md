@@ -22,6 +22,8 @@ Target release for milestone 1: `33.20260927.4.1` (`LATEST_LINUX` on 2026-09-27)
 | Binary checks | `scripts/bazel test //...` (symbol and `DT_NEEDED` tests) | M10 |
 | Vendor drift | `scripts/regen.py --check` | M5 |
 | License headers | `uv run reuse lint` (chosen in M1; `REUSE.toml` covers files without comments) | M1 |
+| SDK files present | `uv run scripts/check_sdk_files.py` (every source file the three configs can reach exists after the IDK trim) | M2a |
+| Disk budget (C6) | `uv run scripts/disk_report.py` (exit 1 when over the active profile's budget) | M2a |
 
 **Where work runs.** Unless marked, a milestone runs in a Claude Code cloud container.
 Its measured limits: 4 vCPU, no KVM, about 30 GB free disk. The container reaches CIPD,
@@ -70,7 +72,7 @@ in the cloud.
 | I1 | Documented anonymous lookup: SDK version → `fuchsia.git` revision | — | cloud | complete |
 | M1 | Repo scaffold + `resolve_pins.py` writes `overlay.lock.json` (R1) | I1 | cloud | complete |
 | M2 | Bazel workspace + Fuchsia Rust toolchains; a Rust binary links for x64 and arm64 (I5, R2) | M1 | cloud | complete |
-| M2a | Fit the hosted disk budget (C6): trimmed IDK extraction, cache policy, disk report | M2 | cloud | pending |
+| M2a | Fit the hosted disk budget (C6): trimmed IDK extraction, cache policy, disk report | M2 | cloud | in_progress |
 | M3 | Portable emulator harness at the lock's release; the M2 binary runs on it (R2, C6) | M2a | cloud (emulator) | pending |
 | M4 | `rustc_*` rules with API-level cfgs (R3) | M2 | cloud | pending |
 | M5 | Vendor stage of `regen.py` + `--check`; `zx-types`, `zx-sys`, `zx` build (R6 mechanism, R2) | M4 | cloud | pending |

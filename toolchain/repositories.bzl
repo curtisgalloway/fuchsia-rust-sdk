@@ -4,7 +4,8 @@
 """Repositories fetched from overlay.lock.json pins (module extension `lock_repos`).
 
 - `rules_fuchsia`: the lock's CIPD instance of fuchsia/development/rules_fuchsia.
-- `fuchsia_idk`: the release's IDK core.tar.gz, checked by SHA-256.
+- `fuchsia_idk`: the release's IDK core.tar.gz, checked by SHA-256, then extracted in
+  full or trimmed according to the environment profile (design C6).
 - `fuchsia_rust_toolchain`: the release's pinned Rust toolchain (design D3): the host
   compiler, the Fuchsia target std libraries and the host (x86_64-unknown-linux-gnu) std,
   three CIPD instances merged into one tree the way upstream's prebuilt directory is.
@@ -43,15 +44,74 @@ cipd_repository = repository_rule(
     },
 )
 
+# The environment profile (design C6) is resolved by scripts/overlay_profile.py, which
+# reads these variables and this file under the config directory. The rule reads them
+# through rctx.getenv/rctx.watch so that Bazel refetches the IDK when the profile changes.
+_PROFILE_ENV = ["OVERLAY_PROFILE", "XDG_CONFIG_HOME", "HOME"]
+_PROFILE_FILE = "fuchsia-rust-sdk/profile"
+_ARCHIVE = "_overlay_idk.tar.gz"
+
+def _python(rctx):
+    python = rctx.which("python3")
+    if not python:
+        fail("fuchsia_idk: python3 (>= 3.11) not found on PATH; it extracts the IDK")
+    return python
+
+def _run_script(rctx, python, script, args, env):
+    result = rctx.execute([python, script] + args, environment = env, quiet = True, timeout = 1800)
+    if result.return_code != 0:
+        fail("fuchsia_idk: %s failed (exit %d):\n%s%s" % (
+            script.basename,
+            result.return_code,
+            result.stdout,
+            result.stderr,
+        ))
+    return result.stdout
+
+def _profile(rctx, python):
+    env = {k: rctx.getenv(k, "") for k in _PROFILE_ENV}
+    config_dir = env["XDG_CONFIG_HOME"] or (env["HOME"] + "/.config" if env["HOME"] else "")
+    if config_dir:
+        # Watched whether or not it exists, so creating the file refetches too.
+        rctx.watch(config_dir + "/" + _PROFILE_FILE)
+    script = rctx.path(Label("//:scripts/overlay_profile.py"))
+    rctx.watch(script)
+    return json.decode(_run_script(rctx, python, script, ["--json"], env))
+
 def _idk_repository_impl(rctx):
-    rctx.download_and_extract(url = rctx.attr.url, sha256 = rctx.attr.sha256, type = "tar.gz")
+    python = _python(rctx)
+    profile = _profile(rctx, python)
+
+    # Bazel checks the SHA-256 of the whole archive before writing it out, so a tampered
+    # or substituted archive fails here, before any extraction or trim. (Bazel also puts
+    # the archive in the repository cache; the hosted profile removes it afterwards, see
+    # scripts/bazel and scripts/disk_report.py --prune.)
+    rctx.download(url = rctx.attr.url, output = _ARCHIVE, sha256 = rctx.attr.sha256)
+
+    # idk_extract.py checks the SHA-256 again (it is also a standalone tool), then
+    # extracts, trimmed under a profile with trim_idk, and writes .overlay-idk-trim.json.
+    # It imports overlay_profile.py, which _profile() already watches.
+    script = rctx.path(Label("//:scripts/idk_extract.py"))
+    rctx.watch(script)
+    out = _run_script(rctx, python, script, [
+        "--archive",
+        _ARCHIVE,
+        "--sha256",
+        rctx.attr.sha256,
+        "--profile",
+        profile["name"],
+        "--dest",
+        ".",
+    ], {})
+    rctx.report_progress(out.strip())
+    rctx.delete(_ARCHIVE)
 
     # @fuchsia_sdk is generated from this tree by rules_fuchsia; nothing builds here.
-    rctx.file("BUILD.bazel", "# The release's IDK, as downloaded. @fuchsia_sdk is generated from it.\n")
+    rctx.file("BUILD.bazel", "# The release's IDK (%s profile). @fuchsia_sdk is generated from it.\n" % profile["name"])
 
 idk_repository = repository_rule(
     implementation = _idk_repository_impl,
-    doc = "The release's IDK (core.tar.gz), checked by SHA-256.",
+    doc = "The release's IDK (core.tar.gz), checked by SHA-256, trimmed per the environment profile.",
     attrs = {
         "url": attr.string(mandatory = True),
         "sha256": attr.string(mandatory = True),

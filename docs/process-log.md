@@ -119,3 +119,14 @@ Prevention: append each entry in the same tool call as the step that triggers it
 (for example, chain the notebook append onto the build command whose outcome it records).
 Fix belongs in: skill `lab-notebook` (the "same call" rule proposed for I1) / agent habit
 Status: open
+
+## 2026-09-27T19:48-07:00 — failed command: a trial extraction ran into the 10-minute tool timeout
+Chapter: [M2a](notebook/M2a.md)
+What happened: the first trial of `idk_extract.py` (Python `tarfile` in streaming mode
+`r|gz`) on the 3 GB IDK was moved to the background at the 600 s tool timeout, having
+written 1 MB; a probe then hit a 60 s `timeout` too. `r:gz` does the same job in 48 s.
+Cost: about 12 minutes of wall time and two tool calls.
+Prevention: before running a new extraction over a multi-GB archive, time it on a
+bounded slice (e.g. 20 s of iteration) and extrapolate.
+Fix belongs in: agent habit (no project change)
+Status: open
