@@ -11,6 +11,8 @@
 # FIDL libraries: pilot 1's closure (docs/closure/pilot1.json), each "idk" except
 # fuchsia.sys2, which is not in the IDK: its .fidl files are copied from fuchsia.git at
 # the revision ("upstream") and compiled by the IDK's fidlc like the others (M8).
+# FIDL runtime crates: those of the rust flavor (fidl, rust_constants, fuchsia-async(-macro),
+# fuchsia-sync; M8a) and of rust_next (fidl_next*, fuchsia-loom; M8b).
 # Besides Rust crates, the list holds the Go sources of fidlgen_rust (milestone M7), which
 # the overlay builds with rules_go: its binary, its codegen package and tools/fidl/lib/fidlgen;
 # and the configs the prebuilt fidlgen_rust_next is run with.
@@ -38,6 +40,7 @@ sdk/fidl/fuchsia.sys2 upstream
 sdk/fidl/fuchsia.unknown idk
 sdk/fidl/fuchsia.url idk
 sdk/fidl/fuchsia.version idk
+sdk/lib/fuchsia-loom upstream
 sdk/rust/zx upstream
 sdk/rust/zx-status upstream
 sdk/rust/zx-status-ext upstream
@@ -45,6 +48,11 @@ sdk/rust/zx-sys upstream
 sdk/rust/zx-types upstream
 src/lib/fidl/rust/fidl upstream
 src/lib/fidl/rust_constants upstream
+src/lib/fidl/rust_next/fidl_next upstream
+src/lib/fidl/rust_next/fidl_next_bind upstream
+src/lib/fidl/rust_next/fidl_next_codec upstream
+src/lib/fidl/rust_next/fidl_next_protocol upstream
+src/lib/fidl/rust_next/fidl_next_util upstream
 src/lib/fuchsia-async upstream
 src/lib/fuchsia-async-macro upstream
 src/lib/fuchsia-sync upstream

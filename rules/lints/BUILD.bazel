@@ -114,7 +114,9 @@ rust_lint_config(
 # Overlay (milestone M8): the lints GN gives FIDL Rust bindings (build/rust/fidl_rust.gni:
 # rustc_library's defaults with disable_clippy, plus the configs
 # //build/config/rust/lints:allow_unused_crate_dependencies and :deny_unused_results).
-# //rules:fidl_rust.bzl uses it; upstream's Bazel rule sets no lint config.
+# //rules:fidl_rust.bzl uses it; upstream's Bazel rule sets no lint config. The rust_next
+# bindings (build/rust/fidl_rust_next.gni) get the same configs: //rules:fidl_rust_next.bzl
+# uses it too (M8b).
 rust_lint_config(
     name = "fidl_rust",
     clippy = {

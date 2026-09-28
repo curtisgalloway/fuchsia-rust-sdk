@@ -6,4 +6,5 @@
 # Rust toolchains (toolchain/rust.BUILD.bazel) use for the API-level cfgs; host.bzl, which
 # vendored Go BUILD files load their host constraints from (M7); fidl.bzl (fidl_library)
 # and fidl_rust.bzl (its Rust bindings), which vendored FIDL libraries load (M8), and
-# build_info.bzl, the build arguments vendored BUILD files read (M8).
+# build_info.bzl, the build arguments vendored BUILD files read (M8); fidl_rust_next.bzl,
+# the rust_next bindings and the allowlist the vendored fidl_next crates load (M8b).

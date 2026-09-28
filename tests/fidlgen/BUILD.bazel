@@ -138,3 +138,17 @@ _FUCHSIA_MEM_EXPECTED = {
     )
     for flavor, expected in _FUCHSIA_MEM_EXPECTED.items()
 ]
+
+# The binding rule (//rules:fidl_rust_next.bzl, milestone M8b) runs fidlgen_rust_next with
+# the arguments FLAVORS gives it, which the golden tests above check against upstream's:
+# on fuchsia.mem both produce the same crates, byte for byte (the rule's IR is its host
+# IR, at PLATFORM; fuchsia.mem has no API-level differences in it).
+[
+    diff_test(
+        name = "fuchsia_mem_%s_rule_parity_test" % flavor,
+        file1 = ":fuchsia_mem_" + flavor,
+        file2 = "//vendor/fuchsia/sdk/fidl/fuchsia.mem:fuchsia.mem_%s_fidlgen" % flavor,
+        target_compatible_with = HOST_CONSTRAINTS,
+    )
+    for flavor in ("rust_next", "rust_next_common")
+]

@@ -4,11 +4,13 @@
 # Every vendored crate is built with --cap-lints=allow (regen.py adds vendored = True to
 # each rustc_* call it copies; milestone M5, after the M4 review): upstream code built at
 # HEAD, with the overlay's lints, is not ours to fix.
-# fidl and rust_constants (M8) are left out: upstream restricts their visibility.
+# fidl and rust_constants (M8) are left out: upstream restricts their visibility; so are
+# the fidl_next* crates (M8b), visible only to fidl_rust_next_allowlist.
 
 load("//tests/api_level:cap_lints_test.bzl", "cap_lints_test")
 
 _VENDORED = [
+    "//vendor/fuchsia/sdk/lib/fuchsia-loom",
     "//vendor/fuchsia/sdk/rust/zx",
     "//vendor/fuchsia/sdk/rust/zx-status",
     "//vendor/fuchsia/sdk/rust/zx-status-ext",

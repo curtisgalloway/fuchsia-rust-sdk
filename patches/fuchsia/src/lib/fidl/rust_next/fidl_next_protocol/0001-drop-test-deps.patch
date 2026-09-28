@@ -1,0 +1,29 @@
+SPDX-FileCopyrightText: 2026 Curtis Galloway
+SPDX-FileCopyrightText: The Fuchsia Authors
+SPDX-License-Identifier: Apache-2.0 AND BSD-2-Clause
+
+Build fidl_next_protocol without test deps (milestone M8b).
+
+Its test_deps name //third_party/rust_crates:futures, a target upstream's Bazel build does
+not define (third_party/rust_crates/BUILD.bazel exports only the Cargo files; the
+crates.io aliases are in third_party/rust_crates/vendor), so regen.py cannot map it.
+test_deps are dropped, as fuchsia-async's are: //rules:rustc.bzl makes no unit tests
+until milestone M16, which revisits this patch. The added lines are the overlay's
+(Apache-2.0); the context lines are Fuchsia's (BSD-2-Clause, LICENSES/BSD-2-Clause.txt).
+Applied by scripts/regen.py to the rewritten BUILD.bazel.
+
+--- a/src/lib/fidl/rust_next/fidl_next_protocol/BUILD.bazel
++++ b/src/lib/fidl/rust_next/fidl_next_protocol/BUILD.bazel
+@@ -49,10 +49,8 @@ rustc_library(
+     }),
+     crate_name = "fidl_next_protocol",
+     edition = "2024",
+-    test_deps = [
+-        "//vendor/fuchsia/src/lib/fuchsia-async",
+-        "//third_party/rust_crates:futures",
+-    ],
++    # Overlay: unit tests are milestone M16 (patch 0001).
++    test_deps = [],
+     visibility = [
+         "//vendor/fuchsia/sdk/lib/driver/component/rust:__subpackages__",
+         "//vendor/fuchsia/src/lib/fdomain/client:__subpackages__",

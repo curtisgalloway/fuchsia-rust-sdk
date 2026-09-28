@@ -307,3 +307,36 @@ Prevention: append each entry right after its event, with `$(date …)` substitu
 a wrong stamp with a correction entry, never an edit.
 Fix belongs in: agent habit (lab-notebook skill already says so)
 Status: open
+
+## 2026-09-28T03:17-07:00 — failed command: diff test across packages hit a visibility error
+Chapter: [M8b](notebook/M8b.md)
+What happened: a parity `diff_test` placed in `tests/fidl` referenced `tests/fidlgen`'s
+genrules, which are package-private ("target '//tests/fidlgen:fuchsia_mem_rust_next' is not
+visible"). Moved the test into `tests/fidlgen`. Recorded after the fact (it happened about
+03:06); the notebook's 03:0x tests entry records the move.
+Cost: one extra build-and-test cycle (seconds).
+Prevention: check the visibility of targets a new test names before placing it.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T03:17-07:00 — failed command: plan edit script assumed the wrong indentation
+Chapter: [M8b](notebook/M8b.md)
+What happened: a Python replace script for the plan's backlog asserted on text written
+without the two-space continuation indent the plan uses, so it aborted before writing
+(nothing changed); rerun with the right text. Recorded after the fact (about 03:13).
+Cost: one retried step.
+Prevention: grep the exact lines (`cat -A`) before scripting a multi-line replacement.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T03:28-07:00 — instruction gap: M8b notebook entries batched under shared stamps
+Chapter: [M8b](notebook/M8b.md)
+What happened: the independent review found three M8b entries under 03:02 (two written
+in one command after the reading they record, plus the decision) and two under 03:08
+(the host decision appended in the same command as a file read). The same pattern as the
+open M8 entry: entries written in a batch after their events rather than one per event.
+Stamps were not edited.
+Cost: coarser timing in the chapter; a repeat of an open process-log item.
+Prevention: one entry per command, appended right after the event it records.
+Fix belongs in: agent habit (lab-notebook skill already says so)
+Status: open

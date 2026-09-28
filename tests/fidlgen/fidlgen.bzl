@@ -6,7 +6,9 @@
 fidlgen_rust_outputs runs both generators on one library's JSON IR the way upstream's GN
 templates do (build/rust/fidl_rust.gni, build/rust/fidl_rust_next.gni at the lock
 revision): each writes a regular crate and a _common crate, formatted by the release's
-rustfmt with fuchsia.git's rustfmt.toml. M8's binding rule will replace these genrules.
+rustfmt with fuchsia.git's rustfmt.toml. The binding rules (//rules:fidl_rust.bzl,
+//rules:fidl_rust_next.bzl) run the generators themselves; BUILD.bazel here checks that
+the rust_next rule's output equals these genrules' (M8b).
 """
 
 load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")

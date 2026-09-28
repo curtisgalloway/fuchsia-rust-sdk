@@ -1,8 +1,9 @@
 # SPDX-FileCopyrightText: 2026 Curtis Galloway
 # SPDX-License-Identifier: Apache-2.0
 
-# Tests for the FIDL binding rule (//rules:fidl.bzl, //rules:fidl_rust.bzl; design R5,
-# milestone M8), on the FIDL libraries regen.py vendors from pilot 1's closure.
+# Tests for the FIDL binding rule (//rules:fidl.bzl, //rules:fidl_rust.bzl,
+# //rules:fidl_rust_next.bzl; design R5, milestones M8a and M8b), on the FIDL libraries
+# regen.py vendors from pilot 1's closure.
 #
 # The Fuchsia checks are build assertions: `scripts/bazel build --config=fuchsia_x64
 # //...` (and arm64) compiles them. The host checks are `scripts/bazel test //...`.
@@ -61,6 +62,42 @@ rustc_library(
     ],
 )
 
+# rust_next (milestone M8b): src/crate_names_next.rs names both crates of every library
+# the closure uses in that flavor, except the two with contains_drivers
+# (fuchsia.driver.framework, fuchsia.power.broker), whose rust_next crates need the driver
+# transport (M9). tests/test_fidl.py keeps this list equal to pilot1.json's.
+_RUST_NEXT_LIBRARIES = [
+    "fuchsia.component",
+    "fuchsia.component.decl",
+    "fuchsia.component.resolution",
+    "fuchsia.component.runner",
+    "fuchsia.component.sandbox",
+    "fuchsia.data",
+    "fuchsia.device.fs",
+    "fuchsia.diagnostics",
+    "fuchsia.diagnostics.types",
+    "fuchsia.io",
+    "fuchsia.ldsvc",
+    "fuchsia.logger",
+    "fuchsia.mem",
+    "fuchsia.process",
+    "fuchsia.unknown",
+    "fuchsia.url",
+    "fuchsia.version",
+]
+
+rustc_library(
+    name = "crate_names_next",
+    srcs = ["src/crate_names_next.rs"],
+    edition = "2024",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+    deps = [
+        "//vendor/fuchsia/sdk/fidl/%s:%s_%s" % (lib, lib, flavor)
+        for lib in _RUST_NEXT_LIBRARIES
+        for flavor in ("rust_next", "rust_next_common")
+    ],
+)
+
 # --- API level: Fuchsia at HEAD, host at PLATFORM ---------------------------------------
 #
 # Fuchsia: the bindings are generated at the level the Rust cfgs put Fuchsia code at
@@ -115,6 +152,7 @@ filegroup(
     srcs = [
         ":api_level_consistency",
         ":crate_names",
+        ":crate_names_next",
     ],
     target_compatible_with = ["@platforms//os:fuchsia"],
 )
