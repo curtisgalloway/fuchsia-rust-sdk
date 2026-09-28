@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T19:24-07:00
+Updated: 2026-09-27T20:25-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -41,3 +41,16 @@ Outcome: complete — `resolve_pins.py` + `overlay.lock.json` for 33.20260927.4.
 ### [M2 — Bazel workspace and Fuchsia Rust toolchains](M2.md)
 Entries: 2026-09-27T18:40-07:00 through 2026-09-27T19:24-07:00
 Outcome: complete — both Fuchsia configs link hello_rust from a clean output base; review fixes applied
+
+### [M2a — Fit the hosted disk budget](M2a.md)
+Entries: 2026-09-27T19:30-07:00 through 2026-09-27T20:25-07:00
+Outcome: complete — hosted profile: trimmed IDK 3.6 GB, Bazel caches 7.7 GiB of 12, total 8.2 of 25; review fixes applied
+- HEAD prebuilts come from `arch/<cpu>/`; `obj/` holds only other levels. Keep `*meta.json` and dropped CPUs' sysroots (generator reads/globs them)
+- Bazel caches every download by SHA-256, even without a checksum: cache policy = prune after fetch (`scripts/bazel`)
+- A missing SDK file shows as an analysis error (`no such target`), not a missing path; `check_sdk_files.py` fails on unexpected ones
+- Dead end: Python `tarfile` `r|gz` (>10 min); `r:gz` takes 48 s. Only `idk_trim.py` + `idk_extract.py` feed `@fuchsia_idk` (profile edits don't refetch)
+
+## Threads
+- **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
+  [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); M3 adds the
+  emulator bucket.
