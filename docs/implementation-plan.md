@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 # Rust drivers out of tree (the overlay) — Implementation Plan
 
 Design: [design](design.md), revision "2026-09-27, draft 1", approved 2026-09-27
-including D6 (approval recorded in commit `2ced23a`; file unchanged since).
+including D6 (approval recorded in commit `2ced23a`; since amended by owner direction and milestone findings; see its revision line).
 Brief: [brief](brief.md) (evidence and upstream paths; the design wins where they differ).
 Notebook: [index](notebook/index.md); process log: [process log](process-log.md)
 Target release for milestone 1: `33.20260927.4.1` (`LATEST_LINUX` on 2026-09-27).
