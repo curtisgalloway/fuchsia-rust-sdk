@@ -546,3 +546,32 @@ Cost: one extra Read call.
 Prevention: write new files with the Write tool when they will be edited later.
 Fix belongs in: agent habit
 Status: open
+
+## 2026-09-28T08:11-07:00 — instruction gap: an absolute scratch path in an append-only entry
+Chapter: [M11](notebook/M11.md)
+What happened: the M11 opening entry named the scratch directory by its absolute
+container path, which the orchestrator's rules keep out of committed text; it was
+committed in the first `wip` commit, and the notebook is append-only, so a correction
+entry was added and the path stays in the entry.
+Cost: one correction entry; a path that the rule wanted absent remains in the file.
+Prevention: before writing an entry, write scratch locations as "the scratch directory"
+(the lab-notebook skill already says to link logs rather than paste them); a check that
+greps staged docs for `/home/`, `/root/` and `/tmp/` before each commit.
+Fix belongs in: lab-notebook skill (a "no absolute paths" line), or project instructions
+Status: open
+
+## 2026-09-28T08:11-07:00 — failed command: Edit before Read, again
+Chapter: [M11](notebook/M11.md)
+What happened: the Edit tool refused `scripts/emu.py` ("File has not been read yet"): it
+had been read with `sed` in Bash, not with Read. Same cause as I3's entry.
+Cost: one extra Read call.
+Prevention: read a file with Read (even a few lines) before the first Edit of it.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T08:23-07:00 — instruction gap: an absolute scratch path in an append-only entry
+Chapter: [M11](notebook/M11.md)
+Status: fixed in the M11 chapter by an in-place edit of the opening entry (owner-side
+decision in the M11 review, consistent with I3), disclosed in a correction entry. The
+prevention (a "no absolute paths" line in the lab-notebook skill, or a pre-commit grep)
+stays open for the owner's review.

@@ -34,7 +34,7 @@ BSD-style, The Fuchsia Authors), rewritten in Python. Changes from `dev`:
 - not ported yet: `dev test` (build a test package and `ffx test run` it; M16 adds
   `scripts/emu test`), and after `driver register`, `dev`'s `sleep 5` and log dump
   (use `scripts/emu log <name>`). The `driver` path, including the reboot of
-  workaround 6, is untested until M11 has a driver to load.
+  workaround 6, was first run in M11 with pilot 1 (docs/evidence/M11.md).
 
 The container workarounds from `dev` (fuchsia-cloud-dev README, "Container workarounds")
 are marked `Workaround N` below; the root-user one (4) is in MODULE.bazel.

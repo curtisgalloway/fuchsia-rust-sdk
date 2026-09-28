@@ -89,8 +89,8 @@ in the cloud.
 | M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | complete |
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | complete |
 | I3 | Emulator bind target for pilot 1 confirmed at this release; pilot builds with it | M3 | cloud (emulator) | complete |
-| M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | pending |
-| G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone | M11 | cloud (emulator) | pending |
+| M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | complete |
+| G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone; driver guide | M11 | cloud (emulator) | pending |
 | I4 | Method to replace the in-tree `aml-saradc` on the VIM3 | — | **lab** | pending |
 | M12 | Pilot 2 closure; `aml_saradc` builds for arm64 and passes R7 checks (R4–R7) | G1 | cloud | pending |
 | M13 | Pilot 2 binds on the VIM3 and reads the ADC (R8b) | M12, I4 | **lab** | pending |
@@ -99,6 +99,7 @@ in the cloud.
 | M16 | Driver unit tests build and pass on the emulator (R9) | M12, M3 | cloud (emulator) | pending |
 | M17 | `fuchsia-ci` job runs `regen.py` per mirrored release (R11) | M15 | `fuchsia-ci` repo | pending |
 | G2 | **Final system verification** against the full design | M13–M17 | cloud + **lab** | pending |
+| M18 | Generated API docs (rustdoc) for the overlay's driver crates — **runs only on owner approval** | M14 | cloud | pending (owner approval) |
 
 Critical path to milestone 1: I1 → M1 → M2 → M2a → M4 → M5 → M6a → M6b → M7 → M8a → M8b → M9a → M9b → M9c → M10 → M11 → G1.
 M3, I2 and I3 run beside it. I4 needs only the lab, so it can run any time before M13.
@@ -592,42 +593,26 @@ bind rule is already applied; register only the pilot (`qemu_edu` would compete)
 
 ## M11 — Pilot 1 binds on the emulator
 
+**Outcome:** `scripts/emu driver //drivers/simple_rust:pkg` registers pilot 1 on the
+lock's `core.x64` (`33.20260927.4.1`, TCG) and it binds on the first registration:
+`ffx driver composite show 00_06_0` names
+`fuchsia-pkg://devhost/simple_rust_driver#meta/simple_rust_driver.cm` and node
+`PCI0.bus.00_06_0.00_06_0` (parents `pci` = `PCI0.bus.00_06_0`, `acpi`), `list-devices -v`
+shows it bound with its child `simple_child`, and `ffx log` has `SimpleRustDriver::start()
+was invoked.` Lock, IDK, SDK and target share the `sdk_version` (C3). No driver source or
+build change (diff against upstream: none); only `scripts/emu.py`'s docstring changed.
+The harness's reboot path (URL already registered) binds too. The driver host loads one
+runtime, its own (`driver_host` links `libdriver_runtime.so`); the packaged `lib/` copies
+are not loaded. `device_categories` blocks nothing; `vfs` statics not observed. The G1
+replay sequence is in the evidence.
 **Design coverage:** R8a. **Dependencies:** M10, I3, M3.
-**In scope:**
-- The I3 `.bind` in `drivers/simple_rust` (already applied by I3: composite, `pci`
-  primary + `acpi` optional; `meta/simple_rust.bind`, checked by `:bind_test`).
-- Any change to the driver's `Start` needed for a composite parent. It is recorded as
-  a patch-like diff against upstream source, in the evidence.
-- `scripts/emu driver //drivers/simple_rust:pkg`.
-
-**Out of scope:** device I/O; the pilot only needs to bind and log.
-
-### Implementation steps
-1. The I3 bind rule is already applied (composite: `pci` primary + `acpi` optional).
-   Rebuild and register the driver (`ffx driver register`; the harness reboots before
-   re-registering, per `fuchsia-cloud-dev` workaround 6), then observe the bind.
-2. Check `ffx driver list`, `ffx driver list-devices -v` and `ffx log`.
-3. Record the full command sequence in the evidence so G1 can replay it.
-
-### Acceptance criteria
-- [ ] `ffx driver list` shows the overlay's package URL loaded.
-- [ ] `ffx driver list-devices -v` shows it bound to the composite child of the edu
-  device's spec `00_06_0`, expected to be `PCI0.bus.00_06_0.00_06_0` (not the edu PCI
-  node `PCI0.bus.00_06_0` itself, which stays a parent); `ffx driver composite show
-  00_06_0` names the driver.
-- [ ] The driver's start log line appears in `ffx log`.
-- [ ] Emulator and package come from the same `sdk_version` (C3), shown in the evidence.
-
-### Testing and review
-- Review focus: C3, the driver diff against upstream `simple/rust` (only what binding
-  requires), and a replayable sequence.
-
-### Session sizing
-Small, if I3 is done. The main risk is a start-time failure in the Rust runtime (for
-example a missing `DT_NEEDED` at load); the M10 comparison is where to look.
-
-### Evidence and findings
-Status: pending · Evidence: [M11](evidence/M11.md) · Notebook: [M11](notebook/M11.md)
+**Status:** complete. An independent reviewer subagent (launched by the orchestrator)
+replayed the G1 sequence before the checkpoint: land after fixes (3 minor, 4 nits; all
+resolved). The detailed entry is in the evidence file.
+**Evidence:** [M11](evidence/M11.md) · **Notebook:** [M11](notebook/M11.md)
+**Open limitations:** x64 only on a target (arm64 first loads on the VIM3, M13); no
+device I/O; two Rust `std` copies per driver host (backlog); `vfs` statics untested
+until a driver uses `vfs`.
 
 ---
 
@@ -642,10 +627,19 @@ Status: pending · Evidence: [M11](evidence/M11.md) · Notebook: [M11](notebook/
    base, with no `fuchsia.git` checkout on disk (outcome 1 of design §1).
 4. Replay the M11 sequence: the driver loads and binds.
 5. Record the disk used, build time, and closure counts (initial R12 data).
+6. **Driver guide.** Write `docs/driver-guide.md` (about 150 lines) from the M10–M11
+   evidence: copy `drivers/simple_rust` under a new name, write the bind rule and its
+   `bind_test` JSON, the BUILD targets (`fuchsia_rust_driver`, `:bind`, `:pkg`), package,
+   load with `scripts/emu driver`, and check the bind. Link it from `README.md`.
+   Verified by following it literally in the fresh clone: a renamed copy builds, passes
+   its tests and binds on the emulator (then removed; not committed). Owner request
+   2026-09-28; not a design requirement.
 
 **Review:** `review-swarm` if available, otherwise a reviewer subagent over the whole
 milestone-1 diff against design §1, §3 and §4.
-**Exit:** all pass → milestone 1 declared in the plan and reported to the owner.
+**Exit:** all pass → milestone 1 declared in the plan and reported to the owner. Then
+**stop**: milestones after G1 (I4, M12–M18, G2) start only on the owner's go-ahead (owner
+direction 2026-09-28).
 
 ---
 
@@ -860,6 +854,31 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ---
 
+## M18 — Generated API docs for the driver crates
+
+**Owner approval required before this runs** (owner direction 2026-09-28): the
+orchestrator does not start it on its own; it asks the owner after G2.
+**Design coverage:** none (owner request, not a design requirement).
+**Dependencies:** M14 (regeneration settled, so the documented crate set is stable).
+**In scope:** a Bazel target that builds rustdoc (`rules_rust`'s `rust_doc`) for the
+overlay's driver-facing crates (`fdf_component`, the driver runtime crates, `zx`, the
+FIDL bindings pilots 1 and 2 use) for `fuchsia_x64`; one index page linking them;
+`README.md` and `docs/driver-guide.md` say how to build and open it. The output stays a
+build artifact, not committed.
+**Out of scope:** hosting or publishing the docs; writing doc comments for upstream
+crates (upstream's source is what it is; gaps go in the evidence as candidates for
+upstream reports).
+**Acceptance criteria:**
+- [ ] `scripts/bazel build --config=fuchsia_x64 //docs/api` (or similar) succeeds from a
+  clean output base within the hosted disk budget.
+- [ ] The index links every listed crate; a spot check shows cross-crate links resolve.
+- [ ] `uv run pytest` and `uv run reuse lint` green.
+**Session sizing:** about half a day (one session). Main risk: `rust_doc` with the
+overlay's cfgs and the Fuchsia target `std`. Split point: one crate first, then the set.
+**Status:** pending (owner approval).
+
+---
+
 ## Risks (plan-level; design §8.2 still applies)
 
 | Risk | Affects | Mitigation |
@@ -892,9 +911,14 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 - **Emulator disk image growth (found in M3).** The instance's `fxfs.sparse.blk` is a
   10 GiB sparse file (133 MB allocated after boot); heavy guest writes could grow the
   `emulator` bucket toward 10.5 GiB, still within the hosted 25 GiB with today's
-  caches. Watch it in M11/M16 evidence.
+  caches. Watch it in M11/M16 evidence. M11: the `emulator` bucket was 0.52 GiB after
+  two registrations and one reboot (0.36 before boot).
 - **`scripts/emu driver` is untested (M3).** Ported from `dev` (including the reboot
   before re-registering), but there is no driver package before M10; M11 exercises it.
+  **Done in M11:** both paths run with pilot 1 (first registration: 15 s; with the URL
+  already registered: reboot, re-register, bound again in 1 min 46 s under TCG). `ffx
+  target wait` may print (intermittent) a harmless ssh retry message and empty backtrace
+  on stderr while the target reboots.
 - **`fuchsia-cloud-dev` overlap.** `fuchsia-cloud-dev` already solves emulator bring-up
   in cloud containers. After M3, consider whether its `dev` tool and this repo's
   harness should share code. Not needed for milestone 1.
@@ -1124,7 +1148,14 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   provides them (upstream drivers use the link stub). M10: both are packaged at `lib/`
   (with `libsvc.so`, `libtrace-engine.so` and `libfdio.so`), as the three pure-Rust
   `core.x64` drivers ship them and `fuchsia_cc_driver` does; the ELF test checks that every
-  packaged file's `DT_NEEDED` resolves.
+  packaged file's `DT_NEEDED` resolves. **Two copies at run time? (for M11) — answered in
+  M11: no.** The pilot's driver host (`vmaps`) maps only the bootfs `libdriver_runtime.so`
+  (`459cee0a…`) and the other bootfs libraries; `driver_host` itself needs the runtime,
+  so the driver's `DT_NEEDED` resolves to the loaded modules by soname and the package's
+  `lib/` copies are never loaded (fallback only; the pilot's packaged copy is a different
+  blob, `59bb96ec…`, and is not mapped; `virtio-gpu-display` is only consistent with this,
+  since its packaged copy is the host's blob).
+  `host show -r` lists the pilot's dispatchers in the host's runtime. Kept as M10 made it.
 - **bindgen golden checks not translated (found in M9a; for M16).** `libasync_sys` and
   `fdf_sys` compile checked-in `bindings.rs`; GN also validates them against bindgen
   over the C headers (`rustc_bindgen_golden`). The overlay does not; a header change in
@@ -1138,7 +1169,10 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   keeps statics (`CLONES`; `STATE`, which spawns a 2-thread pool), one copy per
   statically linked driver instead of one per driver host (M9b review; benign for
   pilot 1). M10: the three pure-Rust `core.x64` drivers need `libvfs_rust.so` (and
-  `libstd-<hash>.so`); pilot 1 needs neither.
+  `libstd-<hash>.so`); pilot 1 needs neither. M11: not observed; pilot 1 links no `vfs`
+  code (its host shows only its dispatcher threads); the `libvfs_rust.so` in its driver
+  host is `driver_host`'s own. Still open: first driver using `vfs`; check at M12's
+  closure (`aml-saradc`).
 - **`syslog/client.shard.cml` check dropped (found in M9b; for M10) — done in M10.**
   `diagnostics_log` depends on `//sdk/lib/syslog:client_includes`, an empty stub in
   upstream Bazel and in GN an `expect_includes` that makes dependents' manifests include
@@ -1195,22 +1229,43 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 - **`device_categories` missing from pilot 1's manifest (found in I3; for M11).**
   `ffx driver static-checks` on the package fails "Device categories are valid"
   (upstream's `.cml` has none; FHCP metadata). Not a bind input; M11 records whether it
-  matters.
+  matters. **Answered in M11: blocks nothing** (registering, binding and `Start`
+  succeed; `static-checks` still fails that check, exit 0). The manifest stays
+  upstream's. Follow-up trigger: if a CI gate runs `static-checks` (M16/M17).
+- **Driver guide and API docs (owner request 2026-09-28).** The driver guide
+  (`docs/driver-guide.md`) is G1's check 6; generated API docs are M18, which runs only
+  on the owner's approval.
+- **Two Rust `std` copies in a driver host (found in M11; for M12 and later drivers).**
+  `driver_host` loads `libstd-<hash>.so`; the overlay's drivers link `std` statically
+  (rules_rust), so the process has two `std` copies with separate statics (panic hook,
+  thread-local keys). Checked in M11: both allocate through the process's one `libc.so`
+  (`malloc`, scudo heap), and no `std` type crosses the driver/host boundary in pilot 1
+  (C ABI registration symbol and driver runtime only). Remedy: link the release's
+  `libstd-<hash>.so` dynamically, as GN does; obstacle: that needs a toolchain build that
+  matches it exactly (compiler build, `std` flags, crate hash), unverified for the lock's
+  `rust_target`. Revisit if a driver shows panic-hook or thread-local surprises or passes
+  `std` types across an FFI boundary with the host.
 
 ## Next session
 
-- Current milestone and status: **I3 complete.** Branch `ms/I3` from
-  `2a63354`; `wip` commits (chapter, rule and bind test, the `elf_test` fix, the bind test
-  rule, evidence, plan), review fixes, then the checkpoint
-  commit `overlay: I3 — Emulator bind target for pilot 1`.
-- Completed work and evidence: [I3 evidence](evidence/I3.md) (device listing, composite
-  node spec, bind rule, `bindc` checks, project checks, disk).
-- Uncommitted state: none expected after the checkpoint.
-- Remaining work, blockers, and decisions: none for I3. Unchanged: M17 placement.
+- Current milestone and status: **M11 complete.** Branch `ms/M11` from `88651a1`;
+  `wip` commits (chapter, first bind, runtime copies, reboot path and
+  `device_categories`, checks and the `scripts/emu.py` docstring, evidence, plan, review
+  findings, review fixes), then the checkpoint commit `overlay: M11 — Pilot 1 binds on
+  the emulator`.
+- Completed work and evidence: [M11 evidence](evidence/M11.md) (the entry as planned, C3
+  table, register output, `driver list`, `composite show 00_06_0`, `list-devices -v`,
+  `ffx log`, the replay sequence for G1, the four backlog answers, project checks, disk,
+  review).
+- Uncommitted state: none expected after the checkpoint; the emulator is stopped and the
+  scratch directory deleted.
+- Remaining work, blockers, and decisions: none for M11. Unchanged: M17 placement. A
+  separate `docs:` commit after the checkpoint applies the owner-approved plan edits
+  (driver guide in G1, M18 API docs, stop after G1); done.
 - Context boundary: normal.
-- Resume action: after I3's checkpoint, **M11** (register and bind pilot 1 on the
-  emulator).
-- Read first for M11: the I3 and M11 entries, [I3 evidence](evidence/I3.md) ("Findings
-  for M11"), [M10 evidence](evidence/M10.md) ("Findings for later milestones": the packaged
-  `libdriver_runtime.so`), `drivers/simple_rust/BUILD.bazel`,
-  [notebook index](notebook/index.md).
+- Resume action: **G1** (milestone 1 gate from a clean clone; step 4 replays the M11
+  sequence in the evidence; step 6 writes and verifies the driver guide). After G1:
+  report to the owner and **wait**; later milestones start only on the owner's go-ahead
+  (owner direction 2026-09-28).
+- Read first for G1: the G1 entry, [M11 evidence](evidence/M11.md) ("The replay sequence
+  for G1", "Findings for later milestones"), [notebook index](notebook/index.md).
