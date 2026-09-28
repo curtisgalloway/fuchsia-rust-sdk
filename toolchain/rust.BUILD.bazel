@@ -14,13 +14,14 @@
 #     upstream also defines linux-arm64 and riscv64 toolchains.
 #   - rust_toolchain_with_build_flags comes from @rules_fuchsia, which ships
 #     fuchsia_rules_common inside it; upstream has a separate @fuchsia_rules_common.
-#   - No API-level cfg flags yet (upstream: get_rustc_api_level_flags()); milestone M4
-#     adds them (design R3).
+#   - get_rustc_api_level_flags() comes from the overlay's port in //rules (M4, design
+#     R3); upstream loads it from @//build/bazel/versioning:rustc_api_level.bzl. The host
+#     toolchain gets get_host_rustc_api_level_flags() (PLATFORM) instead.
 #   - No toolchain is registered for
 #     @rules_fuchsia//fuchsia_rules_common/build_flags:toolchain_type (upstream registers
 #     @fuchsia_build_info//default_build_flags:all), so rust_toolchain_with_build_flags
-#     adds no GN-derived default flags; only the flags written below apply. M4 may
-#     revisit this when porting the rustc_* rules.
+#     adds no GN-derived default flags; only the flags written below apply. M4 kept
+#     this: the overlay has no GN build to derive them from (docs/evidence/M4.md).
 
 """Top level BUILD.bazel in the @fuchsia_rust_toolchain repository."""
 
@@ -28,14 +29,20 @@
 load("@rules_fuchsia//fuchsia_rules_common/build_flags:toolchain.bzl", "rust_toolchain_with_build_flags")
 load("@rules_rust//rust:toolchain.bzl", "rust_stdlib_filegroup", "rust_toolchain")
 
+# Overlay: upstream loads this from @//build/bazel/versioning:rustc_api_level.bzl.
+load("@fuchsia_rust_sdk//rules:rustc_api_level.bzl", "get_host_rustc_api_level_flags", "get_rustc_api_level_flags")
+
 # Overlay: the build host is always linux-x64 (design C5).
 _HOST_EXEC_COMPATIBLE_WITH = [
     "@platforms//cpu:x86_64",
     "@platforms//os:linux",
 ]
 
-# Overlay: API-level cfgs arrive in M4 (upstream: get_rustc_api_level_flags()).
-_API_LEVEL_RUSTC_FLAGS = []
+# Overlay: upstream writes get_rustc_api_level_flags() in each toolchain below; one
+# select() value, shared by the Fuchsia toolchains, is equivalent. The host toolchain
+# gets the PLATFORM flags as a list (see rules/rustc_api_level.bzl for why).
+_API_LEVEL_RUSTC_FLAGS = get_rustc_api_level_flags()
+_HOST_API_LEVEL_RUSTC_FLAGS = get_host_rustc_api_level_flags()
 
 # LINT.IfChange
 _HOST_DEBUG_INFO = {
@@ -198,7 +205,7 @@ rust_toolchain(
 rust_toolchain_with_build_flags(
     name = "rust_linux_x64_toolchain",
     toolchain = ":rust_linux_x64_toolchain_base",
-    extra_rustc_flags = _API_LEVEL_RUSTC_FLAGS,
+    extra_rustc_flags = _HOST_API_LEVEL_RUSTC_FLAGS,
 )
 
 toolchain(

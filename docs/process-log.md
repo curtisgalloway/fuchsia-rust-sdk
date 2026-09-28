@@ -163,3 +163,17 @@ Prevention: the `[q]emu` bracket trick or a saved PID, every time; a helper scri
 "kill the emulator's QEMU" would make it habitual.
 Fix belongs in: agent habit (no project change)
 Status: open
+
+## 2026-09-27T21:17-07:00 — surprise: a checkpoint commit deleted eight plan entries
+Chapter: [M4](notebook/M4.md)
+What happened: the M3 checkpoint `9c15cd9` removed the detailed plan entries for
+M4–M10 and I2 (364 lines) while moving M3's entry to its evidence; nothing in the M3
+review caught it. The M4 session found its own milestone entry missing and had to
+recover it from `c860458`.
+Cost: a few minutes of history search; without the recovery a later session would have
+executed M4–M10 from the one-line status rows only.
+Prevention: at checkpoint, diff the plan's `## ` heading list before and after the
+edit (`git diff -- docs/implementation-plan.md | grep '^[-+]## '`); only the
+completed milestone's heading may change.
+Fix belongs in: project-plan skill (close-out step 4) or orchestrate-milestones review
+Status: open

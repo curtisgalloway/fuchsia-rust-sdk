@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+# The overlay's Rust rules (design §4.2 "Rust rules"): rustc.bzl (rustc_library,
+# rustc_binary, rustc_proc_macro), and rustc_api_level.bzl with api_level.bzl, which the
+# Rust toolchains (toolchain/rust.BUILD.bazel) use for the API-level cfgs.

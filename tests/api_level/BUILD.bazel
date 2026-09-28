@@ -1,0 +1,143 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+# Tests for the rustc_* rules and their API-level cfgs (design R3, milestone M4).
+
+load("@api_levels_testdata_idk//:args.bzl", idk_all_numbered = "all_numbered_api_levels", idk_buildable = "idk_buildable_api_levels")
+load("@api_levels_testdata_sdk//:args.bzl", sdk_all_numbered = "all_numbered_api_levels", sdk_buildable = "idk_buildable_api_levels")
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_rust//rust:defs.bzl", "rust_test")
+load("//rules:rustc.bzl", "rustc_binary", "rustc_library", "rustc_proc_macro")
+load("//rules:rustc_api_level.bzl", "rustc_api_level_flags_by_target")
+load(":cap_lints_test.bzl", "cap_lints_test")
+
+exports_files([
+    "testdata/idk_version_history.json",
+    "testdata/sdk_version_history.json",
+])
+
+# --- Golden: the cfg flags for each target level --------------------------------------
+#
+# golden/<level>.txt is upstream's own generator (build/bazel/versioning/
+# rustc_api_level.bzl at the lock's fuchsia_revision, run unmodified on the source tree's
+# sdk/version_history.json; recipe in docs/evidence/M4.md). The overlay's code runs here
+# on two pinned inputs for the same release: the IDK's copy (key-sorted, what the
+# toolchains read) and the source tree's copy. Both must give upstream's output exactly,
+# in order. The pinned inputs keep this test independent of the release in the lock.
+
+_GOLDEN_LEVELS = ["27", "28", "29", "30", "31", "32", "NEXT", "HEAD", "PLATFORM"]
+
+_INPUTS = {
+    "idk": rustc_api_level_flags_by_target(idk_all_numbered, idk_buildable),
+    "sdk": rustc_api_level_flags_by_target(sdk_all_numbered, sdk_buildable),
+}
+
+[
+    fail("%s input: target levels %s, golden has %s" % (input, sorted(by_target.keys()), sorted(_GOLDEN_LEVELS)))
+    for input, by_target in _INPUTS.items()
+    if sorted(by_target.keys()) != sorted(_GOLDEN_LEVELS)
+]
+
+[
+    write_file(
+        name = "flags_%s_%s" % (input, level),
+        out = "flags_%s_%s.txt" % (input, level),
+        content = by_target[level] + [""],
+        newline = "unix",
+    )
+    for input, by_target in _INPUTS.items()
+    for level in _GOLDEN_LEVELS
+]
+
+[
+    diff_test(
+        name = "golden_%s_%s_test" % (input, level),
+        file1 = "golden/%s.txt" % level,
+        file2 = ":flags_%s_%s" % (input, level),
+    )
+    for input in _INPUTS
+    for level in _GOLDEN_LEVELS
+]
+
+# --- HEAD branch on Fuchsia -----------------------------------------------------------
+#
+# head_branch fails to compile unless the toolchain's cfgs put the target at HEAD, so
+# `scripts/bazel build --config=fuchsia_x64 //...` (and arm64) is the check.
+
+rustc_library(
+    name = "head_branch",
+    srcs = ["src/head_branch.rs"],
+    edition = "2024",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+)
+
+# Host-only: under proc_macro_deps it builds for the exec platform (as in
+# examples/hello_host).
+rustc_proc_macro(
+    name = "exec_branch",
+    srcs = ["src/exec_branch.rs"],
+    edition = "2024",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+rustc_binary(
+    name = "head_branch_bin",
+    srcs = ["src/main.rs"],
+    edition = "2024",
+    proc_macro_deps = [":exec_branch"],
+    target_compatible_with = ["@platforms//os:fuchsia"],
+    deps = [
+        ":head_branch",
+        "@fuchsia_sdk//pkg/fdio",
+    ],
+)
+
+# --- PLATFORM branch on host ----------------------------------------------------------
+
+rustc_library(
+    name = "platform_branch",
+    srcs = ["src/platform_branch.rs"],
+    edition = "2024",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+rust_test(
+    name = "platform_branch_test",
+    crate = ":platform_branch",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+# --- vendored = True caps lints -------------------------------------------------------
+#
+# The same source violates a denied lint. The vendored build succeeds; the first-party
+# build fails (tagged manual so `//...` skips it; its failure is shown in
+# docs/evidence/M4.md), and the analysis tests pin the flag each one passes.
+
+rustc_library(
+    name = "vendored_lint",
+    srcs = ["src/lint_violation.rs"],
+    crate_root = "src/lint_violation.rs",
+    edition = "2024",
+    vendored = True,
+)
+
+rustc_library(
+    name = "first_party_lint",
+    srcs = ["src/lint_violation.rs"],
+    crate_root = "src/lint_violation.rs",
+    edition = "2024",
+    tags = ["manual"],
+)
+
+cap_lints_test(
+    name = "vendored_cap_lints_test",
+    expected = "allow",
+    target_under_test = ":vendored_lint",
+)
+
+cap_lints_test(
+    name = "first_party_cap_lints_test",
+    expected = "deny",
+    target_under_test = ":first_party_lint",
+)

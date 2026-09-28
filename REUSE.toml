@@ -33,3 +33,15 @@ path = ["third_party/fuchsia/PATENTS"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 The Fuchsia Authors"
 SPDX-License-Identifier = "BSD-3-Clause"
+
+# Test inputs and golden outputs for the API-level cfgs (tests/api_level, M4), from
+# fuchsia.git at the lock's fuchsia_revision (C4): testdata/ holds the release IDK's
+# version_history.json and the source tree's sdk/version_history.json, unchanged;
+# golden/ is the output of upstream's own build/bazel/versioning/rustc_api_level.bzl
+# run unmodified on the latter (recipe in docs/evidence/M4.md). JSON and the golden
+# format cannot carry a comment.
+[[annotations]]
+path = ["tests/api_level/testdata/*.json", "tests/api_level/golden/*.txt"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 The Fuchsia Authors"
+SPDX-License-Identifier = "BSD-3-Clause"

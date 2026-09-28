@@ -74,7 +74,7 @@ in the cloud.
 | M2 | Bazel workspace + Fuchsia Rust toolchains; a Rust binary links for x64 and arm64 (I5, R2) | M1 | cloud | complete |
 | M2a | Fit the hosted disk budget (C6): trimmed IDK extraction, cache policy, disk report | M2 | cloud | complete |
 | M3 | Portable emulator harness at the lock's release; the M2 binary runs on it (R2, C6) | M2a | cloud (emulator) | complete |
-| M4 | `rustc_*` rules with API-level cfgs (R3) | M2 | cloud | pending |
+| M4 | `rustc_*` rules with API-level cfgs (R3) | M2 | cloud | in_progress |
 | M5 | Vendor stage of `regen.py` + `--check`; `zx-types`, `zx-sys`, `zx` build (R6 mechanism, R2) | M4 | cloud | pending |
 | M6 | Pilot 1 closure measured (D8) + its crates.io crates build (R4) | M5 | cloud | pending |
 | I2 | Prebuilt `fidlgen_rust` / `fidlgen_rust_next`: published or not | — | cloud | pending |
@@ -233,6 +233,370 @@ contract. `examples/hello_rust:pkg` runs as a component and logs. Disk: total 8.
 **Open limitations:** `scripts/emu driver` (and workaround 6's reboot) untested until
 M11; `dev test` not ported (M16); the emulator disk image can grow toward 10 GiB;
 `resolve_pins.py` streams ~364 MB more per run.
+
+---
+
+## M4 — `rustc_*` rules with API-level cfgs
+
+**Design coverage:** R3. **Dependencies:** M2.
+**In scope:**
+- `rules/rustc.bzl`: `rustc_library`, `rustc_proc_macro` and `rustc_binary` wrappers
+  over `rules_rust`, ported from upstream `build/bazel/rules/rust/`.
+- `--cap-lints` for vendored code.
+- API-level cfg generation from the IDK's `version_history.json`, targeting `HEAD`.
+- `tests/api_level/`, a test crate.
+
+**Out of scope:** the test wrapper (`rustc_test`, R9 → M16); the driver rule.
+
+### Implementation steps
+1. Port `rustc_api_level.bzl`. The input is `version_history.json` from
+   `@fuchsia_sdk`. Emit `--cfg=fuchsia_api_level_at_least="N"` for every supported
+   level ≤ target, and `…_less_than` for the rest, exactly as upstream does. Record
+   the upstream file and revision in a header comment.
+2. Wrappers apply cfgs, edition default, and `--cap-lints=allow` when a `vendored = True`
+   attribute (proposed) is set.
+3. Test crate: `#[cfg(fuchsia_api_level_at_least = "HEAD")] const BRANCH: &str = "head";`
+   and an `#[cfg(not(...))]` counterpart. A Bazel `rust_test` on host, or a build-time
+   `static_assert`, checks the `HEAD` branch.
+
+### Acceptance criteria
+- [ ] The test crate builds for both Fuchsia targets and takes the `HEAD` branch
+  (checked by a build assertion, not by inspection).
+- [ ] The generated cfg list for a pinned `version_history.json` matches upstream's
+  output for the same input (golden file from upstream's generator, or a hand-checked
+  golden).
+- [ ] A lint that is denied by default in first-party code is allowed under
+  `vendored = True`.
+
+### Testing and review
+- Verify with `bazel build --config=fuchsia_x64 //tests/api_level/...` (and arm64) and
+  `bazel test //tests/api_level/...`.
+- Review focus: cfg semantics against upstream (off-by-one on `less_than`), and the
+  handling of `HEAD`/`NEXT`/`PLATFORM` named levels.
+
+### Session sizing
+Small and well-bounded. It can share a session with M5's first steps only by owner
+override. Starts from upstream `build/bazel/rules/rust/`.
+
+### Evidence and findings
+Status: pending · Evidence: [M4](evidence/M4.md) · Notebook: [M4](notebook/M4.md)
+
+---
+
+## M5 — Vendor stage of `regen.py`; `zx` crates build
+
+**Design coverage:** R6 (mechanism and `--check`), R2 (`zx-types`, `zx-sys`, `zx`
+build), D6, D9. **Dependencies:** M4.
+**In scope:**
+- `scripts/regen.py vendor` and `scripts/regen.py --check`. A vendor list file,
+  `vendor/crates.txt` (proposed): upstream path → how its `BUILD.bazel` is made.
+- Label rewriting for upstream `BUILD.bazel` files; `overlays/` and
+  `patches/fuchsia/` application; `LICENSE`/`METADATA` carried.
+- The first three crates: `sdk/rust/zx-types`, `sdk/rust/zx-sys` and `sdk/rust/zx`,
+  all with upstream Bazel builds.
+
+**Out of scope:**
+- the crates.io repository (M6). `zx`'s crates.io deps (`bitflags`,
+  `static_assertions`, `zerocopy`…) are either provided by the smallest possible
+  `crate_universe` subset here, or `zx` alone waits for M6 (decide by inspection,
+  record it).
+- the full `regen.py` pipeline (M14).
+
+### Implementation steps
+1. Git access: sparse, blobless fetch of `fuchsia.git` at `fuchsia_revision` into a
+   scratch directory outside the repo (brief App. B step 1).
+2. Copy each listed crate directory to `vendor/fuchsia/<upstream path>/` (D9).
+3. For crates with upstream `BUILD.bazel`, rewrite labels:
+   - `//<path>` → `//vendor/fuchsia/<path>`
+   - `//third_party/rust_crates:<x>` → the crate-universe label
+   - upstream rule loads → `//rules:rustc.bzl`
+
+   Otherwise, copy `overlays/<path>/BUILD.bazel`.
+4. Apply `patches/fuchsia/<path>/*.patch` in order. A failing patch stops the run and
+   names the patch and the file.
+5. `--check`: regenerate into scratch and diff against `vendor/`; exit non-zero on drift.
+6. pytest for label rewriting, patch failure and drift detection, using a tiny fake
+   upstream tree.
+
+### Acceptance criteria
+- [ ] `regen.py vendor` reproduces `vendor/` byte-for-byte on a second run.
+- [ ] `regen.py --check` passes on a clean tree, and fails naming the file after a
+  one-byte hand edit in `vendor/`.
+- [ ] A patch that no longer applies fails with the patch name and file (pytest).
+- [ ] `zx-types` and `zx-sys` build for both Fuchsia targets. `zx` builds too, or is
+  explicitly deferred to M6 with the reason recorded.
+- [ ] Each vendored crate carries upstream `LICENSE` (C4).
+
+### Testing and review
+- Verify with `uv run pytest`, `scripts/regen.py --check`, and both build configs on
+  `//vendor/fuchsia/sdk/rust/...`.
+- Review focus: D6 (only generated content committed), D9 layout, determinism, and no
+  network access at build time.
+
+### Session sizing
+Starts from the design §4.2 "Vendored crates", brief App. A.1 (the `zx*` rows) and
+App. B. The main uncertainty is label-rewrite coverage for upstream Bazel files. Split
+point: land the mechanism with `zx-types` alone, then add the other two.
+
+### Evidence and findings
+Status: pending · Evidence: [M5](evidence/M5.md) · Notebook: [M5](notebook/M5.md)
+
+---
+
+## M6 — Pilot 1 closure and its crates.io crates
+
+**Design coverage:** D8, R4 (pilot 1 subset), R12 (closure data first produced).
+**Dependencies:** M5.
+**In scope:**
+- `scripts/closure.py`: the brief's App. B walker. Extend it to follow `rustc_dylib`
+  (for `vfs`) and to record GN conditionals it skipped.
+- Run it from `//sdk/lib/driver/component/rust`, `//sdk/lib/driver/runtime/rust` and
+  `//examples/drivers/simple/rust`.
+- `third_party/crates/`: `crate_universe` over the release's `Cargo.toml`/`Cargo.lock`,
+  restricted to the closure's direct crates.
+- The patched crates the closure needs (of `byteorder`, `memchr`, `libc`, `tokio`) as
+  local repositories from `third_party/rust_crates/` at the revision.
+
+**Out of scope:** vendoring the in-tree crates (M8/M9); pilot 2's closure (M12).
+
+### Implementation steps
+1. Port the walker from brief App. B into `scripts/closure.py` with pytest over a fake GN
+   tree. Add `rustc_dylib`, and output which conditionals were ignored.
+2. Run it for pilot 1 and write `docs/closure/pilot1.json` (proposed) with in-tree
+   crates, crates.io crates and FIDL libraries. Compare the counts with the brief's
+   67 / 44 / 34 in the evidence.
+3. Generate `third_party/crates/` with `crate_universe` in vendored mode, so the output
+   is committed (D6); build output needs only checksummed downloads.
+4. Build every crate for both Fuchsia targets, and proc-macro crates for host.
+5. If `zx` was deferred in M5, finish it here.
+
+### Acceptance criteria
+- [ ] `docs/closure/pilot1.json` exists, and the walker's pytest passes, including a
+  `rustc_dylib` case.
+- [ ] Every crates.io crate in the pilot 1 closure builds for both Fuchsia targets;
+  proc-macro crates build for host.
+- [ ] Only the closure's crates are generated, not all of `Cargo.lock` (count recorded).
+- [ ] A build with the network off, after one warm fetch, succeeds (checksummed and
+  cached; no resolution step).
+
+### Testing and review
+- Verify with `uv run pytest`, and `bazel build --config=fuchsia_x64 //third_party/crates/...`
+  (and arm64).
+- Review focus: version choice where `Cargo.lock` has two versions (per the GN alias,
+  brief A.2 note), patched-crate provenance, and walker correctness on conditionals.
+
+### Session sizing
+This is the largest unknown in milestone 1: the transitive crate count. Split point:
+the walker and closure report as one session (M6a), and `crate_universe` plus the
+builds as the next (M6b). Split before starting if the closure has more than 44 direct
+crates.
+
+### Evidence and findings
+Status: pending · Evidence: [M6](evidence/M6.md) · Notebook: [M6](notebook/M6.md)
+
+---
+
+## I2 — Prebuilt FIDL generators
+
+**Design coverage:** I2 (shapes R5). **Dependencies:** none; run any time before M7.
+**Evidence to collect:**
+- The GCS listing of the release's build directory (the method from I1).
+- CIPD package search for `fidlgen` (`https://chrome-infra-packages.appspot.com/prpc/cipd.Repository/ListPrefix`
+  on `fuchsia/`).
+- Whether the IDK's `tools/` has either generator (brief F1 says no; recheck at this
+  release).
+
+**Exit:** either a pinned anonymous URL plus hash for each generator for linux-amd64,
+or "not published" recorded, which selects the build-from-source route in M7. Evidence
+goes in `docs/evidence/I2.md`.
+
+---
+
+## M7 — FIDL generators as Bazel host tools
+
+**Design coverage:** R5 (tools), A4, D7. **Dependencies:** I2, M6.
+**In scope:** `tools/fidlgen_rust` and `tools/fidlgen_rust_next`, either fetched by pin
+(I2 found prebuilts, added to the lock) or built from source at the revision. If built
+from source:
+- `fidlgen_rust` (Go) uses `rules_go` and upstream's `BUILD.bazel`.
+- `fidlgen_rust_next` (Rust, askama templates) needs a hand-written
+  `overlays/tools/fidl/fidlgen_rust_next/BUILD.bazel` and host crates.
+
+**Out of scope:** the binding rule (M8).
+
+### Implementation steps
+1. If prebuilt, add the entries to `resolve_pins.py` and the lock, plus a repository
+   rule; done.
+2. Otherwise, vendor `tools/fidl/fidlgen_rust`, `tools/fidl/lib/fidlgen` and
+   `tools/fidl/fidlgen_rust_next` via `regen.py vendor`. Add `rules_go` to
+   `MODULE.bazel`, and extend `third_party/crates/` with `fidlgen_rust_next`'s host
+   crates (from its `BUILD.gn`).
+3. Run both on the IR of one small IDK library (`fuchsia.mem`), produced by the IDK's
+   `fidlc`.
+
+### Acceptance criteria
+- [ ] `bazel run //tools/fidlgen_rust -- --help` and the same for `fidlgen_rust_next`
+  succeed.
+- [ ] Each generates Rust from `fuchsia.mem` IR. The output diffs cleanly against the
+  same generator's output upstream, where a reference is available; otherwise it
+  compiles in M8.
+- [ ] Host-only crates do not leak into the Fuchsia target builds.
+
+### Testing and review
+- Review focus: C1 for any Go module downloads (checksummed via `go.sum`), and the size
+  of the host crate tree (record the count; a risk in design §8.2).
+
+### Session sizing
+The build-from-source route is two tools in two languages, and too much for one
+session. If I2 says "not published", split before starting: M7a covers
+`fidlgen_rust_next`, which is on the critical path for every pilot (F6); M7b covers
+`fidlgen_rust`.
+
+### Evidence and findings
+Status: pending · Evidence: [M7](evidence/M7.md) · Notebook: [M7](notebook/M7.md)
+
+---
+
+## M8 — FIDL Rust binding rule, both flavors
+
+**Design coverage:** R5, D7, F6. **Dependencies:** M7.
+**In scope:**
+- `rules/fidl_rust.bzl`:
+  - the `rust` flavor, ported from upstream `fidl_rust_library.bzl`;
+  - the new `rust_next` flavor, whose crate naming and flags come from the GN template
+    that produces `_rust_next` targets (find it:
+    `git grep -n rust_next -- build/fidl`).
+- The FIDL runtime crates the bindings need, vendored through M5's mechanism:
+  `src/lib/fidl/rust/fidl`, `rust_next/fidl_next*`, `fidl/rust_constants`, and their
+  deps (`fuchsia-async` and so on, per `pilot1.json`).
+- Binding targets for every FIDL library in pilot 1's closure.
+
+**Out of scope:** `fdomain` flavor unless pilot 1 needs it (record if it does); pilot 2
+libraries (M12).
+
+### Implementation steps
+1. Locate the `rust_next` GN template and record its path and flags in the M8 chapter.
+2. The rule runs the IDK's `fidlc` over IDK FIDL sources and dependency IR to produce
+   JSON IR, then the generator, then a `rust_library` with the flavor's deps.
+3. Vendor the runtime crates in dependency order, building each.
+4. Declare bindings for the pilot 1 FIDL list, both flavors where the closure uses them.
+5. If a library is not in the IDK (as `fuchsia.sys2` was for the brief's closure),
+   record it. Trim the dependency with a patch, or take the FIDL source from the
+   revision, and record the choice.
+
+### Acceptance criteria
+- [ ] Bindings for every FIDL library in `pilot1.json` compile for both targets, in
+  each flavor the closure uses.
+- [ ] Crate names match what vendored crates `use` (e.g. `fidl_fuchsia_io`,
+  `fidl_next_fuchsia_io`); the evidence records the `rust_next` naming rule.
+- [ ] `regen.py --check` is clean after vendoring the runtime crates.
+
+### Testing and review
+- Review focus: flags and features parity with upstream's GN template, and the IR
+  dependency order (a library's deps compiled first).
+
+### Session sizing
+Split point: the `rust` flavor with its runtime crates (M8a), then the `rust_next`
+flavor (M8b). Split before starting if the runtime crate list in `pilot1.json` is
+longer than about 10 crates.
+
+### Evidence and findings
+Status: pending · Evidence: [M8](evidence/M8.md) · Notebook: [M8](notebook/M8.md)
+
+---
+
+## M9 — Pilot 1 in-tree crates vendored
+
+**Design coverage:** R6 (pilot 1 set), D8. **Dependencies:** M8.
+**In scope:** the remaining in-tree crates in `pilot1.json`, in particular:
+- the `sdk/lib/driver/runtime/rust/*` crates (`fdf` and its parts);
+- `sdk/lib/driver/component/rust` (`fdf_component`);
+- `sdk/lib/async/rust/*`.
+
+Most have no upstream `BUILD.bazel` (brief A.1), so each gets a reviewed
+`overlays/…/BUILD.bazel`. Trims needed to avoid heavyweights go in as patches.
+
+**Out of scope:** pilot 2 crates (`mmio`, `pdev`, `fdf_metadata`).
+
+### Implementation steps
+1. For each crate without Bazel, translate `BUILD.gn` (`sources`, `deps`, `edition`,
+   `features`, `name`) into `overlays/<path>/BUILD.bazel`, then review it by hand
+   (design §4.2).
+2. Vendor bottom-up, building each crate before its dependants.
+3. Any trim (a conditional dependency the walker counted) becomes a
+   `patches/fuchsia/…` file with a comment giving the reason.
+
+### Acceptance criteria
+- [ ] `fdf`, `fdf_component` and every other in-tree crate in `pilot1.json` build for
+  both targets.
+- [ ] `regen.py --check` is clean; every change against upstream is in `overlays/` or
+  `patches/`.
+- [ ] The evidence lists each patch with its reason and each `overlays/` file.
+
+### Testing and review
+- Review focus: overlay BUILD files against their `BUILD.gn` (a missed feature flag
+  compiles but changes behavior), and patch minimality.
+
+### Session sizing
+Split point: the runtime crates (`fdf*`, `async`) then `fdf_component`. Budget follows
+the crate count in `pilot1.json`; split before starting if more than about 12 crates
+need overlays.
+
+### Evidence and findings
+Status: pending · Evidence: [M9](evidence/M9.md) · Notebook: [M9](notebook/M9.md)
+
+---
+
+## M10 — `fuchsia_rust_driver` rule; pilot 1 packages
+
+**Design coverage:** R7, F3, A3. **Dependencies:** M9.
+**In scope:**
+- `rules/fuchsia_rust_driver.bzl`: a `cdylib`, linked with
+  `-Wl,--version-script=` pointing at `rules_fuchsia`'s `driver.ld`, against
+  `@fuchsia_sdk//pkg/driver_runtime_shared_lib`. It returns the providers
+  `fuchsia_driver_component` consumes (modeled on `fuchsia_cc.bzl`, with
+  `install_root = "driver/"`).
+- The restricted-symbols check and an exported-symbols test.
+- `drivers/simple_rust/`: the source copied from `examples/drivers/simple/rust` at the
+  revision, plus its checked-in `.cml`. A placeholder `.bind` builds now; I3 sets the
+  real one.
+
+**Out of scope:** binding on the emulator (M11).
+
+### Implementation steps
+1. Write the rule and the providers, and package `drivers/simple_rust:pkg`.
+2. A `sh_test`/Python test using `llvm-readelf --dyn-syms` asserts that
+   `__fuchsia_driver_registration__` is the only exported defined symbol.
+3. Wire `rules_fuchsia`'s restricted-symbols check as a build action.
+4. **`DT_NEEDED` reference (see the Design coverage gap):**
+   1. List the Rust drivers in the `core.x64` product bundle.
+   2. Extract one and compare its `DT_NEEDED` with pilot 1's.
+   3. Report differences.
+5. If A3 fails (Rust `std` imports a restricted symbol), compare with the in-tree Rust
+   driver config (the brief notes `//build/config/rust:bootfs`). Record the fix as a
+   decision.
+
+### Acceptance criteria
+- [ ] `bazel build --config=fuchsia_x64 //drivers/simple_rust:pkg` and the arm64
+  equivalent produce a driver package.
+- [ ] The exported-symbols test passes for both targets.
+- [ ] The restricted-symbols check passes for both targets.
+- [ ] `DT_NEEDED` comparison recorded; any library absent from the reference driver is
+  explained or removed. The owner confirms this reading of R7 (see gap).
+
+### Testing and review
+- Verify with `bazel test //drivers/simple_rust/...` under both configs.
+- Review focus: link flags against `driver.ld`, provider compatibility with
+  `fuchsia_driver_component`, and that no test is weakened to pass.
+- Review method: `review-swarm` if available (the review spans rule, link and
+  packaging); otherwise inherit.
+
+### Session sizing
+Starts from brief §3.3, W6, and upstream `fuchsia_cc.bzl`. The main uncertainty is A3.
+Split point: the rule plus the symbol tests first, then the `DT_NEEDED` comparison.
+
+### Evidence and findings
+Status: pending · Evidence: [M10](evidence/M10.md) · Notebook: [M10](notebook/M10.md)
 
 ---
 

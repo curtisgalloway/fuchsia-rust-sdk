@@ -51,6 +51,24 @@ use_repo(lock_repos, "fuchsia_idk", "fuchsia_rust_toolchain", "rules_fuchsia")
 fuchsia_repos = use_extension("//toolchain:fuchsia.bzl", "fuchsia_repos")
 use_repo(fuchsia_repos, "fuchsia_clang", "fuchsia_sdk", "fuchsia_sdk_toolchain")
 
+# API levels for the Rust toolchains' --cfg=fuchsia_api_level_* flags (design R3,
+# rules/rustc_api_level.bzl): from the IDK's version_history.json, and from two pinned
+# copies that the golden test in tests/api_level runs the same code on.
+api_levels = use_extension("//toolchain:api_levels.bzl", "api_levels")
+api_levels.from_version_history(
+    name = "fuchsia_api_levels",
+    version_history = "@fuchsia_idk//:version_history.json",
+)
+api_levels.from_version_history(
+    name = "api_levels_testdata_idk",
+    version_history = "//tests/api_level:testdata/idk_version_history.json",
+)
+api_levels.from_version_history(
+    name = "api_levels_testdata_sdk",
+    version_history = "//tests/api_level:testdata/sdk_version_history.json",
+)
+use_repo(api_levels, "api_levels_testdata_idk", "api_levels_testdata_sdk", "fuchsia_api_levels")
+
 register_toolchains("@fuchsia_sdk_toolchain//:all")
 register_toolchains("@fuchsia_clang//:all")
 
