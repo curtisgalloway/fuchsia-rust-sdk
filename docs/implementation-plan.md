@@ -88,7 +88,7 @@ in the cloud.
 | M9b | 28 upstream-Bazel in-tree crates + 7 overlays (incl. `fuchsia-component`) (R6) | M9a | cloud | complete |
 | M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | complete |
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | complete |
-| I3 | Emulator bind target for pilot 1 confirmed at this release; pilot builds with it | M3 | cloud (emulator) | in review |
+| I3 | Emulator bind target for pilot 1 confirmed at this release; pilot builds with it | M3 | cloud (emulator) | complete |
 | M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | pending |
 | G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone | M11 | cloud (emulator) | pending |
 | I4 | Method to replace the in-tree `aml-saradc` on the VIM3 | — | **lab** | pending |
@@ -581,7 +581,8 @@ unchanged and needs no change to bind (it keeps `fuchsia.test_rust` for its chil
 property). Also fixed: M10's `elf_test` SIGPIPE flake (`readelf | grep -q` under
 `pipefail`).
 **Design coverage:** I3 (blocks R8a's "binds"). **Dependencies:** M3.
-**Status:** in review (the orchestrator's reviewer runs before the checkpoint). The detailed entry is in the evidence file.
+**Status:** complete. An independent reviewer subagent (launched by the orchestrator)
+reviewed before the checkpoint: land after fixes (2 minor, 2 nits; all resolved). The detailed entry is in the evidence file.
 **Evidence:** [I3](evidence/I3.md) · **Notebook:** [I3](notebook/I3.md)
 **Open limitations:** binding on the target is M11's; `ffx driver static-checks` flags
 upstream's manifest for no `device_categories` (not a bind input). **For M11:** step 1's
@@ -1198,9 +1199,9 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **I3 in review.** Branch `ms/I3` from
+- Current milestone and status: **I3 complete.** Branch `ms/I3` from
   `2a63354`; `wip` commits (chapter, rule and bind test, the `elf_test` fix, the bind test
-  rule, evidence, plan), then, after the orchestrator's review and fixes, the checkpoint
+  rule, evidence, plan), review fixes, then the checkpoint
   commit `overlay: I3 — Emulator bind target for pilot 1`.
 - Completed work and evidence: [I3 evidence](evidence/I3.md) (device listing, composite
   node spec, bind rule, `bindc` checks, project checks, disk).
