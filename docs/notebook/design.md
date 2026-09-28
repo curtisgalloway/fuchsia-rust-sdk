@@ -5,14 +5,14 @@ SPDX-License-Identifier: Apache-2.0
 
 # design — Design and planning
 
-Goal: turn the brief (`~/src/fuchsia-ci/docs/drivers/rust-driver-oot-plan.md`)
+Goal: turn the brief ([`../brief.md`](../brief.md), from `fuchsia-ci` `b061204`)
 into an approved design and an implementation plan for this repo.
 Verdict record: [design](../design.md), then `../implementation-plan.md`.
 
 ## 2026-09-27T17:29-07:00 — opening
 Starting revision: none (empty repo, no commits). Pre-existing changes: none.
 Approach: resolve the brief's open questions with the owner, check pilot
-candidates in the local `fuchsia.git` tree (`~/src/fuchsia` at `b5274053`),
+candidates in the local `fuchsia.git` checkout (at `b5274053`),
 write the design, stop at the design gate.
 
 ## 2026-09-27T17:30-07:00 — direction: open questions answered
