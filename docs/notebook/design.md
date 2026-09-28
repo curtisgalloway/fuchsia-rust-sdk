@@ -44,3 +44,11 @@ make release bumps reviewable diffs. Flagged for the owner at the design gate.
 ## 2026-09-27T17:32-07:00 — checkpoint
 State: design draft 1 written; waiting on design-gate approval (including D6).
 Next: on approval, derive `docs/implementation-plan.md`.
+
+## 2026-09-27T17:33-07:00 — direction: design approved
+Owner approved design draft 1 as written, including D6 (commit vendored
+source). Work continues in a cloud session.
+
+## 2026-09-27T17:33-07:00 — checkpoint
+State: design gate passed. Next: derive `docs/implementation-plan.md` from
+[design](../design.md) (revision: commit after `a84035a` that records approval).

@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Rust drivers out of tree (the overlay) — Design
 
-Revision: 2026-09-27, draft 1 (awaiting approval)
+Revision: 2026-09-27, draft 1 — approved by the owner 2026-09-27, including D6
 
 Source brief: `~/src/fuchsia-ci/docs/drivers/rust-driver-oot-plan.md` (the
 "brief"). It holds the upstream evidence, with paths relative to `fuchsia.git`.
@@ -364,7 +364,7 @@ the run with the patch name and the conflicting file.
   runs on x64, pilot 2 on arm64; every build requirement checks both.
 - **D5. Production builds only in milestone 1** (user decision 2026-09-27).
   Unit tests are R9, in milestone 2.
-- **D6. Vendored source is committed.** *Proposed; confirm at the design gate.*
+- **D6. Vendored source is committed.** *Approved at the design gate 2026-09-27.*
   `vendor/` and `third_party/crates/` are generated but committed, one release
   at a time on `main`, with git history keeping earlier releases.
   *Alternative:* a Bazel repository rule that sparse-fetches `fuchsia.git` at
