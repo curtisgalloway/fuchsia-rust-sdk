@@ -21,11 +21,13 @@
 #     //rules/lints:fidl_rust); `--include-drivers` is passed only on Fuchsia and only
 #     with enable_rust_drivers (fidl.gni forwards contains_drivers to fidl_rust() only
 #     then).
-#   - Driver transport: GN also sets the crate feature "driver" and adds
-#     //src/lib/fidl/rust/fidl_driver and //sdk/lib/driver/runtime/rust on Fuchsia.
-#     Upstream's Bazel rule leaves them out (fxbug.dev/503359085), and so does the
-#     overlay until those crates are vendored (milestone M9): the generated driver code
-#     is all #[cfg(feature = "driver")], so the crates compile without it.
+#   - Driver transport (milestone M9a): as GN, a library with contains_drivers and
+#     enable_rust_drivers gets, on Fuchsia, the crate feature "driver" and the deps
+#     //src/lib/fidl/rust/fidl_driver and //sdk/lib/driver/runtime/rust, in both its
+#     regular and its common crate (fidl_rust.gni's shared_features, shared_deps).
+#     Upstream's Bazel rule leaves them out (fxbug.dev/503359085); the generated driver
+#     code is all #[cfg(feature = "driver")], so without them it compiles but has no
+#     driver transport.
 #   - The generator is //tools/fidlgen_rust (built from vendored source, M7), and the
 #     rustfmt config is fuchsia.git's root rustfmt.toml (//vendor/fuchsia:rustfmt.toml).
 #   - Output files are named <name>_<flavor>.rs, inside the symbolic macro's namespace.
@@ -50,9 +52,10 @@ _ZX_FIDL = Label("//vendor/fuchsia/zircon/vdso/zx:zx")
 # Overlay: GN's lint configs for the bindings (see the header).
 _LINT_CONFIG = Label("//rules/lints:fidl_rust")
 
-# Overlay: the driver transport (feature "driver", fidl_driver, the driver runtime) is
-# milestone M9; see the header.
-_DRIVER_TRANSPORT = False
+# Overlay: the driver transport's crates (see the header; GN's labels
+# //src/lib/fidl/rust/fidl_driver and //sdk/lib/driver/runtime/rust).
+_FIDL_DRIVER = Label("//vendor/fuchsia/src/lib/fidl/rust/fidl_driver")
+_FDF = Label("//vendor/fuchsia/sdk/lib/driver/runtime/rust")
 
 def fidl_rust_library(
         *,
@@ -162,18 +165,22 @@ def _fidl_rust_library_flavor(flavor, name, fidl_library_name, fidl_ir_json, dep
     if flavor != "common":
         library_deps.append(":" + _fidl_rust_flavor_label_name(name, "common"))
 
-    if include_drivers and _DRIVER_TRANSPORT:
+    driver_deps = []
+    driver_features = []
+    if include_drivers:
         # TODO(https://fxbug.dev/503359085): driver transport support
         #     library_deps += [
         #         "//src/lib/fidl/rust/fidl_driver",
         #         "//sdk/lib/driver/runtime/rust",
         #     ]
-        # Overlay: milestone M9, with crate_features = ["driver"] on Fuchsia.
-        pass
+        # Overlay: done as GN (fidl_rust.gni): on Fuchsia only (include_drivers is
+        # already Fuchsia-only for the generator), for the fidl and common flavors alike.
+        driver_deps = [_FIDL_DRIVER, _FDF]
+        driver_features = ["driver"]
 
     # `select()` must be appended last.
     library_deps += select({
-        "@platforms//os:fuchsia": [_ZX],
+        "@platforms//os:fuchsia": [_ZX] + driver_deps,
         "//conditions:default": [],
     })
 
@@ -182,6 +189,11 @@ def _fidl_rust_library_flavor(flavor, name, fidl_library_name, fidl_ir_json, dep
         crate_name = _fidl_rust_flavor_crate_name(fidl_library_name, flavor),
         srcs = [fidlgen_label],
         deps = library_deps,
+        # Overlay: GN's shared_features (see above).
+        crate_features = select({
+            "@platforms//os:fuchsia": driver_features,
+            "//conditions:default": [],
+        }),
         edition = "2018",
         # Overlay: GN's lints (the header); upstream's Bazel rule sets only the tag.
         lint_config = _LINT_CONFIG,

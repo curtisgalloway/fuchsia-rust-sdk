@@ -1,0 +1,63 @@
+# Copyright 2024 The Fuchsia Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+# SPDX-FileCopyrightText: 2024 The Fuchsia Authors
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Overlay BUILD file (design §4.2, R6; milestone M9a). Upstream has no BUILD.bazel here:
+# this is fuchsia.git sdk/lib/driver/runtime/rust/fdf_sys/BUILD.gn at the lock's fuchsia_revision (b5274053cc0f,
+# blob 43dec40649a1) translated by hand. scripts/regen.py copies it to
+# vendor/fuchsia/sdk/lib/driver/runtime/rust/fdf_sys/BUILD.bazel. GN -> Bazel:
+#   - the rustc_library's name, crate name, edition, version, sources and deps unchanged;
+#     in-tree deps -> //vendor/fuchsia/<path>, //third_party/rust_crates:<c> ->
+#     @rust_crates//vendor:<c>, C libraries -> the IDK's prebuilt @fuchsia_sdk//pkg/<name>
+#     (//sdk/lib/async -> pkg/async, //sdk/lib/async-default -> pkg/async-default,
+#     //src/devices/lib/driver:driver_runtime (the link stub) and
+#     //src/devices/bin/driver_runtime -> pkg/driver_runtime_shared_lib, a cc_import of
+#     libdriver_runtime.so with both its interface and its shared library (whether a
+#     driver package ships the latter is milestone M10's question: the driver host
+#     provides it));
+#   - GN visibility "//<dir>/*" -> "//vendor/fuchsia/<dir>:__subpackages__", ":*" and
+#     "//<dir>:*" -> "...:__pkg__"; no visibility -> public;
+#   - configs += clippy_warn_all -> lint_config = //rules/lints:clippy_warn_all;
+#   - vendored = True (--cap-lints=allow), as regen.py adds to every upstream Rust rule;
+#   - Fuchsia-only (target_compatible_with): GN builds it for Fuchsia only (pilot 1's
+#     closure reaches it in the fuchsia context only), and its C deps are Fuchsia-only;
+#   - with_unit_tests kept; test_deps and the test, bindgen-golden and package targets
+#     are not translated (unit tests are milestone M16).
+
+load("//rules:rustc.bzl", "rustc_library")
+
+package(default_applicable_licenses = ["//vendor/fuchsia:license"])
+
+rustc_library(
+    name = "fdf_sys",
+    crate_name = "fdf_sys",
+    srcs = [
+        "src/bindings.rs",
+        "src/lib.rs",
+    ],
+    crate_root = "src/lib.rs",
+    edition = "2024",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+    vendored = True,
+    version = "0.1.0",
+    visibility = [
+        "//vendor/fuchsia/sdk/lib/driver:__subpackages__",
+        "//vendor/fuchsia/src/devices/bin/driver-host:__subpackages__",
+        "//vendor/fuchsia/src/lib/dso/rust:__subpackages__",
+        "//vendor/fuchsia/src/sys/runners/dso:__subpackages__",
+        "//vendor/fuchsia/src/ui/bin/scene_manager:__subpackages__",
+    ],
+    with_unit_tests = True,
+    deps = [
+        "//vendor/fuchsia/sdk/lib/async/rust/sys",
+        "//vendor/fuchsia/sdk/rust/zx-types",
+    ],
+)
+
+# GN's rustc_bindgen_golden("fdf_sys_bindgen_golden") (a check of the checked-in
+# src/bindings.rs against bindgen's output over the driver runtime headers) is not
+# translated: the checked-in bindings are what upstream compiles.

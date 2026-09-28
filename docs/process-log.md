@@ -340,3 +340,55 @@ Cost: coarser timing in the chapter; a repeat of an open process-log item.
 Prevention: one entry per command, appended right after the event it records.
 Fix belongs in: agent habit (lab-notebook skill already says so)
 Status: open
+
+## 2026-09-28T03:55-07:00 — failed command: `vendor/crates.txt` edit script dropped the blank line
+Chapter: [M9](notebook/M9.md)
+What happened: a Python script inserting the 11 `overlay` entries rejoined the header and
+the entries without the blank line between them; `git diff` showed it and a `sed` put it
+back before `regen.py` ran. Recorded after the fact (it happened about 03:38).
+Cost: one extra step, seconds.
+Prevention: for a sorted list file, insert lines in place (or diff before moving on), not
+split-and-rejoin.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T03:55-07:00 — failed command: new closure test failed twice on my own assumptions
+Chapter: [M9](notebook/M9.md)
+What happened: `test_driver_transport_runtime_crates_are_vendored_as_overlays` first
+walked from `//src/lib/fidl/rust_next/fidl_next` normalised to target `fidl_next`
+(GN's target is `fidl_next_internal`), then expected `fdf_env` in the transport's
+closure, which the split decision itself had said it is not. Two pytest reruns. Recorded
+after the fact (about 03:44–03:46).
+Cost: two reruns, a minute.
+Prevention: derive roots from the closure's own labels (as the earlier tests do) instead
+of spelling labels by hand; reread the decision entry before encoding it in a test.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T03:55-07:00 — surprise: a visibility entry that Bazel did not need, and a time-boxed hunt
+Chapter: [M9](notebook/M9.md)
+What happened: checking whether `fidl_driver`'s added `//rules:__pkg__` was needed took
+six scratch builds (with it removed, with GN's entry also removed, private, a private
+`fdf_core` control, M8b's `fidl_next` entry removed, private `fdf`). The macro-added
+`rust`-flavor edge was never checked; the cause stayed unknown and I stopped. One
+scratch edit of a generated file under `vendor/` was restored from a copy and
+`regen.py --check` rerun each time. Recorded after the fact (about 03:45–03:51).
+Cost: about six minutes; no wrong result shipped (the entry is kept and documented).
+Prevention: decide the time box before starting such a probe; do scratch edits of
+`vendor/` in a copy of the tree, not in place.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T04:13-07:00 — instruction gap: M9 failures recorded late, and not in the notebook
+Chapter: [M9](notebook/M9.md)
+What happened: the independent review of M9a found that the three process-log entries
+of 03:55 were all written after the fact, in a row at the end, and that the chapter has
+no entry for the failed commands they describe (the `crates.txt` edit, the two failing
+test runs); the visibility probe was noted in the chapter only at its end (03:51). Stamps
+were not edited. The same pattern as the open M8 and M8b items: entries batched at a
+checkpoint rather than written at the event.
+Cost: a reviewer finding; coarser timing in both records.
+Prevention: write the process-log entry (and a notebook attempt entry when it changes
+the path) in the command right after the failure, before the fix.
+Fix belongs in: agent habit (lab-notebook skill already says so)
+Status: open

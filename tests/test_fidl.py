@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Curtis Galloway
 # SPDX-License-Identifier: Apache-2.0
-"""The vendored FIDL libraries and runtime crates match pilot 1's closure (milestone M8).
+"""The vendored FIDL libraries and runtime crates match pilot 1's closure (milestones M8,
+M8b; the driver transport's runtime, M9a).
 
 Consistency checks between committed files: vendor/crates.txt and tests/fidl/BUILD.bazel
 against docs/closure/pilot1.json, and the Fuchsia-only patches against the closure's
@@ -19,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CLOSURE = json.loads((ROOT / "docs/closure/pilot1.json").read_text())
 LISTED = {c.path: c.build for c in regen.read_vendor_list((ROOT / regen.VENDOR_LIST).read_text())}
 
-# The driver transport's crates (fidl.gni with enable_rust_drivers; milestone M9).
+# The driver transport's crates (fidl.gni with enable_rust_drivers; milestone M9a).
 DRIVER_TRANSPORT = {"//src/lib/fidl/rust/fidl_driver", "//sdk/lib/driver/runtime/rust"}
 
 
@@ -88,21 +89,27 @@ def test_fuchsia_only_patches_are_for_crates_used_only_on_fuchsia():
 
 # --- rust_next (milestone M8b) --------------------------------------------------------
 
-# rust_next's driver dep (fidl_rust_next.gni with contains_drivers; milestone M9).
+# rust_next's driver dep (fidl_rust_next.gni with contains_drivers; milestone M9a).
 NEXT_DRIVER_TRANSPORT = {"//sdk/lib/driver/runtime/rust/fidl"}
 
 
-def _rust_next_libraries_without_drivers() -> list[str]:
-    return sorted(f["library"] for f in CLOSURE["fidl"]
-                  if "rust_next" in f["flavors"] and not f["contains_drivers"])
+def _rust_next_libraries() -> list[str]:
+    return sorted(f["library"] for f in CLOSURE["fidl"] if "rust_next" in f["flavors"])
 
 
-def test_rust_next_test_list_is_the_closures_without_drivers():
+# fuchsia.power.broker's crates are visible only to upstream's packages (tests/fidl).
+_RESTRICTED = {"fuchsia.power.broker"}
+
+
+def test_rust_next_test_list_is_the_closures():
     text = (ROOT / "tests/fidl/BUILD.bazel").read_text()
     block = text.split("_RUST_NEXT_LIBRARIES = [", 1)[1].split("]", 1)[0]
     libs = re.findall(r'"([^"]+)"', block)
-    assert libs == _rust_next_libraries_without_drivers()
-    assert len(libs) == 17
+    assert libs == _rust_next_libraries()
+    # 17 without contains_drivers (M8b) + fuchsia.driver.framework, fuchsia.power.broker (M9a).
+    assert len(libs) == 19
+    assert {f["library"] for f in CLOSURE["fidl"] if f["contains_drivers"]} == {
+        "fuchsia.driver.framework", "fuchsia.power.broker"}
     # Every rust_next library the closure has uses rust_next_common too.
     assert all("rust_next_common" in f["flavors"] for f in CLOSURE["fidl"] if "rust_next" in f["flavors"])
 
@@ -110,7 +117,7 @@ def test_rust_next_test_list_is_the_closures_without_drivers():
 def test_crate_names_next_names_both_crates_of_each_library():
     text = (ROOT / "tests/fidl/src/crate_names_next.rs").read_text()
     used = re.findall(r"^pub use (\w+);$", text, re.M)
-    want = [n for lib in _rust_next_libraries_without_drivers()
+    want = [n for lib in _rust_next_libraries() if lib not in _RESTRICTED
             for n in (f"fidl_next_{lib.replace('.', '_')}", f"fidl_next_common_{lib.replace('.', '_')}")]
     assert used == want
     # The names the closure's GN targets give these crates (fidl_rust_next.gni).
@@ -140,3 +147,64 @@ def test_rust_next_flavor_runtime_crates_are_vendored():
                      "sdk/rust/zx-sys", "sdk/rust/zx-types"}
     assert paths <= set(LISTED)
     assert all(LISTED[p] == "upstream" for p in paths)
+
+
+# --- The driver transport's runtime (milestone M9a) -----------------------------------
+
+DRIVER_RUNTIME = {
+    "sdk/lib/async/rust", "sdk/lib/async/rust/dispatcher", "sdk/lib/async/rust/fidl",
+    "sdk/lib/async/rust/sys", "sdk/lib/driver/runtime/rust", "sdk/lib/driver/runtime/rust/channel",
+    "sdk/lib/driver/runtime/rust/core", "sdk/lib/driver/runtime/rust/env",
+    "sdk/lib/driver/runtime/rust/fdf_sys", "sdk/lib/driver/runtime/rust/fidl",
+    "src/lib/fidl/rust/fidl_driver",
+}
+
+
+def _closure_from(roots: set[str]) -> set[str]:
+    deps = _intree_deps()
+    seen, todo = set(), list(roots)
+    while todo:
+        label = todo.pop()
+        if label not in seen:
+            seen.add(label)
+            todo += deps.get(label, ())
+    return {label[2:].split(":")[0] for label in seen}
+
+
+def test_driver_transport_runtime_crates_are_vendored_as_overlays():
+    """What the driver transport adds to the bindings' closure (fidl_driver and fdf for
+    the rust flavor, fdf_fidl for rust_next) is the 11 driver runtime crates, each an
+    overlay; the rest of its closure was vendored by M8a/M8b."""
+    driver = DRIVER_TRANSPORT | NEXT_DRIVER_TRANSPORT
+    bindings = [ds for user, ds in _intree_deps().items() if user.startswith("//sdk/fidl/")]
+    transport = _closure_from({d for ds in bindings for d in ds if d.split(":")[0] in driver})
+    before = _closure_from({d for ds in bindings for d in ds if d.split(":")[0] not in driver})
+    assert len(transport) > len(DRIVER_TRANSPORT | NEXT_DRIVER_TRANSPORT)
+    env = "sdk/lib/driver/runtime/rust/env"
+    assert transport - before == DRIVER_RUNTIME - {env}
+    assert transport <= set(LISTED)
+    assert {p for p in DRIVER_RUNTIME if LISTED[p] == "overlay"} == DRIVER_RUNTIME
+    # fdf_env is in the closure through fdf_component (M9b) only, not the transport; M9a
+    # vendors it with the other fdf* crates.
+    (env_target,) = next(c["targets"] for c in CLOSURE["intree"] if c["path"] == env)
+    assert env_target["used_by"] == ["//sdk/lib/driver/component/rust"]
+
+
+def test_driver_runtime_overlays_are_fuchsia_only_like_their_closure_context():
+    contexts = {c["path"]: {ctx for t in c["targets"] for ctx in t["contexts"]} for c in CLOSURE["intree"]}
+    for path in DRIVER_RUNTIME:
+        assert contexts[path] == {"fuchsia"}, path
+        overlay = (ROOT / regen.OVERLAYS / path / "BUILD.bazel").read_text()
+        assert overlay.count('target_compatible_with = ["@platforms//os:fuchsia"],') == 1, path
+        assert (ROOT / regen.VENDOR_OUT / path / "BUILD.bazel").read_text() == overlay, path
+
+
+def test_driver_runtime_overlays_name_the_closures_crates():
+    """Each overlay's rustc_library has the crate name and target name GN gives it."""
+    crates = {c["path"]: c["targets"] for c in CLOSURE["intree"]}
+    for path in DRIVER_RUNTIME:
+        (target,) = crates[path]
+        overlay = (ROOT / regen.OVERLAYS / path / "BUILD.bazel").read_text()
+        assert f'    name = "{target["target"]}",\n    crate_name = "{target["crate_name"]}",\n' in overlay, path
+        assert f'    edition = "{target["edition"]}",' in overlay, path
+        assert target["features"] == [] and "crate_features" not in overlay, path

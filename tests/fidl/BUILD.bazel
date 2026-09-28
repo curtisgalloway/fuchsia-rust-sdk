@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Tests for the FIDL binding rule (//rules:fidl.bzl, //rules:fidl_rust.bzl,
-# //rules:fidl_rust_next.bzl; design R5, milestones M8a and M8b), on the FIDL libraries
-# regen.py vendors from pilot 1's closure.
+# //rules:fidl_rust_next.bzl; design R5, milestones M8a, M8b and M9a), on the FIDL
+# libraries regen.py vendors from pilot 1's closure.
 #
 # The Fuchsia checks are build assertions: `scripts/bazel build --config=fuchsia_x64
 # //...` (and arm64) compiles them. The host checks are `scripts/bazel test //...`.
@@ -62,10 +62,11 @@ rustc_library(
     ],
 )
 
-# rust_next (milestone M8b): src/crate_names_next.rs names both crates of every library
-# the closure uses in that flavor, except the two with contains_drivers
-# (fuchsia.driver.framework, fuchsia.power.broker), whose rust_next crates need the driver
-# transport (M9). tests/test_fidl.py keeps this list equal to pilot1.json's.
+# rust_next (milestones M8b, M9a): src/crate_names_next.rs names both crates of every
+# library the closure uses in that flavor (tests/test_fidl.py keeps this list equal to
+# pilot1.json's), except fuchsia.power.broker's, visible only to upstream's packages (the
+# allowlist intersected with its restricted visibility); fuchsia.driver.framework's
+# rust_next crates depend on them.
 _RUST_NEXT_LIBRARIES = [
     "fuchsia.component",
     "fuchsia.component.decl",
@@ -76,10 +77,12 @@ _RUST_NEXT_LIBRARIES = [
     "fuchsia.device.fs",
     "fuchsia.diagnostics",
     "fuchsia.diagnostics.types",
+    "fuchsia.driver.framework",
     "fuchsia.io",
     "fuchsia.ldsvc",
     "fuchsia.logger",
     "fuchsia.mem",
+    "fuchsia.power.broker",
     "fuchsia.process",
     "fuchsia.unknown",
     "fuchsia.url",
@@ -94,7 +97,27 @@ rustc_library(
     deps = [
         "//vendor/fuchsia/sdk/fidl/%s:%s_%s" % (lib, lib, flavor)
         for lib in _RUST_NEXT_LIBRARIES
+        if lib not in _RESTRICTED
         for flavor in ("rust_next", "rust_next_common")
+    ],
+)
+
+# --- Driver transport (Fuchsia; milestone M9a) ------------------------------------------
+#
+# src/driver_transport.rs compiles only if fuchsia.driver.framework's rust crate has the
+# driver transport (DriverMarker exists only with feature "driver") and its rust_next
+# crate's Driver protocol uses the driver runtime's channel (fdf_fidl::DriverChannel, set
+# only with feature "driver").
+rustc_library(
+    name = "driver_transport",
+    srcs = ["src/driver_transport.rs"],
+    edition = "2024",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+    deps = [
+        "//vendor/fuchsia/sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust",
+        "//vendor/fuchsia/sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_next",
+        "//vendor/fuchsia/sdk/lib/driver/runtime/rust/fidl",
+        "//vendor/fuchsia/src/lib/fidl/rust_next/fidl_next",
     ],
 )
 
@@ -153,6 +176,9 @@ filegroup(
         ":api_level_consistency",
         ":crate_names",
         ":crate_names_next",
+        ":driver_transport",
+        # The driver runtime crates (M9a) that no binding depends on.
+        "//tests/vendor:driver_runtime_crates",
     ],
     target_compatible_with = ["@platforms//os:fuchsia"],
 )
