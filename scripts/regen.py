@@ -12,9 +12,11 @@ closure report, builds) is milestone M14.
 
 Inputs, all committed:
   overlay.lock.json        fuchsia_revision (what to copy) and cargo_lock_sha256
-  vendor/crates.txt        one "<upstream path> <upstream|overlay>" per line: which
+  vendor/crates.txt        one "<upstream path> <upstream|overlay|idk>" per line: which
                            fuchsia.git directories to copy, and where each one's
-                           BUILD.bazel comes from (upstream's, rewritten, or ours)
+                           BUILD.bazel comes from (upstream's, rewritten, or ours);
+                           "idk" (a FIDL library, M8) copies only upstream's BUILD.bazel,
+                           rewritten, with its .fidl sources taken from the IDK (D7)
   vendor/crates_io.txt     @rust_crates//vendor aliases to generate besides those the
                            vendored BUILD files use (the pilots' direct crates.io deps)
   overlays/<path>/BUILD.bazel     hand-written BUILD file for an "overlay" crate
@@ -49,6 +51,13 @@ Rewriting upstream BUILD.bazel files (parsed with Python's ast; comments untouch
   load("@rules_rust//rust:defs.bzl", "rust_proc_macro")
       -> load("//rules:rustc.bzl", rust_proc_macro = "rustc_proc_macro")
                                            (rust_library/_binary/_proc_macro only)
+  load("//build/bazel/rules/rust:defs.bzl", "rustc_test")
+                                           -> removed, with its calls (unit tests: M16)
+  load("//build/bazel/rules/fidl:fidl_library.bzl", "fidl_library")
+                                           -> load("//rules:fidl.bzl", "fidl_library") (M8);
+                                           its api_file_path becomes None (no IDK atoms here)
+  load("@fuchsia_build_info//:args.bzl", ...) -> load("//rules:build_info.bzl", ...)
+                                           (the overlay's build arguments; only those it defines)
   load of @rules_license rules             -> unchanged; any other load fails
   //build/config/rust/lints:<x>            -> //rules/lints:<x>
   //:license, //:__subpackages__, //:__pkg__  -> //vendor/fuchsia:<same>
@@ -56,6 +65,16 @@ Rewriting upstream BUILD.bazel files (parsed with Python's ast; comments untouch
   //third_party/rust_crates/<forks|ask2patch>/<dir>[:<t>] -> @rust_crates//<kind>/<dir>[:<t>]
   //<path>[:<t>], <path> listed            -> //vendor/fuchsia/<path>[:<t>]
   //<path>:__pkg__ / :__subpackages__      -> //vendor/fuchsia/<path>:<same> (visibility)
+  //build/bazel/rules/fidl:__pkg__ / :__subpackages__ -> //rules:<same> (the package of
+                                           the overlay's FIDL macros, whose targets must see
+                                           the FIDL runtime crates)
+  //sdk/lib/fdio, //zircon/system/ulib/sync -> @fuchsia_sdk//pkg/fdio, @fuchsia_sdk//pkg/sync
+                                           (C libraries the IDK ships prebuilt)
+  srcs of fidl_library in an "idk" library -> @fuchsia_sdk//fidl/<library>:<file name>
+  //<path>[:<t>] not listed, in a "//conditions:default" branch of a select()
+                                           -> //vendor/fuchsia/<path>[:<t>], provisionally:
+                                           a patch must remove it (host-only code the
+                                           overlay does not build), or regen.py fails
 Go (M7; fidlgen_rust, built with rules_go under upstream's repo name io_bazel_rules_go):
   load("@io_bazel_rules_go//go:def.bzl", ...)  -> kept for go_library/go_binary; go_test
                                            is dropped from the load, with its calls
@@ -300,7 +319,7 @@ class GitSource:
 @dataclass(frozen=True)
 class Crate:
     path: str  # upstream path, e.g. sdk/rust/zx-types
-    build: str  # "upstream" or "overlay"
+    build: str  # "upstream", "overlay" or "idk" (BUILD_MODES)
 
 
 def _check_path(path: str, where: str) -> str:
@@ -311,8 +330,12 @@ def _check_path(path: str, where: str) -> str:
     return path
 
 
+# How each listed directory's BUILD.bazel is made (vendor/crates.txt, second field).
+BUILD_MODES = ("upstream", "overlay", "idk")
+
+
 def read_vendor_list(text: str, where: str = VENDOR_LIST) -> list[Crate]:
-    """Parse vendor/crates.txt: "<path> <upstream|overlay>", '#' comments."""
+    """Parse vendor/crates.txt: "<path> <upstream|overlay|idk>", '#' comments."""
     crates: list[Crate] = []
     seen: set[str] = set()
     for n, line in enumerate(text.splitlines(), 1):
@@ -320,8 +343,8 @@ def read_vendor_list(text: str, where: str = VENDOR_LIST) -> list[Crate]:
         if not line:
             continue
         fields = line.split()
-        if len(fields) != 2 or fields[1] not in ("upstream", "overlay"):
-            raise RegenError(f"{where}:{n}: expected '<upstream path> upstream|overlay', got {line!r}")
+        if len(fields) != 2 or fields[1] not in BUILD_MODES:
+            raise RegenError(f"{where}:{n}: expected '<upstream path> {'|'.join(BUILD_MODES)}', got {line!r}")
         path = _check_path(fields[0], f"{where}:{n}")
         if path in seen:
             raise RegenError(f"{where}:{n}: {path} is listed twice")
@@ -392,6 +415,33 @@ _RULES_RUST_TO_WRAPPER = {
     "rust_proc_macro": "rustc_proc_macro",
 }
 _RUST_CALL_NAME = re.compile(r"rustc?_")
+# Upstream's unit-test rule: dropped with its calls, like Go tests (unit tests are M16).
+_DROPPED_RUST_RULES = ("rustc_test",)
+
+# FIDL libraries (milestone M8): upstream's fidl_library macro maps to the overlay's,
+# which generates the Rust bindings from the same arguments. Its api_file_path (an .api
+# file for the IDK atom) is set to None: the overlay makes no IDK atoms.
+_UPSTREAM_FIDL_RULES = "//build/bazel/rules/fidl:fidl_library.bzl"
+_FIDL_RULES = "//rules:fidl.bzl"
+_FIDL_MACRO = "fidl_library"
+# The package holding the overlay's FIDL macros, which upstream's visibility lists name
+# as //build/bazel/rules/fidl (a symbolic macro's targets are checked against it).
+_FIDL_RULES_PACKAGE = "build/bazel/rules/fidl"
+_OVERLAY_FIDL_RULES_PACKAGE = "rules"
+# The IDK's FIDL sources (D7): an "idk" library's srcs come from here.
+IDK_FIDL = "@fuchsia_sdk//fidl/{library}:{file}"
+
+# Upstream build arguments (GN writes @fuchsia_build_info//:args.bzl). The overlay's values
+# are in //rules:build_info.bzl; a load of any other name fails.
+_BUILD_INFO = "@fuchsia_build_info//:args.bzl"
+_OVERLAY_BUILD_INFO = "//rules:build_info.bzl"
+BUILD_INFO_ARGS = ("fuchsia_sync_detect_lock_cycles",)
+
+# In-tree C libraries the IDK ships prebuilt (native deps of vendored crates).
+_SDK_LIBRARIES = {
+    "//sdk/lib/fdio": "@fuchsia_sdk//pkg/fdio",
+    "//zircon/system/ulib/sync": "@fuchsia_sdk//pkg/sync",
+}
 
 # Go (milestone M7: tools/fidl/fidlgen_rust and tools/fidl/lib/fidlgen, which upstream
 # builds with rules_go). Upstream loads rules_go as @io_bazel_rules_go, and so does the
@@ -637,32 +687,110 @@ def _go_load(src: _Source, call: ast.Call, file: str, symbols: list[tuple[str, s
     return (start, end, f'load("{target}", ' + ", ".join(kept) + ")")
 
 
+def _default_branch_nodes(src: _Source) -> set[int]:
+    """ids of every node inside the "//conditions:default" value of a select() dict."""
+    out: set[int] = set()
+    for node in ast.walk(src.tree):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "select"
+                and node.args and isinstance(node.args[0], ast.Dict)):
+            for key, value in zip(node.args[0].keys, node.args[0].values):
+                if isinstance(key, ast.Constant) and key.value == "//conditions:default":
+                    out.update(id(n) for n in ast.walk(value))
+    return out
+
+
+def _fidl_library_edits(src: _Source, macros: set[str], idk: bool) -> tuple[list[tuple[int, int, str]], set[int]]:
+    """Edits for fidl_library calls, and the ids of the nodes they replace.
+
+    api_file_path becomes None. In an "idk" library each srcs entry (a file name or a
+    label) becomes the IDK's copy, @fuchsia_sdk//fidl/<library>:<file name>: the IDK puts
+    every source of a library in fidl/<library>/ (upstream's fidl_library.bzl, idk_atom).
+    """
+    edits, nodes = [], set()
+    for node in ast.walk(src.tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in macros):
+            continue
+        kw = {k.arg: k.value for k in node.keywords}
+        if "api_file_path" in kw:
+            edits.append((*src.span(kw["api_file_path"]), "None"))
+            nodes.add(id(kw["api_file_path"]))
+        if not idk:
+            continue
+        lib = kw.get("library_name", kw.get("name"))
+        if not (isinstance(lib, ast.Constant) and isinstance(lib.value, str)):
+            raise src.fail(node, f"{node.func.id}() without a plain name or library_name")
+        srcs = kw.get("srcs")
+        if not isinstance(srcs, ast.List) or not srcs.elts:
+            raise src.fail(node, f"{node.func.id}() of an IDK library needs srcs = [\"...\", ...]")
+        for elt in srcs.elts:
+            if not (isinstance(elt, ast.Constant) and isinstance(elt.value, str)):
+                raise src.fail(elt, "srcs entry is not a plain string")
+            if not _PLAIN_STRING.fullmatch(src.segment(elt)):
+                raise src.fail(elt, f"srcs entry {elt.value!r} is not a plain double-quoted string")
+            file = elt.value.rpartition(":")[2].rpartition("/")[2]
+            edits.append((*src.span(elt), json.dumps(IDK_FIDL.format(library=lib.value, file=file))))
+            nodes.add(id(elt))
+    return edits, nodes
+
+
 def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
-                           notes: list[str] | None = None) -> str:
+                           notes: list[str] | None = None, idk: bool = False,
+                           provisional: list[tuple[str, str]] | None = None) -> str:
     """Rewrite an upstream in-tree BUILD.bazel for vendor/fuchsia/ (see module doc).
 
     `notes`, when given, receives a phrase per kind of change made, for the header.
+    `idk`: the file is a FIDL library's whose sources come from the IDK.
+    `provisional`, when given, receives ("<where>:<line>", new label) for each unlisted
+    in-tree label in a //conditions:default branch; without it such a label fails.
     """
     src = _Source(text, where)
     edits: list[tuple[int, int, str]] = []
     wrappers: dict[str, str] = {}
     go_rules: set[str] = set()
     dropped: set[str] = set()
+    fidl_macros: set[str] = set()
     load_nodes: set[int] = set()
+    go_loads = build_info = False
     for call, file, symbols in _loads(src):
         load_nodes.add(id(call))
         if file in _GO_LOADS:
+            go_loads = True
             edit = _go_load(src, call, file, symbols, go_rules, dropped)
             if edit is not None:
                 edits.append(edit)
         elif file == _UPSTREAM_RUST_RULES:
+            kept = []
             for local, name in symbols:
+                if name in _DROPPED_RUST_RULES:
+                    dropped.add(local)
+                    continue
                 if name not in RUSTC_MACROS:
                     raise src.fail(call, f"loads {name} from {file}; the overlay's //rules:rustc.bzl "
-                                         f"provides only {', '.join(RUSTC_MACROS)} (rustc_test is M16)")
+                                         f"provides only {', '.join(RUSTC_MACROS)}")
                 wrappers[local] = name
-            start, end = src.span(call.args[0])
-            edits.append((start, end, '"//rules:rustc.bzl"'))
+                kept.append(f'"{name}"' if local == name else f'{local} = "{name}"')
+            if not kept:
+                edits.append((*_statement_span(src, next(st for st in src.tree.body
+                                                         if isinstance(st, ast.Expr) and st.value is call)), ""))
+            elif len(kept) == len(symbols):
+                start, end = src.span(call.args[0])
+                edits.append((start, end, '"//rules:rustc.bzl"'))
+            else:
+                edits.append((*src.span(call), 'load("//rules:rustc.bzl", ' + ", ".join(kept) + ")"))
+        elif file == _UPSTREAM_FIDL_RULES:
+            for local, name in symbols:
+                if name != _FIDL_MACRO:
+                    raise src.fail(call, f"loads {name} from {file}; the overlay's {_FIDL_RULES} "
+                                         f"provides only {_FIDL_MACRO}")
+                fidl_macros.add(local)
+            edits.append((*src.span(call.args[0]), f'"{_FIDL_RULES}"'))
+        elif file == _BUILD_INFO:
+            for local, name in symbols:
+                if name not in BUILD_INFO_ARGS:
+                    raise src.fail(call, f"loads {name} from {file}; the overlay's {_OVERLAY_BUILD_INFO} "
+                                         f"defines only {', '.join(BUILD_INFO_ARGS)} (add it there)")
+            edits.append((*src.span(call.args[0]), f'"{_OVERLAY_BUILD_INFO}"'))
+            build_info = True
         elif file == _RULES_RUST_DEFS:
             parts = []
             for local, name in symbols:
@@ -677,12 +805,21 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
             raise src.fail(call, f"load of {file}: regen.py has no mapping for it; add one or "
                                  f"write an overlay ({OVERLAYS}/<path>/BUILD.bazel)")
 
+    if idk and not fidl_macros:
+        raise RegenError(f"{where}: an 'idk' library's BUILD.bazel must load {_FIDL_MACRO} "
+                         f"from {_UPSTREAM_FIDL_RULES}")
+    default_nodes = _default_branch_nodes(src)
+
     def label(s: str, node: ast.AST) -> str:
         if s.startswith(_BUILTIN_PREFIXES) or not s.startswith("//"):
             return s
         pkg, target = _split_label(s)
         if s == "//build/config/rust/lints" or (pkg == "build/config/rust/lints" and target):
             return "//rules/lints" + target
+        if pkg == _FIDL_RULES_PACKAGE and target in (":__pkg__", ":__subpackages__"):
+            return f"//{_OVERLAY_FIDL_RULES_PACKAGE}{target}"
+        if s in _SDK_LIBRARIES:
+            return _SDK_LIBRARIES[s]
         if pkg == "" and target in (":license", ":__subpackages__", ":__pkg__"):
             return f"//{VENDOR_OUT}{target}"
         if pkg == RUST_CRATES_VENDOR and target:
@@ -697,12 +834,18 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
             return f"//{VENDOR_OUT}/{pkg}{target}"
         if pkg.startswith("build/") or pkg == "":
             raise src.fail(node, f"{s}: no overlay mapping for this label")
+        if provisional is not None and id(node) in default_nodes:
+            new = f"//{VENDOR_OUT}/{pkg}{target}"
+            provisional.append((f"{where}:{node.lineno}", new))
+            return new
         raise src.fail(node, f"depends on {s}, but {pkg} is not listed in {VENDOR_LIST}")
 
     dropped_names: list[str] = []
     drop_edits, drop_nodes = _drop_calls(src, dropped, dropped_names)
     edits += drop_edits
-    edits += _string_edits(src, label, load_nodes | drop_nodes)
+    fidl_edits, fidl_nodes = _fidl_library_edits(src, fidl_macros, idk)
+    edits += fidl_edits
+    edits += _string_edits(src, label, load_nodes | drop_nodes | fidl_nodes)
     rust_calls = _wrapper_calls(src, wrappers, frozenset(go_rules | dropped))
     edits += _vendored_edits(src, rust_calls)
     out = _apply(text, edits)
@@ -711,8 +854,12 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
         notes.append("labels rewritten")
         if rust_calls:
             notes.append("vendored = True added")
-        if go_rules or dropped:
+        if go_loads:
             notes.append("Go loads mapped")
+        if build_info:
+            notes.append("build arguments from //rules:build_info.bzl")
+        if fidl_macros:
+            notes.append("sources from the IDK" if idk else "FIDL load mapped")
         if drop_edits:
             notes.append(f"test targets dropped: {', '.join(dropped_names)}")
     return out
@@ -868,8 +1015,14 @@ exports_files(glob(["BUILD.*.bazel"]) + ["crates.json"])
 
 
 def _files_of(source: Source, crate: Crate) -> dict[str, int]:
-    """The crate's files, without subdirectories that are packages of their own."""
+    """The crate's files, without subdirectories that are packages of their own.
+
+    An "idk" library copies only its BUILD.bazel (its sources are the IDK's).
+    """
     files = source.files(crate.path)
+    if crate.build == "idk":
+        build = f"{crate.path}/BUILD.bazel"
+        return {build: files[build]} if build in files else {}
     subpackages = {str(PurePosixPath(f).parent) for f in files
                    if PurePosixPath(f).name in PACKAGE_FILES and str(PurePosixPath(f).parent) != crate.path}
     return {f: m for f, m in files.items()
@@ -921,6 +1074,18 @@ def apply_patches(root: Path, vendor_dir: Path, crates: list[Crate], home: Path)
     return applied
 
 
+def check_provisional(vendor: Path, provisional: list[tuple[str, str]]) -> None:
+    """Each provisional label (an unlisted package in a //conditions:default branch) must
+    be gone after the patches: the overlay does not build that code (module doc)."""
+    for where, new in provisional:
+        path = where.rsplit(":", 1)[0]
+        if json.dumps(new) in (vendor / path).read_text():
+            pkg = _split_label(new)[0][len(VENDOR_OUT) + 1:]
+            raise RegenError(f"{where}: depends on //{pkg} in a //conditions:default branch, but "
+                             f"{pkg} is not listed in {VENDOR_LIST}; list it, or remove the branch "
+                             f"with a patch under {PATCHES}/{PurePosixPath(path).parent}/")
+
+
 def _check_orphans(root: Path, crates: list[Crate]) -> None:
     """Every file under overlays/ and patches/fuchsia/ must be used, or it would be ignored.
 
@@ -965,6 +1130,7 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
         _write(vendor, name, everything[name])
     _write(vendor, "BUILD.bazel", _VENDOR_ROOT_BUILD.format(generated=GENERATED_BY, revision=rev).encode())
 
+    provisional: list[tuple[str, str]] = []
     for crate in crates:
         files = crate_files[crate.path]
         build = f"{crate.path}/BUILD.bazel"
@@ -974,13 +1140,14 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
             if rel == build:
                 continue
             _write(vendor, rel, data, files[rel])
-        if crate.build == "upstream":
+        if crate.build in ("upstream", "idk"):
             if build not in contents:
-                raise RegenError(f"{VENDOR_LIST}: {crate.path} is 'upstream', but upstream has no "
+                raise RegenError(f"{VENDOR_LIST}: {crate.path} is '{crate.build}', but upstream has no "
                                  f"BUILD.bazel there; write {OVERLAYS}/{crate.path}/BUILD.bazel "
                                  "and list it as 'overlay'")
             notes: list[str] = []
-            text = rewrite_upstream_build(contents[build].decode(), build, vendored, notes)
+            text = rewrite_upstream_build(contents[build].decode(), build, vendored, notes,
+                                          idk=crate.build == "idk", provisional=provisional)
             text = _header(rev, build, ", ".join(notes)) + text
         else:
             if not overlay.is_file():
@@ -991,6 +1158,7 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
         _write(vendor, build, text.encode())
 
     apply_patches(root, vendor, crates, home)
+    check_provisional(vendor, provisional)
     list_file = root / CRATES_IO_LIST
     if not list_file.is_file():
         raise RegenError(f"{CRATES_IO_LIST}: missing (list the crates.io aliases to generate, "
@@ -1095,6 +1263,8 @@ def generate_crates(vendor: Path, source: Source, out: Path, cargo_lock_sha256: 
         crates_json = {"aliases": sorted(roots), "crates": entries}
         build_list = crates_build(entries, alias_targets)
     else:
+        # No crate at all (M8 fix: this branch left crates_json unset).
+        crates_json = {"aliases": [], "crates": []}
         build_list = crates_build([], {})
     crates_json = {
         "cargo_lock": f"{FUCHSIA_GIT} {rev}:{CARGO_LOCK}",

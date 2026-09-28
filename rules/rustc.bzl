@@ -26,6 +26,9 @@
 #   - build_flags support loads from @rules_fuchsia, which ships fuchsia_rules_common;
 #     upstream has a separate @fuchsia_rules_common.
 #   - rustc_embed_files and rustc_test are not ported (not needed yet; rustc_test is M16).
+#   - rustc_proc_macro targets are host-only unless they say otherwise (milestone M8): a
+#     proc macro runs in the compiler, so it is built for the exec platform; built as a
+#     Fuchsia target (as `bazel build --config=fuchsia_x64 //...` would) it cannot link.
 
 """rules_rust wrappers with Fuchsia-specific flags: rustc_library, rustc_binary, rustc_proc_macro."""
 
@@ -44,6 +47,10 @@ _RUST_CAP_LINTS = "deny"
 # Overlay: upstream uses "//build/config/rust/lints:<name>" strings.
 _CLIPPY_WARN_PRODUCTION = Label("//rules/lints:clippy_warn_production")
 _CLIPPY_ALLOW_ALL = Label("//rules/lints:clippy_allow_all")
+
+# Overlay: where a rustc_proc_macro builds when its target does not say (the build host's
+# OS; design C5: linux-amd64).
+_PROC_MACRO_COMPATIBLE_WITH = [Label("@platforms//os:linux")]
 
 # --- common.bzl ---
 
@@ -228,6 +235,10 @@ def _rustc_proc_macro_impl(
 
     kwargs["rustc_flags"] = with_fuchsia_rustc_flags(rustc_flags, vendored)
 
+    # Overlay: host-only by default (see the file header).
+    if kwargs.get("target_compatible_with") == None:
+        kwargs["target_compatible_with"] = _PROC_MACRO_COMPATIBLE_WITH
+
     proc_macro_kwargs = wrap_rust_macro_args_with_build_flags(
         kwargs = kwargs,
         name = name,
@@ -253,7 +264,8 @@ Applies Fuchsia-specific Rust flags.
 The default lint_config value is //rules/lints:clippy_warn_production.
 
 Overlay: `vendored = True` caps lints at `allow`. Test targets (with_unit_tests,
-with_host_unit_tests) are not generated yet (M16).
+with_host_unit_tests) are not generated yet (M16). Without `target_compatible_with`, the
+target is compatible with Linux only (the build host): proc macros run in the compiler.
 """,
     implementation = _rustc_proc_macro_impl,
     inherit_attrs = rust_proc_macro,

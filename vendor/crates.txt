@@ -5,17 +5,51 @@
 # R6, D9), one per line: "<upstream path> <how its BUILD.bazel is made>".
 #   upstream  upstream's BUILD.bazel, labels rewritten by regen.py
 #   overlay   overlays/<path>/BUILD.bazel, hand-written and reviewed
+#   idk       a FIDL library (milestone M8): only upstream's BUILD.bazel is copied, labels
+#             rewritten; its .fidl sources are the IDK's (D7)
 # Every crate a listed BUILD file depends on must be listed too. Keep sorted.
+# FIDL libraries: pilot 1's closure (docs/closure/pilot1.json), each "idk" except
+# fuchsia.sys2, which is not in the IDK: its .fidl files are copied from fuchsia.git at
+# the revision ("upstream") and compiled by the IDK's fidlc like the others (M8).
 # Besides Rust crates, the list holds the Go sources of fidlgen_rust (milestone M7), which
 # the overlay builds with rules_go: its binary, its codegen package and tools/fidl/lib/fidlgen;
 # and the configs the prebuilt fidlgen_rust_next is run with.
 
+sdk/fidl/fuchsia.component idk
+sdk/fidl/fuchsia.component.decl idk
+sdk/fidl/fuchsia.component.resolution idk
+sdk/fidl/fuchsia.component.runner idk
+sdk/fidl/fuchsia.component.runtime idk
+sdk/fidl/fuchsia.component.sandbox idk
+sdk/fidl/fuchsia.data idk
+sdk/fidl/fuchsia.device.fs idk
+sdk/fidl/fuchsia.diagnostics idk
+sdk/fidl/fuchsia.diagnostics.types idk
+sdk/fidl/fuchsia.driver.framework idk
+sdk/fidl/fuchsia.inspect idk
+sdk/fidl/fuchsia.io idk
+sdk/fidl/fuchsia.ldsvc idk
+sdk/fidl/fuchsia.logger idk
+sdk/fidl/fuchsia.mem idk
+sdk/fidl/fuchsia.power.broker idk
+sdk/fidl/fuchsia.process idk
+sdk/fidl/fuchsia.process.lifecycle idk
+sdk/fidl/fuchsia.sys2 upstream
+sdk/fidl/fuchsia.unknown idk
+sdk/fidl/fuchsia.url idk
+sdk/fidl/fuchsia.version idk
 sdk/rust/zx upstream
 sdk/rust/zx-status upstream
 sdk/rust/zx-status-ext upstream
 sdk/rust/zx-sys upstream
 sdk/rust/zx-types upstream
+src/lib/fidl/rust/fidl upstream
+src/lib/fidl/rust_constants upstream
+src/lib/fuchsia-async upstream
+src/lib/fuchsia-async-macro upstream
+src/lib/fuchsia-sync upstream
 tools/fidl/fidlgen_rust upstream
 tools/fidl/fidlgen_rust/codegen upstream
 tools/fidl/fidlgen_rust_next/configs overlay
 tools/fidl/lib/fidlgen upstream
+zircon/vdso/zx idk

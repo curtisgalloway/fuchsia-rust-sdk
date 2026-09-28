@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 # Rust drivers out of tree (the overlay) — Design
 
 Revision: 2026-09-27, draft 1 — approved by the owner 2026-09-27, including D6;
-amended 2026-09-27 per owner direction and M2–M7 findings (C4, C6, A2, A4, R1, R2, R4, §4.1, §4.2 toolchain, Rust rules and third-party crates)
+amended 2026-09-27 per owner direction and M2–M8a findings (C4, C6, A2, A4, R1, R2, R4, R5, D7, §4.1, §4.2 toolchain, Rust rules and third-party crates)
 
 Source brief: [`brief.md`](brief.md), copied from `curtisgalloway/fuchsia-ci` at `b061204`
 (`docs/drivers/rust-driver-oot-plan.md`) (the
@@ -196,7 +196,8 @@ Facts found for this design (local tree at `b5274053`, 2026-09-27):
   (amended after M6b: upstream's per-platform features make some build-time crates
   unbuildable as Fuchsia targets, and proc macros cannot link as Fuchsia `.so`).
 - **R5. FIDL Rust bindings, both flavors.** A rule generates `rust` and
-  `rust_next` bindings from IDK FIDL sources with the IDK's `fidlc`. *Check:*
+  `rust_next` bindings from IDK FIDL sources (D7 exception: non-IDK libraries from
+  fuchsia.git at the release revision) with the IDK's `fidlc`. *Check:*
   bindings for every FIDL library in the pilots' closures compile for both
   targets.
 - **R6. Vendored in-tree crates.** The in-tree crates in the pilots' closures
@@ -410,7 +411,11 @@ the run with the patch name and the conflicting file.
   thousands of lines of vendored Rust in the repo (closure size after
   trimming, measured in the vendor milestone).
 - **D7. Generate FIDL bindings from IDK FIDL sources with the IDK's `fidlc`.**
-  Upstream does not publish pre-generated bindings.
+  Upstream does not publish pre-generated bindings. *Exception (amended after M8a):*
+  a closure library the IDK does not ship (pilot 1: `fuchsia.sys2`, needed by
+  `cm_rust`) takes its `.fidl` sources from fuchsia.git at the release revision via
+  `regen.py` (committed, C1/C3), still compiled with the IDK's `fidlc`. Each such
+  library is recorded in the closure report as RFC evidence.
 - **D8. Size the closure from the pilots, not the brief's three roots.** The
   brief's 67-crate closure was computed for `dw-spi`. Vendoring follows what
   `simple_rust`, then `aml-saradc`, actually need, so the first milestones carry

@@ -9,7 +9,7 @@
 # Copied from fuchsia.git build/config/rust/lints/BUILD.bazel at the lock's
 # fuchsia_revision (b5274053cc0f); the rustc_* macros in //rules:rustc.bzl use these as
 # their lint_config defaults, as upstream's do. The Fuchsia LICENSE is
-# LICENSES/BSD-2-Clause.txt. The only change is marked "Overlay:"; the LINT.IfChange
+# LICENSES/BSD-2-Clause.txt. The changes are marked "Overlay:"; the LINT.IfChange
 # markers name upstream paths.
 
 load("@rules_rust//rust:defs.bzl", "rust_lint_config")
@@ -109,4 +109,19 @@ rust_lint_config(
         "all": "allow",
     },
     rustc = _RUSTC_LINT_CONFIGS,
+)
+
+# Overlay (milestone M8): the lints GN gives FIDL Rust bindings (build/rust/fidl_rust.gni:
+# rustc_library's defaults with disable_clippy, plus the configs
+# //build/config/rust/lints:allow_unused_crate_dependencies and :deny_unused_results).
+# //rules:fidl_rust.bzl uses it; upstream's Bazel rule sets no lint config.
+rust_lint_config(
+    name = "fidl_rust",
+    clippy = {
+        "all": "allow",
+    },
+    rustc = _RUSTC_LINT_CONFIGS | {
+        "unused_crate_dependencies": "allow",
+        "unused_results": "deny",
+    },
 )

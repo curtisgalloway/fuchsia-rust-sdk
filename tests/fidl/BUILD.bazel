@@ -1,0 +1,120 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+# Tests for the FIDL binding rule (//rules:fidl.bzl, //rules:fidl_rust.bzl; design R5,
+# milestone M8), on the FIDL libraries regen.py vendors from pilot 1's closure.
+#
+# The Fuchsia checks are build assertions: `scripts/bazel build --config=fuchsia_x64
+# //...` (and arm64) compiles them. The host checks are `scripts/bazel test //...`.
+
+load("@api_levels_testdata_sdk//:args.bzl", sdk_runtime_supported = "runtime_supported_api_levels")
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
+load("//rules:rustc.bzl", "rustc_library")
+load("//tests/fidlgen:fidlgen.bzl", "contains_test")
+
+# Pilot 1's FIDL libraries (docs/closure/pilot1.json; tests/test_fidl.py keeps it equal).
+_LIBRARIES = [
+    "fuchsia.component",
+    "fuchsia.component.decl",
+    "fuchsia.component.resolution",
+    "fuchsia.component.runner",
+    "fuchsia.component.runtime",
+    "fuchsia.component.sandbox",
+    "fuchsia.data",
+    "fuchsia.device.fs",
+    "fuchsia.diagnostics",
+    "fuchsia.diagnostics.types",
+    "fuchsia.driver.framework",
+    "fuchsia.inspect",
+    "fuchsia.io",
+    "fuchsia.ldsvc",
+    "fuchsia.logger",
+    "fuchsia.mem",
+    "fuchsia.power.broker",
+    "fuchsia.process",
+    "fuchsia.process.lifecycle",
+    "fuchsia.sys2",
+    "fuchsia.unknown",
+    "fuchsia.url",
+    "fuchsia.version",
+]
+
+# --- Crate names (Fuchsia) ------------------------------------------------------------
+#
+# src/crate_names.rs names every rust-flavor crate literally, as the vendored crates do,
+# except fuchsia.power.broker's, which upstream makes visible only to a few packages
+# (fuchsia.driver.framework's bindings depend on it, so they compile only with its names).
+_RESTRICTED = ["fuchsia.power.broker"]
+
+rustc_library(
+    name = "crate_names",
+    srcs = ["src/crate_names.rs"],
+    edition = "2024",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+    deps = [
+        "//vendor/fuchsia/sdk/fidl/%s:%s_%s" % (lib, lib, flavor)
+        for lib in _LIBRARIES
+        if lib not in _RESTRICTED
+        for flavor in ("rust", "rust_common", "rust_flex")
+    ],
+)
+
+# --- API level: Fuchsia at HEAD, host at PLATFORM ---------------------------------------
+#
+# Fuchsia: the bindings are generated at the level the Rust cfgs put Fuchsia code at
+# (HEAD); api_level_consistency does not compile otherwise.
+rustc_library(
+    name = "api_level_consistency",
+    srcs = ["src/api_level_consistency.rs"],
+    edition = "2024",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+    deps = ["//vendor/fuchsia/sdk/fidl/fuchsia.io:fuchsia.io_rust"],
+)
+
+# Host: the IR (and so the bindings) is made at PLATFORM, as the host Rust cfgs (M4) and
+# upstream's host builds are: NodeInfoDeprecated (removed at 32) is in it.
+contains_test(
+    name = "fuchsia_io_ir_host_platform_test",
+    src = "//vendor/fuchsia/sdk/fidl/fuchsia.io",
+    expected = [
+        "\"name\": \"fuchsia.io/NodeInfoDeprecated\",",
+    ],
+    target_compatible_with = HOST_CONSTRAINTS,
+)
+
+# PLATFORM expands to runtime_supported_api_levels (upstream's get_platform_version.py):
+# the sunset and supported levels, NEXT and HEAD. Checked on the pinned source-tree copy
+# of version_history.json (tests/api_level/testdata), whose levels 27-32 are supported.
+write_file(
+    name = "runtime_supported_sdk",
+    out = "runtime_supported_sdk.txt",
+    content = sdk_runtime_supported + [""],
+    newline = "unix",
+)
+
+write_file(
+    name = "runtime_supported_expected",
+    out = "runtime_supported_expected.txt",
+    content = ["27", "28", "29", "30", "31", "32", "NEXT", "HEAD", ""],
+    newline = "unix",
+)
+
+diff_test(
+    name = "runtime_supported_api_levels_test",
+    file1 = ":runtime_supported_expected",
+    file2 = ":runtime_supported_sdk",
+)
+
+# The Fuchsia build checks name this target explicitly (plan, "Project checks"), so a
+# binding that became incompatible with a Fuchsia target fails the build loudly instead
+# of being skipped by //... (the M6b finding). Fuchsia only: host builds cannot name it.
+filegroup(
+    name = "fuchsia_bindings",
+    srcs = [
+        ":api_level_consistency",
+        ":crate_names",
+    ],
+    target_compatible_with = ["@platforms//os:fuchsia"],
+)

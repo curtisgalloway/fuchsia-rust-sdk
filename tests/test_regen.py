@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import subprocess
@@ -14,6 +15,7 @@ import pytest
 import regen
 
 REV = "a" * 40
+ROOT = Path(__file__).resolve().parent.parent
 
 CARGO_LOCK = b'''\
 version = 4
@@ -363,10 +365,17 @@ def test_rewrite_fails_naming_file_line_and_label(label, message):
 
 @pytest.mark.parametrize("text, message", [
     # Loads regen.py has no mapping for.
-    ('load("//build/bazel/rules/rust:defs.bzl", "rustc_library", "rustc_test")\n',
-     "f:1: loads rustc_test from //build/bazel/rules/rust:defs.bzl"),
-    ('load("//build/bazel/rules/fidl:fidl_library.bzl", "fidl_library")\n',
-     "f:1: load of //build/bazel/rules/fidl:fidl_library.bzl: regen.py has no mapping"),
+    ('load("//build/bazel/rules/rust:defs.bzl", "rustc_library", "rustc_embed_files")\n',
+     "f:1: loads rustc_embed_files from //build/bazel/rules/rust:defs.bzl"),
+    ('load("//build/bazel/rules/fidl:fidl_library.bzl", "fidl_library", "fidl_cc")\n',
+     "f:1: loads fidl_cc from //build/bazel/rules/fidl:fidl_library.bzl"),
+    ('load("//build/bazel/rules/fidl:fidl_rust_library.bzl", "fidl_rust_library")\n',
+     "f:1: load of //build/bazel/rules/fidl:fidl_rust_library.bzl: regen.py has no mapping"),
+    ('load("@fuchsia_build_info//:args.bzl", "rust_cap_lints")\n',
+     "f:1: loads rust_cap_lints from @fuchsia_build_info//:args.bzl"),
+    # An unlisted package outside a //conditions:default branch.
+    ('deps = select({"@platforms//os:fuchsia": ["//src/lib/emu"], "//conditions:default": []})\n',
+     "f:1: depends on //src/lib/emu, but src/lib/emu is not listed"),
     ('load("@rules_rust//rust:defs.bzl", "rust_lint_config")\n',
      "f:1: loads rust_lint_config from @rules_rust//rust:defs.bzl"),
     ('load("@rules_rust//cargo:defs.bzl", "cargo_build_script")\n',
@@ -965,3 +974,220 @@ def test_vendor_from_git_matches_vendor_from_directory(git_upstream, tmp_path):
     assert regen.main(["vendor"], root=repo_dir, make_source=lambda r: regen.DirSource(src, r)) == 0
     snap = {k: v for k, v in _snapshot(repo_git).items()}
     assert snap == _snapshot(repo_dir) and snap
+
+
+# --- FIDL libraries and the M8 mappings --------------------------------------------
+
+# Upstream's sdk/fidl/fuchsia.mem/BUILD.bazel and zircon/vdso/zx/BUILD.bazel at the lock
+# revision, abridged.
+FIDL_MEM = _HDR + '''\
+load("//build/bazel/rules/fidl:fidl_library.bzl", "fidl_library")
+
+fidl_library(
+    name = "fuchsia.mem",
+    srcs = [
+        "buffer.fidl",
+        "range.fidl",
+    ],
+    category = "partner",
+    stable = True,
+    visibility = ["//visibility:public"],
+    deps = ["//zircon/vdso/zx"],
+)
+'''
+
+FIDL_ZX = _HDR + '''\
+load("//build/bazel/rules/fidl:fidl_library.bzl", "fidl_library")
+
+fidl_library(
+    name = "zx",
+    srcs = [
+        "//zircon/vdso:overview.fidl",
+        "//zircon/vdso:rights.fidl",
+    ],
+    api_file_path = "//sdk/fidl/zx:zx.api",
+    enable_rust = False,
+    versioned = "fuchsia",
+)
+'''
+
+FIDL_PATHS = {"sdk/fidl/fuchsia.mem", "zircon/vdso/zx"}
+
+
+def test_idk_library_takes_its_sources_from_the_idk():
+    out = regen.rewrite_upstream_build(FIDL_MEM, "sdk/fidl/fuchsia.mem/BUILD.bazel", FIDL_PATHS, idk=True)
+    assert 'load("//rules:fidl.bzl", "fidl_library")' in out
+    assert '"@fuchsia_sdk//fidl/fuchsia.mem:buffer.fidl",\n        "@fuchsia_sdk//fidl/fuchsia.mem:range.fidl",' in out
+    assert 'deps = ["//vendor/fuchsia/zircon/vdso/zx"]' in out
+
+
+def test_idk_library_sources_given_as_labels_and_api_file_path():
+    notes = []
+    out = regen.rewrite_upstream_build(FIDL_ZX, "zircon/vdso/zx/BUILD.bazel", FIDL_PATHS, notes, idk=True)
+    assert '"@fuchsia_sdk//fidl/zx:overview.fidl",\n        "@fuchsia_sdk//fidl/zx:rights.fidl",' in out
+    assert "api_file_path = None," in out
+    assert notes == ["labels rewritten", "sources from the IDK"]
+
+
+def test_upstream_fidl_library_keeps_its_own_sources():
+    notes = []
+    out = regen.rewrite_upstream_build(FIDL_MEM, "sdk/fidl/fuchsia.mem/BUILD.bazel", FIDL_PATHS, notes)
+    assert '"buffer.fidl",\n        "range.fidl",' in out
+    assert notes == ["labels rewritten", "FIDL load mapped"]
+
+
+@pytest.mark.parametrize("text, message", [
+    ('load("//build/bazel/rules/rust:defs.bzl", "rustc_library")\n', "must load fidl_library"),
+    ('load("//build/bazel/rules/fidl:fidl_library.bzl", "fidl_library")\nfidl_library(srcs = ["a.fidl"])\n',
+     "f:2: fidl_library() without a plain name or library_name"),
+    ('load("//build/bazel/rules/fidl:fidl_library.bzl", "fidl_library")\nfidl_library(name = "x", srcs = S)\n',
+     'f:2: fidl_library() of an IDK library needs srcs'),
+    ('load("//build/bazel/rules/fidl:fidl_library.bzl", "fidl_library")\n'
+     'fidl_library(name = "x", srcs = ["a" + ".fidl"])\n', "f:2: srcs entry is not a plain string"),
+])
+def test_idk_library_errors(text, message):
+    with pytest.raises(regen.RegenError) as e:
+        regen.rewrite_upstream_build(text, "f", set(), idk=True)
+    assert message in str(e.value)
+
+
+def test_rustc_test_is_dropped_with_its_calls_and_from_the_load():
+    text = _HDR + '''\
+load("//build/bazel/rules/rust:defs.bzl", "rustc_library", "rustc_test")
+
+rustc_library(
+    name = "l",
+    srcs = ["src/lib.rs"],
+)
+
+rustc_test(
+    name = "l_test",
+    srcs = ["src/lib.rs"],
+    deps = ["//third_party/rust_crates/vendor:anyhow"],
+)
+'''
+    notes = []
+    out = regen.rewrite_upstream_build(text, "f", set(), notes)
+    assert 'load("//rules:rustc.bzl", "rustc_library")' in out
+    assert "rustc_test" not in out and "anyhow" not in out
+    assert "test targets dropped: rustc_test l_test" in notes
+
+
+def test_only_rustc_test_loaded_removes_the_load():
+    text = 'load("//build/bazel/rules/rust:defs.bzl", "rustc_test")\n\nrustc_test(name = "t")\n'
+    assert regen.rewrite_upstream_build(text, "f", set()).strip() == ""
+
+
+def test_build_arguments_map_to_the_overlays():
+    text = ('load("@fuchsia_build_info//:args.bzl", "fuchsia_sync_detect_lock_cycles")\n'
+            'x = [] if fuchsia_sync_detect_lock_cycles else ["//sdk/rust/b"]\n')
+    out = regen.rewrite_upstream_build(text, "f", {"sdk/rust/b"})
+    assert out.startswith('load("//rules:build_info.bzl", "fuchsia_sync_detect_lock_cycles")\n')
+
+
+def test_build_info_args_are_the_ones_the_overlay_defines():
+    text = (ROOT / "rules/build_info.bzl").read_text()
+    defined = sorted(line.split(" =")[0] for line in text.splitlines()
+                     if line and not line.startswith(("#", " ", '"')) and " = " in line)
+    assert defined == sorted(regen.BUILD_INFO_ARGS)
+
+
+def test_sdk_libraries_and_fidl_rules_visibility():
+    text = ('deps = ["//sdk/lib/fdio", "//zircon/system/ulib/sync"]\n'
+            'visibility = ["//build/bazel/rules/fidl:__subpackages__", "//build/bazel/rules/fidl:__pkg__"]\n')
+    out = regen.rewrite_upstream_build(text, "f", set())
+    assert '"@fuchsia_sdk//pkg/fdio", "@fuchsia_sdk//pkg/sync"' in out
+    assert '"//rules:__subpackages__", "//rules:__pkg__"' in out
+
+
+HOST_BRANCH = _HDR + '''\
+load("//build/bazel/rules/rust:defs.bzl", "rustc_library")
+
+rustc_library(
+    name = "a",
+    srcs = ["src/lib.rs"],
+    deps = select({
+        "@platforms//os:fuchsia": ["//sdk/rust/b"],
+        "//conditions:default": ["//src/lib/emulated"],
+    }),
+)
+'''
+
+
+def test_unlisted_label_in_a_default_branch_is_provisional():
+    provisional = []
+    out = regen.rewrite_upstream_build(HOST_BRANCH, "sdk/rust/a/BUILD.bazel", {"sdk/rust/b"},
+                                       provisional=provisional)
+    assert '"//conditions:default": ["//vendor/fuchsia/src/lib/emulated"]' in out
+    assert provisional == [("sdk/rust/a/BUILD.bazel:12", "//vendor/fuchsia/src/lib/emulated")]
+    with pytest.raises(regen.RegenError) as e:
+        regen.rewrite_upstream_build(HOST_BRANCH, "f", {"sdk/rust/b"})
+    assert "f:12: depends on //src/lib/emulated, but src/lib/emulated is not listed" in str(e.value)
+
+
+def _host_branch_env(env):
+    upstream, repo, run = env
+    _write(upstream, "sdk/rust/a/BUILD.bazel", HOST_BRANCH)
+    return upstream, repo, run
+
+
+def test_a_provisional_label_left_after_the_patches_fails(env, capsys):
+    _, repo, run = _host_branch_env(env)
+    assert run("vendor") == 2
+    err = capsys.readouterr().err
+    assert ("sdk/rust/a/BUILD.bazel:12: depends on //src/lib/emulated in a //conditions:default "
+            "branch, but src/lib/emulated is not listed in vendor/crates.txt; list it, or remove "
+            "the branch with a patch under patches/fuchsia/sdk/rust/a/") in err
+
+
+def test_a_patch_removing_the_provisional_label_passes(env):
+    _, repo, run = _host_branch_env(env)
+    path = "sdk/rust/a/BUILD.bazel"
+    before = (regen._header(REV, path, "labels rewritten, vendored = True added")
+              + regen.rewrite_upstream_build(HOST_BRANCH, path, {"sdk/rust/a", "sdk/rust/b"}, provisional=[]))
+    after = before.replace('["//vendor/fuchsia/src/lib/emulated"]', "[]")
+    patch = "".join(difflib.unified_diff(before.splitlines(keepends=True), after.splitlines(keepends=True),
+                                         f"a/{path}", f"b/{path}"))
+    _write(repo, "patches/fuchsia/sdk/rust/a/0001-fuchsia-only.patch", patch)
+    assert run("vendor") == 0
+    assert '"//conditions:default": [],' in (repo / "vendor/fuchsia" / path).read_text()
+    assert run("--check") == 0
+
+
+def test_idk_mode_copies_only_the_build_file(env):
+    upstream, repo, run = env
+    _write(upstream, "sdk/fidl/fuchsia.mem/BUILD.bazel", FIDL_MEM)
+    _write(upstream, "sdk/fidl/fuchsia.mem/buffer.fidl", "library fuchsia.mem;\n")
+    _write(upstream, "sdk/fidl/fuchsia.mem/OWNERS", "x\n")
+    _write(upstream, "zircon/vdso/zx/BUILD.bazel", FIDL_ZX)
+    _write(repo, "vendor/crates.txt", "sdk/fidl/fuchsia.mem idk\nsdk/rust/a upstream\n"
+                                      "sdk/rust/b overlay\nzircon/vdso/zx idk\n")
+    assert run("vendor") == 0
+    lib = repo / "vendor/fuchsia/sdk/fidl/fuchsia.mem"
+    assert sorted(p.name for p in lib.iterdir()) == ["BUILD.bazel"]
+    assert "(labels rewritten, sources from the IDK)" in (lib / "BUILD.bazel").read_text()
+    assert run("--check") == 0
+
+
+def test_idk_mode_needs_an_upstream_build_file(env, capsys):
+    upstream, repo, run = env
+    _write(upstream, "sdk/fidl/fuchsia.x/x.fidl", "library fuchsia.x;\n")
+    _write(repo, "vendor/crates.txt", "sdk/fidl/fuchsia.x idk\nsdk/rust/a upstream\nsdk/rust/b overlay\n")
+    assert run("vendor") == 2
+    assert "sdk/fidl/fuchsia.x is 'idk', but upstream has no BUILD.bazel there" in capsys.readouterr().err
+
+
+def test_an_aliased_rustc_test_is_not_noted_as_a_go_change():
+    text = ('load("//build/bazel/rules/rust:defs.bzl", "rustc_library", my_test = "rustc_test")\n\n'
+            'rustc_library(name = "l")\n\nmy_test(name = "t")\n')
+    notes = []
+    out = regen.rewrite_upstream_build(text, "f", set(), notes)
+    assert "my_test" not in out
+    assert notes == ["labels rewritten", "vendored = True added", "test targets dropped: my_test t"]
+
+
+def test_build_arguments_are_noted_in_the_header():
+    notes = []
+    regen.rewrite_upstream_build('load("@fuchsia_build_info//:args.bzl", "fuchsia_sync_detect_lock_cycles")\n',
+                                 "f", set(), notes)
+    assert "build arguments from //rules:build_info.bzl" in notes
