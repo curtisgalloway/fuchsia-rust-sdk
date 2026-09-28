@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T00:48-07:00
+Updated: 2026-09-28T01:53-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -104,6 +104,14 @@ Outcome: complete — `fidlgen_rust_next` found in the public debug store, pinne
 - Dead ends: CIPD (no `fidl` package, incl. hidden), IDK `tools/` (cpp/hlcpp only)
 - `fidlgen_rust` is Go, stdlib-only, upstream `BUILD.bazel`; built via Bazel upstream
 
+### [M7 — FIDL generators as Bazel host tools](M7.md)
+Entries: 2026-09-28T00:51-07:00 through 2026-09-28T01:53-07:00
+Outcome: complete — both generators run under Bazel and match upstream goldens; review: land
+- Lock gains `go` (fuchsia.git's `fuchsia/go` CIPD pin, go1.21.8) and `fidlgen_rust_next` (build-ids.json → debug store, ELF note checked)
+- regen.py maps rules_go loads, drops Go test calls (fail-closed); upstream BUILD files otherwise unchanged
+- Goldens: 17/20 until upstream's per-library flags (`--api-coverage`, `--include-drivers`) were passed
+- rules_go asks go.dev for SDK hashes unless MODULE.bazel.lock has `facts` (kept); `bazel mod` pollutes the lockfile
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
@@ -112,6 +120,7 @@ Outcome: complete — `fidlgen_rust_next` found in the public debug store, pinne
   [M5](M5.md) adds 0.17 GiB (`@rust_crates` and builds; total 8.99 GiB).
   [M6](M6.md) adds nothing (no Bazel input changed; total 8.99 GiB).
   [M6b](M6b.md) adds 1.3 GiB (121 crates built for x64, arm64, host and exec; total 10.30 GiB).
+  [M7](M7.md) adds about 1 GiB (the release's Go SDK, rules_go, the Go builds; total 11.29 GiB).
 - **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
   Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
   [M4](M4.md) derives the Rust cfgs from that file and asserts the HEAD branch at build time.
@@ -126,3 +135,6 @@ Outcome: complete — `fidlgen_rust_next` found in the public debug store, pinne
   transitively; the first run's 66/45/24 missed forwarded deps and FIDL template deps),
   which split M6 into M6a/M6b.
   [M6b](M6b.md) generates exactly those 121 crates from 44 roots and builds them.
+- **FIDL generators:** [I2](I2.md) finds `fidlgen_rust_next` only in the public debug store
+  and `fidlgen_rust` unpublished; [M7](M7.md) pins the first per release in the lock and
+  builds the second from vendored Go with the release's Go SDK; both match upstream goldens.

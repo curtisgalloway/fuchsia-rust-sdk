@@ -247,3 +247,29 @@ Cost: coarse timing in the chapter and log.
 Prevention: append the log entry at the failure, before the retry.
 Fix belongs in: agent habit (lab-notebook skill already says so)
 Status: open
+
+## 2026-09-28T01:09-07:00 — failed command: `git stash pop` blocked by a lockfile Bazel rewrote
+Chapter: [M7](notebook/M7.md)
+What happened: to compare resolved module versions before and after adding rules_go I
+ran `git stash`, `bazel mod graph` on the base, then `git stash pop`. The base run
+rewrote `MODULE.bazel.lock`, so the pop aborted ("Your local changes … would be
+overwritten"); the stash was kept. Recovered with `git checkout -- MODULE.bazel.lock`
+and `git stash pop`; nothing lost (untracked files were never stashed).
+Cost: one extra step; a risk of losing uncommitted work had the recovery been wrong.
+Prevention: compare against the base in a separate worktree (or with a WIP commit
+first), never by stashing a tree that a Bazel command will write to.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T01:29-07:00 — surprise: `bazel mod graph` wrote ~3,000 lines into MODULE.bazel.lock
+Chapter: [M7](notebook/M7.md)
+What happened: a `bazel mod graph` run (to compare resolved module versions) evaluated
+every module extension in the graph and recorded their results in `MODULE.bazel.lock`
+(pip, pybind11, rules_fuzzing, crate_universe's `cu_nr`). They showed up in the M7
+lockfile diff as if rules_go had caused them; the builds never need them.
+Cost: about 10 minutes to find the cause and prove the minimal lockfile (strip, rerun
+the three builds and the tests, check `--lockfile_mode=error`).
+Prevention: run `bazel mod` commands with `--lockfile_mode=off` (or in a scratch
+output base), or check the lockfile diff right after them.
+Fix belongs in: agent habit; project instructions (plan backlog item added)
+Status: open

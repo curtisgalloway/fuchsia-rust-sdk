@@ -20,6 +20,22 @@
     ],
     "value": "d37d515293218c424ea50a13037b6a897d032c963b8de4d9ab470e3de7d42e2d"
   },
+  "fidlgen_rust_next": {
+    "build_id": "ad8c417e211deb69e793b2d354c96c310416fc3c",
+    "source": [
+      "https://storage.googleapis.com/fuchsia/development/33.20260927.4.1/product_bundles.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913697/build-ids.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913713/build-ids.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913729/build-ids.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913745/build-ids.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913761/build-ids.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913777/build-ids.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913825/build-ids.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/buildid/ad8c417e211deb69e793b2d354c96c310416fc3c/executable"
+    ],
+    "url": "https://storage.googleapis.com/fuchsia-public-artifacts-release/buildid/ad8c417e211deb69e793b2d354c96c310416fc3c/executable",
+    "value": "c03f7086aa6de3dbfa1cc06647d2667455d81c7f539f3d932ec08bd4fe5ee1ae"
+  },
   "fuchsia_revision": {
     "source": [
       "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913697/source_manifest.json",
@@ -32,6 +48,14 @@
       "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913841/source_manifest.json"
     ],
     "value": "b5274053cc0f1ba03cd0902a3da575ac9c31c152"
+  },
+  "go": {
+    "package": "fuchsia/go/linux-amd64",
+    "source": [
+      "https://fuchsia.googlesource.com/fuchsia b5274053cc0f1ba03cd0902a3da575ac9c31c152:manifests/toolchain",
+      "https://chrome-infra-packages.appspot.com/p/fuchsia/go/linux-amd64/+/git_revision:14265db9dd19d6adc2c59f6e4f609d4f5a251442"
+    ],
+    "value": "4f8a8a8e7315660fe818a2ef914ff333433a87f7345d147b8a8291d8095b0d61"
   },
   "integration_revision": {
     "source": [

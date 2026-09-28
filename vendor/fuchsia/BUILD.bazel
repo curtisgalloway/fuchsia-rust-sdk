@@ -12,3 +12,10 @@ license(
     license_text = "LICENSE",
     visibility = ["//visibility:public"],
 )
+
+# Not upstream's: fuchsia.git's root rustfmt.toml, which the FIDL generators are given
+# as --rustfmt-config (as upstream's GN templates pass //rustfmt.toml).
+exports_files(
+    ["rustfmt.toml"],
+    visibility = ["//visibility:public"],
+)

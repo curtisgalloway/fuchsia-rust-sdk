@@ -22,6 +22,9 @@
 #     @fuchsia_build_info//default_build_flags:all), so rust_toolchain_with_build_flags
 #     adds no GN-derived default flags; only the flags written below apply. M4 kept
 #     this: the overlay has no GN build to derive them from (docs/evidence/M4.md).
+#   - rustfmt and the libraries it loads are visible outside this repository, for the
+#     FIDL generators' --rustfmt (M7); upstream's generators run it from the prebuilt
+#     directory through GN.
 
 """Top level BUILD.bazel in the @fuchsia_rust_toolchain repository."""
 
@@ -165,6 +168,15 @@ filegroup(
         ["lib/*.so"],
         allow_empty = True,  # This is empty on Mac builders.
     ),
+    # Overlay: visible, for rustfmt (below).
+    visibility = ["//visibility:public"],
+)
+
+# Overlay: rustfmt as a file other packages can run (the FIDL generators' --rustfmt,
+# with :rustc_lib, whose librustc_driver it loads).
+exports_files(
+    ["bin/rustfmt"],
+    visibility = ["//visibility:public"],
 )
 
 # Define the linux_x64 Rust toolchain.

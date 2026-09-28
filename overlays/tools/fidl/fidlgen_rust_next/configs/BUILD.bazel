@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+# fidlgen_rust_next's configs (milestone M7). Upstream has no BUILD.bazel here: its GN
+# template build/rust/fidl_rust_next.gni passes one of these as --config (fuchsia.json
+# for the regular crate, common.json for the _common crate, fdomain.json for FDomain).
+# The prebuilt generator (//tools/fidlgen_rust_next) needs them at the same revision.
+
+exports_files(
+    glob(["*.json"]),
+    visibility = ["//visibility:public"],
+)

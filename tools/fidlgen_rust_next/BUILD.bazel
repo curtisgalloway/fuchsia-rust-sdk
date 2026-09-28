@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+# The rust_next FIDL generator (design §4.2 "FIDL bindings", R5; milestone M7): the
+# release's prebuilt binary, pinned by overlay.lock.json (field "fidlgen_rust_next") and
+# fetched from the public debug-symbol store (docs/evidence/I2.md). It is a linux-x64
+# executable (glibc >= 2.18), so it is a host-only target.
+#
+#   scripts/bazel run //tools/fidlgen_rust_next -- --help
+
+load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
+
+native_binary(
+    name = "fidlgen_rust_next",
+    src = "@fidlgen_rust_next//:fidlgen_rust_next",
+    out = "fidlgen_rust_next",
+    target_compatible_with = HOST_CONSTRAINTS,
+    visibility = ["//visibility:public"],
+)

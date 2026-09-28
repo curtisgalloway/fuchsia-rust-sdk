@@ -1,0 +1,25 @@
+SPDX-FileCopyrightText: 2026 Curtis Galloway
+SPDX-FileCopyrightText: The Fuchsia Authors
+SPDX-License-Identifier: Apache-2.0 AND BSD-2-Clause
+
+Export fidlgen_rust's goldens to the overlay's golden test (milestone M7).
+
+tests/fidlgen compares fidlgen_rust's output on upstream fidlc's IR goldens with these
+files, as upstream's fidlgen_rust_golden_tests (BUILD.gn) does. Bazel does not export
+source files implicitly here, and upstream's BUILD.bazel names no goldens. The added
+lines are the overlay's (Apache-2.0); the context lines are Fuchsia's (BSD-2-Clause,
+LICENSES/BSD-2-Clause.txt). Applied by scripts/regen.py after 0001.
+
+diff --git a/tools/fidl/fidlgen_rust/BUILD.bazel b/tools/fidl/fidlgen_rust/BUILD.bazel
+index 7f063c4..347a1a9 100644
+--- a/tools/fidl/fidlgen_rust/BUILD.bazel
++++ b/tools/fidl/fidlgen_rust/BUILD.bazel
+@@ -22,3 +22,8 @@ go_binary_host_tool(
+         "//vendor/fuchsia/tools/fidl/lib/fidlgen",
+     ],
+ )
++
++exports_files(
++    glob(["goldens/*.golden"]),
++    visibility = ["//tests/fidlgen:__pkg__"],
++)

@@ -1,0 +1,24 @@
+SPDX-FileCopyrightText: 2026 Curtis Galloway
+SPDX-FileCopyrightText: The Fuchsia Authors
+SPDX-License-Identifier: Apache-2.0 AND BSD-2-Clause
+
+Let the overlay's //tools/fidlgen_rust alias see fidlgen_rust (milestone M7).
+
+Upstream makes the binary visible only to its FIDL rules (//build/bazel/rules, which
+regen.py maps to //vendor/fuchsia/build/bazel/rules). The overlay runs it through
+//tools/fidlgen_rust, and M8's rule will use that label. The added line is the overlay's
+(Apache-2.0); the context lines are Fuchsia's (BSD-2-Clause, LICENSES/BSD-2-Clause.txt).
+Applied by scripts/regen.py to the rewritten BUILD.bazel.
+
+diff --git a/tools/fidl/fidlgen_rust/BUILD.bazel b/tools/fidl/fidlgen_rust/BUILD.bazel
+index 6829e66..7f063c4 100644
+--- a/tools/fidl/fidlgen_rust/BUILD.bazel
++++ b/tools/fidl/fidlgen_rust/BUILD.bazel
+@@ -14,6 +14,7 @@ go_binary_host_tool(
+     srcs = ["main.go"],
+     target_compatible_with = HOST_CONSTRAINTS,
+     visibility = [
++        "//tools/fidlgen_rust:__pkg__",
+         "//vendor/fuchsia/build/bazel/rules:__subpackages__",
+     ],
+     deps = [
