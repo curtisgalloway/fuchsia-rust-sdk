@@ -225,3 +225,25 @@ Prevention: append an entry at each trigger (the decision to write gn_eval.py, t
 first run's result) before starting the next step, even when the steps follow quickly.
 Fix belongs in: agent habit (lab-notebook skill already says so)
 Status: open
+
+## 2026-09-28T00:42-07:00 — failed command: `bazel run` on an `http_file` target
+Chapter: [I2](notebook/I2.md)
+What happened: `bazel run @fidlgen_rust_next_plain//file -- --help` failed with "Cannot
+run target …//file:file: Not executable"; `http_file`'s `//file` is a filegroup even
+with `executable = True`. Re-ran as `bazel build` and executed the fetched file.
+Cost: one extra Bazel invocation (about 15 s).
+Prevention: know that `http_file` exposes a filegroup; run the downloaded file, or wrap
+it in a `sh_binary`/`native_binary`.
+Fix belongs in: agent habit (recorded for M7 in the I2 evidence)
+Status: open
+
+## 2026-09-28T00:47-07:00 — instruction gap: I2 entries written after the events
+Chapter: [I2](notebook/I2.md)
+What happened: the process-log entry "failed command: `bazel run` on an `http_file`
+target" is stamped 00:42 but the failure happened about 00:37; it was written at the
+checkpoint. Several I2 notebook attempts share stamps for the same reason. The review
+noticed it; timestamps were not rewritten.
+Cost: coarse timing in the chapter and log.
+Prevention: append the log entry at the failure, before the retry.
+Fix belongs in: agent habit (lab-notebook skill already says so)
+Status: open

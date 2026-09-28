@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T00:29-07:00
+Updated: 2026-09-28T00:48-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -94,6 +94,15 @@ Outcome: complete — 121 crates generated (4 patched, committed under third_par
 - Not every crate compiles for Fuchsia: crate_universe features are per platform (synstructure/syn visit)
 - 15 build scripts spawn only $RUSTC; pass with sandbox network off; no overrides
 - Review: criterion 1 read as "built in the configuration it is used in; all for host" (orchestrator decision); crate groups named explicitly in the build checks
+
+### [I2 — Prebuilt FIDL generators](I2.md)
+Entries: 2026-09-28T00:32-07:00 through 2026-09-28T00:48-07:00
+Outcome: complete — `fidlgen_rust_next` found in the public debug store, pinned (M7 fetches it); `fidlgen_rust` not published (M7 builds it)
+- Build dirs' `tools/` has 8 tools, no generator; `build-ids.json` names `fidlgen_rust_next` → `buildid/<id>/executable` (anonymous)
+- Stored gzip-encoded: pin the decoded SHA-256 (Bazel `http_file` gets decoded bytes)
+- Build ID not recomputable; tie = release manifests + ID note + `.comment` toolchain revs = lock pins
+- Dead ends: CIPD (no `fidl` package, incl. hidden), IDK `tools/` (cpp/hlcpp only)
+- `fidlgen_rust` is Go, stdlib-only, upstream `BUILD.bazel`; built via Bazel upstream
 
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
