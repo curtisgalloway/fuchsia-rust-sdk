@@ -16,10 +16,10 @@ Target release for milestone 1: `33.20260927.4.1` (`LATEST_LINUX` on 2026-09-27)
 | Check | Command | Created in |
 |---|---|---|
 | Script tests | `uv run pytest` | M1 |
-| Build, x64 | `scripts/bazel build --config=fuchsia_x64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings //vendor/fuchsia/sdk/lib/driver/component/rust:rust` | M2 (crate list: M6b; bindings: M8a; `fdf_component`, which reaches every in-tree crate: M9c, replacing M9b's two log crates) |
-| Build, arm64 | `scripts/bazel build --config=fuchsia_arm64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings //vendor/fuchsia/sdk/lib/driver/component/rust:rust` | M2 (crate list: M6b; bindings: M8a; `fdf_component`, which reaches every in-tree crate: M9c, replacing M9b's two log crates) |
+| Build, x64 | `scripts/bazel build --config=fuchsia_x64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings //vendor/fuchsia/sdk/lib/driver/component/rust:rust //drivers/simple_rust:pkg` | M2 (crate list: M6b; bindings: M8a; `fdf_component`, which reaches every in-tree crate: M9c, replacing M9b's two log crates; the pilot 1 package, whose targets are `manual`: M10) |
+| Build, arm64 | `scripts/bazel build --config=fuchsia_arm64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings //vendor/fuchsia/sdk/lib/driver/component/rust:rust //drivers/simple_rust:pkg` | M2 (crate list: M6b; bindings: M8a; `fdf_component`, which reaches every in-tree crate: M9c, replacing M9b's two log crates; the pilot 1 package, whose targets are `manual`: M10) |
 | Build, host | `scripts/bazel build //... //third_party/crates:aliases //third_party/crates:host_all` | M2 (crate list: M6b) |
-| Binary checks | `scripts/bazel test //...` (symbol and `DT_NEEDED` tests) | M10 |
+| Binary checks | `scripts/bazel test --config=fuchsia_x64 //...` and `--config=fuchsia_arm64` (the driver package tests: exported symbols, soname, `DT_NEEDED`, package closure and CPU, manifest shards; Fuchsia-only, so host `bazel test //...` skips them) | M10 |
 | Vendor drift | `scripts/regen.py --check` | M5 |
 | License headers | `uv run reuse lint` (chosen in M1; `REUSE.toml` covers files without comments) | M1 |
 | SDK files present | `uv run scripts/check_sdk_files.py` (every source file the three configs can reach exists after the IDK trim) | M2a |
@@ -87,7 +87,7 @@ in the cloud.
 | M9a | Pilot 1's driver runtime vendored (11 overlays); FIDL driver transport on (R6, R5) | M8b | cloud | complete |
 | M9b | 28 upstream-Bazel in-tree crates + 7 overlays (incl. `fuchsia-component`) (R6) | M9a | cloud | complete |
 | M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | complete |
-| M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | pending |
+| M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | in review |
 | I3 | Emulator bind target for pilot 1 confirmed at this release | M3 | cloud (emulator) | pending |
 | M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | pending |
 | G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone | M11 | cloud (emulator) | pending |
@@ -123,10 +123,10 @@ M3, I2 and I3 run beside it. I4 needs only the lab, so it can run any time befor
 | I5 (rules coupling) | M2 step 1 | empty workspace loads both rule sets |
 | C6 environment profile | M2a (mechanism); every later milestone (evidence) | disk report against the active profile's budget |
 
-**Gap flagged for the owner (does not block M1–M9).** R7 requires that the driver's
+**Gap flagged for the owner (decided 2026-09-28).** R7 requires that the driver's
 `DT_NEEDED` set match "the in-tree build of the same driver taken from the release's
 product bundle". For pilot 1 no such build exists: `examples/drivers/simple/rust` is a
-sample and is probably not in the `core.x64` bundle [verify in M10]. The plan
+sample and is not in the `core.x64` bundle (verified in M10). The plan
 therefore:
 
 - in M10, compares pilot 1 against an in-tree Rust driver that the `core.x64` bundle
@@ -134,7 +134,9 @@ therefore:
   to explain;
 - in M12, applies the like-for-like check to `aml-saradc` against the VIM3 bundle.
 
-Confirm or amend this reading before M10 closes.
+**Decided by the owner (2026-09-28): "Compare with another"**, this reading. M10 compared
+pilot 1 with the three pure-Rust drivers `core.x64` ships ([M10 evidence](evidence/M10.md):
+no library absent from them); M12 does the like-for-like check.
 
 ---
 
@@ -537,67 +539,26 @@ is in the evidence file.
 
 ## M10 — `fuchsia_rust_driver` rule; pilot 1 packages
 
-**Design coverage:** R7, F3, A3. **Dependencies:** M9.
-**In scope:**
-- `rules/fuchsia_rust_driver.bzl`: a `cdylib`, linked with
-  `-Wl,--version-script=` pointing at `rules_fuchsia`'s `driver.ld`, against
-  `@fuchsia_sdk//pkg/driver_runtime_shared_lib`. It returns the providers
-  `fuchsia_driver_component` consumes (modeled on `fuchsia_cc.bzl`, with
-  `install_root = "driver/"`).
-- The restricted-symbols check and an exported-symbols test.
-- `drivers/simple_rust/`: the source copied from `examples/drivers/simple/rust` at the
-  revision, plus its checked-in `.cml`. A placeholder `.bind` builds now; I3 sets the
-  real one.
-
-**Out of scope:** binding on the emulator (M11).
-
-### Implementation steps
-1. Write the rule and the providers, and package `drivers/simple_rust:pkg`.
-2. A `sh_test`/Python test using `llvm-readelf --dyn-syms` asserts that
-   `__fuchsia_driver_registration__` is the only exported defined symbol.
-3. Wire `rules_fuchsia`'s restricted-symbols check as a build action.
-4. **`DT_NEEDED` reference (see the Design coverage gap):**
-   1. List the Rust drivers in the `core.x64` product bundle.
-   2. Extract one and compare its `DT_NEEDED` with pilot 1's.
-   3. Report differences.
-5. If A3 fails (Rust `std` imports a restricted symbol), compare with the in-tree Rust
-   driver config (the brief notes `//build/config/rust:bootfs`). Record the fix as a
-   decision.
-6. (From M9c.) `fuchsia_rust_driver` allows unused crate dependencies by default, as GN's
-   `set_defaults("fuchsia_rust_driver")` adds
-   `//build/config/rust/lints:allow_unused_crate_dependencies`
-   (`build/drivers/fuchsia_driver.gni:243–249`): the pilot's GN deps `anyhow`, `fdf`, `zx`
-   are unused by its source.
-7. (From M9b/M9c.) The driver's `.cml` includes `syslog/client.shard.cml` and
-   `inspect/client.shard.cml`: the manifest checks GN's `expect_includes` make
-   (`//sdk/lib/syslog:client_includes`, `//sdk/lib/inspect:client_includes`) are dropped
-   by the overlay, so M10 checks the manifest instead.
-
-### Acceptance criteria
-- [ ] `bazel build --config=fuchsia_x64 //drivers/simple_rust:pkg` and the arm64
-  equivalent produce a driver package.
-- [ ] The exported-symbols test passes for both targets.
-- [ ] The restricted-symbols check passes for both targets.
-- [ ] `fuchsia_rust_driver` applies the unused-crate-dependencies allowance by default
-  (GN's `set_defaults`), and pilot 1 compiles with its GN deps unchanged.
-- [ ] The driver's `.cml` includes both `syslog/client.shard.cml` and
-  `inspect/client.shard.cml` (checked by a test or build action).
-- [ ] `DT_NEEDED` comparison recorded; any library absent from the reference driver is
-  explained or removed. The owner confirms this reading of R7 (see gap).
-
-### Testing and review
-- Verify with `bazel test //drivers/simple_rust/...` under both configs.
-- Review focus: link flags against `driver.ld`, provider compatibility with
-  `fuchsia_driver_component`, and that no test is weakened to pass.
-- Review method: `review-swarm` if available (the review spans rule, link and
-  packaging); otherwise inherit.
-
-### Session sizing
-Starts from brief §3.3, W6, and upstream `fuchsia_cc.bzl`. The main uncertainty is A3.
-Split point: the rule plus the symbol tests first, then the `DT_NEEDED` comparison.
-
-### Evidence and findings
-Status: pending · Evidence: [M10](evidence/M10.md) · Notebook: [M10](notebook/M10.md)
+**Outcome:** `rules/fuchsia_rust_driver.bzl`: `fuchsia_rust_driver`, a `cdylib` (rules_rust
+`rust_shared_library`) linked with `rules_fuchsia`'s `driver.ld` and soname
+`<output_name>.so`, against `@fuchsia_sdk//pkg/driver_runtime_shared_lib`, lints allowing
+unused crate deps (GN's `set_defaults`), the restricted-symbols check as a build action,
+and `fuchsia_cc`'s providers for `fuchsia_driver_component`; `fuchsia_driver_elf_test`
+(exports, soname, `DT_NEEDED`, package closure, CPU) and `fuchsia_driver_manifest_test`
+(the syslog/inspect shards in the packaged `.cm`). `rules/bind_rust.bzl`: a bind
+library's Rust crate (`//drivers/bind:fuchsia.test_rust`). Pilot 1 (`drivers/simple_rust`,
+upstream `src/lib.rs` and `.cml` unchanged, placeholder `.bind`) packages for x64 and
+arm64 and passes both tests. `DT_NEEDED` = libasync-default, libc, libdriver_runtime,
+libfdio, libzircon: no library absent from the three pure-Rust `core.x64` drivers, which
+also need `libstd-<hash>.so` and `libvfs_rust.so` (GN links both dynamically). `fidl` is
+visible to `//drivers` (patch `0002`); the Fuchsia configs set `--cpu` so
+`fuchsia_package`'s transition packages the configured CPU (it packaged x64 under arm64).
+**Design coverage:** R7, F3, A3. **Dependencies:** M9c.
+**Status:** in review — implementation, checks and evidence done; the orchestrator's
+reviewer runs before the checkpoint commit. The detailed entry is in the evidence file.
+**Evidence:** [M10](evidence/M10.md) · **Notebook:** [M10](notebook/M10.md)
+**Open limitations:** placeholder bind rule (I3); not loaded on a target (M11); unit and
+realm tests not built (M16); the reference `DT_NEEDED` sets are x64's.
 
 ---
 
@@ -1037,10 +998,13 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   dep on `//zircon/vdso/zx` is the `zx-types` crate. M8's rule must reproduce these;
   `closure.FIDL_FLAVORS` is the transcription from `build/fidl/fidl.gni`,
   `build/rust/fidl_rust.gni` and `build/rust/fidl_rust_next.gni` at the release.
-- **The pilot's bind library bindings (found in M6a; for I3/M10).** `examples/drivers/
+- **The pilot's bind library bindings (found in M6a; for I3/M10) — done in M10.** `examples/drivers/
   simple/rust:driver` depends on `//src/devices/bind/fuchsia.test:fuchsia.test_rust`
   (Rust bindings of a bind library, in the IDK). With I3's hand-written bind rule the
   overlay's copy may drop it; otherwise a rule for bind-library Rust bindings is needed.
+  M10: `rules/bind_rust.bzl` (`fuchsia_bind_rust_library`, GN's `_bind_library_rust`);
+  the IDK's `fuchsia.test` crate is `//drivers/bind:fuchsia.test_rust`, and the pilot's
+  source keeps using it.
 - **`select()` over-approximation measured (M6a).** For pilot 1's 121 crates, following
   every `select()` branch adds no crate (`crates_io_transitive_unfiltered_select` = 121);
   closure.py filters to the overlay's platforms anyway.
@@ -1104,12 +1068,16 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   are every `@rust_crates` string in a vendored BUILD file, so test-only deps outside the
   closure would be fetched; `fuchsia-async`'s patch drops its `test_deps` for that reason.
   M16 must revisit the patch (and the root rule) when it builds unit tests.
-- **`fidl` is visible only to upstream's packages (found in M8a; for M10).** The
+- **`fidl` is visible only to upstream's packages (found in M8a; for M10) — done in M10.** The
   rewritten visibility is `//rules:__subpackages__`, `//vendor/fuchsia/{src,sdk/lib,
   examples,tools,…}:__subpackages__`. The overlay's own driver packages (design:
   `drivers/`) are not in it; M10 needs a patch or a visibility mapping for
   `//drivers`, or to depend on `fidl` only through vendored crates. Same for
-  `rust_constants` and `fuchsia.power.broker`'s bindings.
+  `rust_constants` and `fuchsia.power.broker`'s bindings. M10: patch
+  `src/lib/fidl/rust/fidl/0002-visible-to-overlay-drivers.patch` adds
+  `//drivers:__subpackages__` (GN's visibility is `//*`); the pilot names nothing else
+  restricted. A later driver naming `rust_constants` or the `power.broker` bindings needs
+  the same.
 - **Bazel caches near their budget (found in M8a).** After M8a: Bazel 10.81 of 12 GiB
   (total 11.71 of 25). M8b and M9 add about 30 in-tree crates for three configs; watch
   the disk report, and consider pruning `bazel-out` configs (`-ST-` transition dirs) or
@@ -1136,7 +1104,7 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   not define. `regen.py` now keeps such a label provisionally and fails unless a patch
   removes it; `fidl_next_protocol/0001-drop-test-deps.patch` does. M16 revisits it with
   `fuchsia-async`'s.
-- **Macro-declared targets are visible to `//rules` code (found in M9a; for M10).** A
+- **Macro-declared targets are visible to `//rules` code (found in M9a; for M10) — done in M10.** A
   target declared inside `rustc_library` (a symbolic macro defined in `//rules`) is
   visible to any edge written in `//rules` code, whatever its visibility (tested in M9a:
   a private `fdf_core` named from `rules/fidl_rust.bzl` builds; named from
@@ -1144,16 +1112,21 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   ignore upstream's `fidl_driver` restriction, and `//rules:__pkg__` entries are needed
   only for top-level targets such as the `fidl_next` alias. M10's driver packages are
   ordinary BUILD files: they need visibility (or allowlist) entries for what they name.
-- **Runtime shared libraries in driver packages (found in M9a; for M10).** The IDK's
+  M10: only `fidl` needed one (item above); the pilot uses no `rust_next` crate directly,
+  so `fidl_rust_next_allowlist` is unchanged.
+- **Runtime shared libraries in driver packages (found in M9a; for M10) — done in M10.** The IDK's
   `pkg/driver_runtime_shared_lib` and `pkg/async-default` are `cc_import`s with both
   `interface_library` and `shared_library`. M10: check whether packaging pulls in
   `libdriver_runtime.so` / `libasync-default.so` and exclude them if the driver host
-  provides them (upstream drivers use the link stub).
+  provides them (upstream drivers use the link stub). M10: both are packaged at `lib/`
+  (with `libsvc.so`, `libtrace-engine.so` and `libfdio.so`), as the three pure-Rust
+  `core.x64` drivers ship them and `fuchsia_cc_driver` does; the ELF test checks that every
+  packaged file's `DT_NEEDED` resolves.
 - **bindgen golden checks not translated (found in M9a; for M16).** `libasync_sys` and
   `fdf_sys` compile checked-in `bindings.rs`; GN also validates them against bindgen
   over the C headers (`rustc_bindgen_golden`). The overlay does not; a header change in
   a later IDK would not be caught before link or run time.
-- **`vfs` is an rlib, GN's a dylib (found in M9b; for M10).** GN builds
+- **`vfs` is an rlib, GN's a dylib (found in M9b; for M10; confirmed in M10).** GN builds
   `src/storage/lib/vfs/rust:vfs` for Fuchsia as `rustc_dylib` (`libvfs_rust.so`, on
   `build/drivers/driver_shared_library_allowlist`); the overlay links it statically
   (rules_rust has no dylib crate type). An in-tree reference driver that uses `vfs` may
@@ -1161,12 +1134,14 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   expect that difference. Its process-wide state is per binary too: `src/temp_clone.rs`
   keeps statics (`CLONES`; `STATE`, which spawns a 2-thread pool), one copy per
   statically linked driver instead of one per driver host (M9b review; benign for
-  pilot 1).
-- **`syslog/client.shard.cml` check dropped (found in M9b; for M10).**
+  pilot 1). M10: the three pure-Rust `core.x64` drivers need `libvfs_rust.so` (and
+  `libstd-<hash>.so`); pilot 1 needs neither.
+- **`syslog/client.shard.cml` check dropped (found in M9b; for M10) — done in M10.**
   `diagnostics_log` depends on `//sdk/lib/syslog:client_includes`, an empty stub in
   upstream Bazel and in GN an `expect_includes` that makes dependents' manifests include
   `syslog/client.shard.cml`; a patch removes it. M10's driver `.cml` must include the
-  shard (the in-tree `examples/drivers/simple/rust` manifest shows how).
+  shard (the in-tree `examples/drivers/simple/rust` manifest shows how). M10:
+  `fuchsia_driver_manifest_test` checks the packaged `.cm` for both shards and their uses.
 - **`upstream_bazel` does not mean a usable BUILD file (found in M9b; for M14).**
   `src/lib/fuchsia-component/BUILD.bazel` is an empty `filegroup` stub (fxbug.dev/500609897)
   while GN builds the crate; M9b made it an overlay. When `regen.py` drives the crate
@@ -1181,30 +1156,44 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   `generate_crates` left `crates_json` unset when no crate is named at all
   (`UnboundLocalError`); only a test tree hit it.
 
-- **Rust drivers allow unused crate deps in GN (found in M9c; for M10).**
+- **Rust drivers allow unused crate deps in GN (found in M9c; for M10) — done in M10.**
   `set_defaults("fuchsia_rust_driver")` (`build/drivers/fuchsia_driver.gni`) adds
   `//build/config/rust/lints:allow_unused_crate_dependencies`; the pilot's `BUILD.gn` lists
   `anyhow`, `//sdk/lib/driver/runtime/rust` and `zx`, which `src/lib.rs` does not use, so
   under `//rules`' default lints it fails to compile (M9c scratch build). M10's
   `fuchsia_rust_driver` should default to the `rules/lints` allow variant, as GN does.
-- **`inspect/client.shard.cml` check dropped too (found in M9c; for M10).** `fdf_component`
+  M10: `//rules/lints:fuchsia_rust_driver` is its default.
+- **`inspect/client.shard.cml` check dropped too (found in M9c; for M10) — done in M10.** `fdf_component`
   depends on `inspect/runtime/rust`'s `group("rust")`, which adds the `expect_includes`
   `//sdk/lib/inspect:client_includes`; the overlay's alias omits it (listed in
   `gn_crosscheck.py`'s `REMOVED_DEPS`). With the syslog item above: M10's driver `.cml`
-  must include both shards (the in-tree `simple_rust_driver.cml` does).
+  must include both shards (the in-tree `simple_rust_driver.cml` does). M10: checked
+  with the syslog one (item above).
+- **`fuchsia_package` takes the CPU from `--cpu` (found in M10).** Its transition
+  (`rules_fuchsia` `fuchsia/private/fuchsia_transition.bzl`) ignores `--platforms`, so
+  under `--config=fuchsia_arm64` a package held x64 binaries, and it adds `--copt`s and
+  `--strip=never`, so every package rebuilt its closure in a `-ST-` directory. `.bazelrc`
+  now sets `--cpu` and those options per Fuchsia config (the transition is a no-op), with
+  HEAD's u32 (4292870144) written out: a change of the configs' API level must change it
+  too. `examples/hello_rust:pkg`'s package tasks are not `manual`, so host `//...` still
+  builds that package for x64 in a `-ST-` directory (6 MB; since M3).
+- **Driver ELF checks use `core.x64` references only (found in M10; for M12).** The
+  allowed `DT_NEEDED` set and `SYSTEM_LIBS` come from the x64 bundle; M12's VIM3 bundle
+  gives the first arm64 reference.
 
 ## Next session
 
-- Current milestone and status: **M9c complete.** Branch `ms/M9c` from `1ef1833`; `wip`
-  commits `8c4e20e`, `f991868`, then the checkpoint commit `overlay: M9c — Pilot 1's last
-  overlays; fdf_component`, after the reviewer subagent's review and fixes.
-- Completed work and evidence: [M9c evidence](evidence/M9c.md), including the review.
+- Current milestone and status: **M10 in review.** Branch `ms/M10` from `cd83c70`; `wip`
+  commits `5b79a3d` (state recovered after a container restart), `f06cdee`, `d083ca9`,
+  `0b6fd93`, `7009f95` and the plan/index one; implementation, project checks and the
+  evidence (all but Review) are done.
+- Completed work and evidence: [M10 evidence](evidence/M10.md).
 - Uncommitted state: none.
-- Remaining work, blockers, and decisions: unchanged: the R7 reading for pilot 1 (before
-  M10), M17 placement.
-- Context boundary: normal.
-- Resume action: after M9c's checkpoint, begin **M10** (I3 can run beside it).
-- Read first for M10: the M10 entry (steps 6–7 come from M9b/M9c), [M9c evidence](evidence/M9c.md)
-  ("Findings for later milestones"), the backlog items on visibility, `DT_NEEDED`/`vfs`,
-  runtime shared libraries, the two manifest shards and the bind library bindings,
-  [notebook index](notebook/index.md).
+- Remaining work, blockers, and decisions: the orchestrator's review, fixes, the Review
+  section, then the checkpoint commit `overlay: M10 — fuchsia_rust_driver rule; pilot 1
+  packages`. The R7 reading is decided (owner, 2026-09-28). Unchanged: M17 placement.
+- Context boundary: normal (one container restart, recovered from files; process log).
+- Resume action: finish M10's review and checkpoint; then **I3** (emulator bind target),
+  then **M11**.
+- Read first for M11: the I3 and M11 entries, [M10 evidence](evidence/M10.md) ("Findings for
+  later milestones"), `drivers/simple_rust/BUILD.bazel`, [notebook index](notebook/index.md).
