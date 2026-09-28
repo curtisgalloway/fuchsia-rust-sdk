@@ -7,7 +7,8 @@
 # fidl and rust_constants (M8) are left out: upstream restricts their visibility; so are
 # the fidl_next* crates (M8b), visible only to fidl_rust_next_allowlist, the driver
 # runtime crates (M9a) other than fdf, fdf_env and fdf_fidl, and pilot 1's other in-tree
-# crates (M9b) that are not public. regen.py itself fails if an overlay BUILD file's Rust
+# crates (M9b, M9c) that are not public (inspect_runtime's :lib is tested through its
+# public alias, GN's group "rust"). regen.py itself fails if an overlay BUILD file's Rust
 # rule lacks vendored = True.
 
 load("//rules:rustc.bzl", "rustc_library")
@@ -18,6 +19,7 @@ _VENDORED = [
     "//vendor/fuchsia/sdk/lib/driver/runtime/rust/env",
     "//vendor/fuchsia/sdk/lib/driver/runtime/rust/fidl",
     "//vendor/fuchsia/sdk/lib/c/rust",
+    "//vendor/fuchsia/sdk/lib/driver/component/rust",
     "//vendor/fuchsia/sdk/lib/fuchsia-loom",
     "//vendor/fuchsia/sdk/rust/zx",
     "//vendor/fuchsia/sdk/rust/zx-status",
@@ -26,18 +28,23 @@ _VENDORED = [
     "//vendor/fuchsia/sdk/rust/zx-types",
     "//vendor/fuchsia/src/lib/diagnostics/inspect/contrib/rust:fuchsia-inspect-contrib",
     "//vendor/fuchsia/src/lib/diagnostics/inspect/derive:fuchsia-inspect-derive",
+    "//vendor/fuchsia/src/lib/diagnostics/inspect/runtime/rust",
     "//vendor/fuchsia/src/lib/diagnostics/log/types",
+    "//vendor/fuchsia/src/lib/elf_parse",
     "//vendor/fuchsia/src/lib/fdio/rust:fdio",
     "//vendor/fuchsia/src/lib/fuchsia-async",
     "//vendor/fuchsia/src/lib/fuchsia-async-macro",
     "//vendor/fuchsia/src/lib/fuchsia-component",
+    "//vendor/fuchsia/src/lib/fuchsia-component/config",
     "//vendor/fuchsia/src/lib/fuchsia-component/escrow",
     "//vendor/fuchsia/src/lib/fuchsia-component/runtime",
     "//vendor/fuchsia/src/lib/fuchsia-component/server",
     "//vendor/fuchsia/src/lib/fuchsia-runtime",
     "//vendor/fuchsia/src/lib/fuchsia-sync",
+    "//vendor/fuchsia/src/lib/process_builder",
     "//vendor/fuchsia/src/lib/trace/rust:trace",
     "//vendor/fuchsia/src/storage/lib/vfs/rust:vfs",
+    "//vendor/fuchsia/src/sys/lib/namespace",
 ]
 
 _TEST_NAMES = {
@@ -55,6 +62,10 @@ _TEST_NAMES = {
     "//vendor/fuchsia/src/lib/fuchsia-component/server": "fuchsia_component_server",
     "//vendor/fuchsia/src/lib/trace/rust:trace": "fuchsia_trace",
     "//vendor/fuchsia/src/storage/lib/vfs/rust:vfs": "vfs",
+    # M9c.
+    "//vendor/fuchsia/sdk/lib/driver/component/rust": "fdf_component",
+    "//vendor/fuchsia/src/lib/diagnostics/inspect/runtime/rust": "inspect_runtime",
+    "//vendor/fuchsia/src/lib/fuchsia-component/config": "fuchsia_component_config",
 }
 
 [
@@ -85,13 +96,15 @@ rustc_library(
     ],
 )
 
-# Pilot 1's other in-tree crates (M9b), by the three public crates that reach all but
-# two of them: fuchsia-component (client, directory, escrow, runtime, server, vfs, fdio,
-# fuchsia-fs, ...), fuchsia-inspect-contrib (inspect, hierarchy, selectors, moniker, the
-# cm_* crates, ...) and diagnostics_log_types. The Fuchsia build checks name it through
-# //tests/fidl:fuchsia_bindings, so any of these that became incompatible with a Fuchsia
-# target would fail loudly. diagnostics_log (log/rust) and diagnostics_log_encoding are
-# visible only inside //vendor/fuchsia; //... builds them, and fdf_component (M9c) uses them.
+# Pilot 1's other in-tree crates (M9b, M9c), by the public crates that reach them:
+# fuchsia-component (client, directory, escrow, runtime, server, vfs, fdio, fuchsia-fs,
+# ...), fuchsia-inspect-contrib (inspect, hierarchy, selectors, moniker, the cm_* crates,
+# ...), diagnostics_log_types, and fdf_component (M9c), which reaches every in-tree crate
+# of pilot 1's closure but the driver, including diagnostics_log (log/rust) and
+# diagnostics_log_encoding, visible only inside //vendor/fuchsia. A crate outside
+# //vendor/fuchsia using fdf_component, as the pilot driver will (M10). The Fuchsia
+# build checks name it through //tests/fidl:fuchsia_bindings, and name fdf_component
+# itself, so any of these that became incompatible with a Fuchsia target would fail loudly.
 rustc_library(
     name = "pilot1_crates",
     srcs = ["src/pilot1_crates.rs"],
@@ -99,6 +112,7 @@ rustc_library(
     target_compatible_with = ["@platforms//os:fuchsia"],
     visibility = ["//tests/fidl:__pkg__"],
     deps = [
+        "//vendor/fuchsia/sdk/lib/driver/component/rust",
         "//vendor/fuchsia/src/lib/diagnostics/inspect/contrib/rust:fuchsia-inspect-contrib",
         "//vendor/fuchsia/src/lib/diagnostics/log/types",
         "//vendor/fuchsia/src/lib/fuchsia-component",

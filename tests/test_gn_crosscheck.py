@@ -3,7 +3,7 @@
 """scripts/gn_crosscheck.py: GN evaluation, rustc argument parsing, comparison (M9b).
 
 The Bazel side is stubbed; the live run over the vendored crates is recorded in
-docs/evidence/M9b.md.
+docs/evidence/M9b.md and M9c.md.
 """
 
 from __future__ import annotations
@@ -152,3 +152,13 @@ def test_main_needs_paths_or_all():
     with pytest.raises(SystemExit):
         gc.main([])
     assert gc.main(["src/not/listed"]) == 2
+
+
+def test_each_removed_dep_names_the_overlay_or_patch_that_removes_it():
+    """A GN dep the overlay drops on purpose points at the file that drops it (M9b's
+    syslog patch, M9c's inspect/runtime overlay), so the reason can be checked."""
+    root = Path(gc.ROOT)
+    for label, reason in gc.REMOVED_DEPS.items():
+        where = [w.rstrip(",;()") for w in reason.split() if w.startswith(("overlays/", "patches/"))]
+        assert where, label
+        assert all((root / w).is_dir() for w in where), (label, where)

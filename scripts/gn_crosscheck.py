@@ -79,6 +79,9 @@ NATIVE_DEPS = {
 REMOVED_DEPS = {
     "//sdk/lib/syslog:client_includes":
         "expect_includes (a manifest check), removed by patches/fuchsia/src/lib/diagnostics/log/rust (M9b)",
+    "//sdk/lib/inspect:client_includes":
+        "expect_includes (a manifest check) in inspect/runtime/rust's group rust, not translated by "
+        "overlays/src/lib/diagnostics/inspect/runtime/rust (M9c)",
 }
 # FIDL binding flavor -> crate name, from the library name with "." -> "_".
 FIDL_CRATES = {

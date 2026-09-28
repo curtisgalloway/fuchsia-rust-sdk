@@ -432,3 +432,17 @@ fix); keep scratch paths out of the first draft rather than removing them afterw
 append a correction that quotes nothing sensitive and leave the text.
 Fix belongs in: agent habit (lab-notebook skill already says so)
 Status: open
+
+## 2026-09-28T12:54+00:00 — failed command: GN shorthand label copied into an overlay without checking the Bazel target
+Chapter: [M9c](notebook/M9c.md)
+What happened: three M9c overlays named `//vendor/fuchsia/src/lib/diagnostics/inspect/rust`
+(GN's shorthand, target `rust`); upstream's Bazel package defines the crate as
+`:fuchsia-inspect` only. The first arm64 build failed in loading ("no such target ...:rust").
+Cost: one rebuild; a few minutes. M9b's process-log entry (overlay fields from memory) was
+heeded for visibility and proc macros but did not cover labels.
+Prevention: before the first build, resolve every in-tree label in a new overlay against the
+vendored package's declared names (a ten-line script did it after the failure); M9b's
+evidence already noted that upstream Bazel and GN can name a crate's target differently.
+Fix belongs in: agent habit; possibly `gn_crosscheck.py` or `regen.py` (a load-time check
+that overlay labels resolve would need Bazel, so the build is the check today)
+Status: open

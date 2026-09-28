@@ -24,6 +24,9 @@
 # overlays: detect-stall, fuchsia-component/{escrow,runtime,server}, storage/lib/trace,
 # storage/lib/vfs/rust (a GN rustc_dylib, built as an rlib), and fuchsia-component itself,
 # whose upstream BUILD.bazel is an empty stub.
+# Pilot 1's last in-tree crates (M9c), each "overlay" (no upstream BUILD.bazel):
+# elf_parse, process_builder, sys/lib/namespace, inspect/runtime/rust,
+# fuchsia-component/config and sdk/lib/driver/component/rust (fdf_component).
 
 sdk/fidl/fuchsia.component idk
 sdk/fidl/fuchsia.component.decl idk
@@ -53,6 +56,7 @@ sdk/lib/async/rust/dispatcher overlay
 sdk/lib/async/rust/fidl overlay
 sdk/lib/async/rust/sys overlay
 sdk/lib/c/rust upstream
+sdk/lib/driver/component/rust overlay
 sdk/lib/driver/runtime/rust overlay
 sdk/lib/driver/runtime/rust/channel overlay
 sdk/lib/driver/runtime/rust/core overlay
@@ -72,12 +76,14 @@ src/lib/diagnostics/inspect/contrib/rust upstream
 src/lib/diagnostics/inspect/derive upstream
 src/lib/diagnostics/inspect/derive/macro upstream
 src/lib/diagnostics/inspect/format/rust upstream
+src/lib/diagnostics/inspect/runtime/rust overlay
 src/lib/diagnostics/inspect/rust upstream
 src/lib/diagnostics/log/encoding/rust upstream
 src/lib/diagnostics/log/rust upstream
 src/lib/diagnostics/log/types upstream
 src/lib/diagnostics/selectors upstream
 src/lib/directed_graph upstream
+src/lib/elf_parse overlay
 src/lib/fdio/rust upstream
 src/lib/fdomain/client upstream
 src/lib/fidl/rust/fidl upstream
@@ -93,6 +99,7 @@ src/lib/fuchsia-async upstream
 src/lib/fuchsia-async-macro upstream
 src/lib/fuchsia-component overlay
 src/lib/fuchsia-component/client upstream
+src/lib/fuchsia-component/config overlay
 src/lib/fuchsia-component/directory upstream
 src/lib/fuchsia-component/escrow overlay
 src/lib/fuchsia-component/runtime overlay
@@ -101,6 +108,7 @@ src/lib/fuchsia-fs upstream
 src/lib/fuchsia-runtime upstream
 src/lib/fuchsia-sync upstream
 src/lib/injectable-time upstream
+src/lib/process_builder overlay
 src/lib/trace/rust upstream
 src/storage/lib/trace overlay
 src/storage/lib/vfs/rust overlay
@@ -110,6 +118,7 @@ src/sys/lib/cm_graph upstream
 src/sys/lib/cm_rust upstream
 src/sys/lib/cm_types upstream
 src/sys/lib/moniker upstream
+src/sys/lib/namespace overlay
 tools/fidl/fidlgen_rust upstream
 tools/fidl/fidlgen_rust/codegen upstream
 tools/fidl/fidlgen_rust_next/configs overlay
