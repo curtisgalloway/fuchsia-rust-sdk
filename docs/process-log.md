@@ -575,3 +575,34 @@ Status: fixed in the M11 chapter by an in-place edit of the opening entry (owner
 decision in the M11 review, consistent with I3), disclosed in a correction entry. The
 prevention (a "no absolute paths" line in the lab-notebook skill, or a pre-commit grep)
 stays open for the owner's review.
+
+## 2026-09-28T08:37-07:00 — harness: the auto-mode classifier gave no verdict, again
+Chapter: [G1](notebook/G1.md)
+What happened: five Bash calls in a row at the start of G1 (reading files, `date`) were
+refused with "classifier gave no verdict"; reading continued with Read/Grep until Bash
+came back.
+Cost: a few minutes; the opening entry was written a little after orientation began.
+Prevention: none on the agent side (same as the M10 entry).
+Fix belongs in: tool (harness)
+Status: open
+
+## 2026-09-28T08:37-07:00 — instruction not followed: a notebook heading typed, not taken from the clock
+Chapter: [G1](notebook/G1.md)
+What happened: the "Fresh container simulated" entry was headed 08:36 while `date` in the
+same command printed 08:31; the heading was written before the command ran. Fixed by a
+correction entry.
+Cost: one correction entry.
+Prevention: run `date` in its own call and paste its output into the heading (the
+lab-notebook skill says so; the habit slipped when combining the append with `date`).
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T08:37-07:00 — failed command: `/usr/bin/time` is not installed
+Chapter: [G1](notebook/G1.md)
+What happened: the first cold x64 build was launched under `/usr/bin/time -f`, which does
+not exist in the container; the command exited 127 before Bazel started.
+Cost: under a minute (nothing built).
+Prevention: time with `date +%s` stamps or bash's `time` keyword; check `command -v` for
+tools outside the project's contract.
+Fix belongs in: agent habit
+Status: open
