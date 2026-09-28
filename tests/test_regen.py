@@ -1334,3 +1334,15 @@ def test_the_overlays_allowlist_copy_parses():
     text = (ROOT / regen.OVERLAY_FIDL_RUST_NEXT_FILE).read_text()
     copy = regen._string_list(text, "f", "_UPSTREAM_ALLOWLIST")
     assert copy and all(s.startswith("//vendor/fuchsia/") for s in copy)
+
+
+def test_the_overlays_own_allowlist_entries_are_outside_vendor_fuchsia():
+    """_OVERLAY_ALLOWLIST is not checked against upstream, so it may name only the overlay's
+    own packages; an upstream-looking entry there would bypass the drift check."""
+    text = (ROOT / regen.OVERLAY_FIDL_RUST_NEXT_FILE).read_text()
+    extra = regen._string_list(text, "f", "_OVERLAY_ALLOWLIST")
+    assert extra
+    for entry in extra:
+        assert entry.startswith("//") and not entry.startswith(("//vendor/", "//third_party/")), entry
+        assert entry.endswith((":__pkg__", ":__subpackages__")), entry
+    assert "fidl_rust_next_allowlist = _UPSTREAM_ALLOWLIST + _OVERLAY_ALLOWLIST" in text

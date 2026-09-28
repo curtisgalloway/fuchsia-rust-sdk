@@ -10,8 +10,8 @@ Design: [design](../design.md), revision "2026-09-27, draft 1", amended 2026-09-
 Notebook: [M8b chapter](../notebook/M8b.md).
 Starting revision and pre-existing changes: `5b9f58f` (origin/main: I1, M1–M8a), branch
 `ms/M8b`; working tree clean; plan 32 `## ` headings. `wip` commits: `e3e7b5f` (rule,
-regen.py, runtime crates, bindings, tests), then evidence, plan and notebook index; the
-checkpoint commit `overlay: M8b — FIDL Rust binding rule, rust_next flavor` follows the
+regen.py, runtime crates, bindings, tests), `f581e17` (evidence, plan, notebook),
+`d6ad181` (process log); the checkpoint commit `overlay: M8b — FIDL Rust binding rule, rust_next flavor` follows the
 review.
 
 **Relied on:** the orchestrator's verified state at `5b9f58f` (pytest 406, reuse
@@ -69,7 +69,7 @@ feature, `--common-lib`, `--config`), IR dependency order.
 | `tests/fidl/src/crate_names_next.rs`, `tests/fidl/BUILD.bazel` | `:crate_names_next` (`pub use` of the 34 crates), in `:fuchsia_bindings` | — |
 | `tests/fidlgen/BUILD.bazel` | `fuchsia_mem_rust_next[_common]_rule_parity_test`: the rule's generator output = M7's `FLAVORS` genrules | — |
 | `tests/vendor/BUILD.bazel` | `cap_lints_allow_fuchsia_loom_test` | — |
-| `tests/test_fidl.py`, `tests/test_regen.py` | closure consistency (+3); regen mapping, allowlist check, `test_deps` path (+11) | — |
+| `tests/test_fidl.py`, `tests/test_regen.py` | closure consistency (+3); regen mapping, allowlist check, overlay entries outside `//vendor/fuchsia`, `test_deps` path (+12) | — |
 
 ### How the flavor is declared
 
@@ -99,9 +99,14 @@ overlay those names are the `rust_library` targets themselves (Deviations).
 with the phased-rollout allowlist `fidl_rust_next_allowlist`; `_allowlisted_visibility`
 computes the same for Bazel visibility labels. All 17 libraries are public, so their
 crates are visible to the allowlist: upstream's 22 entries mapped to `//vendor/fuchsia/…`
-(checked against the revision by `regen.py`, below) plus the overlay's `//rules` (the
-symbolic macro's own `fidl_next` dependency is checked against its defining package) and
-`//tests/fidl`. The 5 upstream `fidl_next*` BUILD files load the same list for their
+(checked against the revision by `regen.py`, below) plus the overlay's `//rules:__pkg__`
+(the symbolic macro's own `fidl_next` dependency is checked against its defining package)
+and `//tests/fidl:__pkg__`; `tests/test_regen.py` keeps those overlay entries outside
+`//vendor/fuchsia`, since only the upstream part is checked against the revision. The
+drift check reads the Bazel copy of the list (`build/rust/fidl_rust_next.bzl`); GN's copy
+in `fidl_rust_next.gni` is LINT.IfChange-linked to it upstream and identical at this
+revision. It runs only while a vendored BUILD file loads the list (the five `fidl_next*`
+crates). The 5 upstream `fidl_next*` BUILD files load the same list for their
 public aliases.
 
 **Driver path (M9).** Written behind `_DRIVER_TRANSPORT = False` in
@@ -131,8 +136,9 @@ $ scripts/bazel cquery --config=fuchsia_{x64,arm64} 'kind("rust_library", //vend
 ```
 
 The 44 are 22 libraries x 2: the 17 closure libraries, the 4 other vendored libraries
-whose BUILD files keep the default `enable_rust_next` (`fuchsia.component.runtime`,
-`fuchsia.inspect`, `fuchsia.process.lifecycle`, `fuchsia.sys2`), and zx (GN's
+with `enable_rust_next` (`fuchsia.component.runtime` sets it explicitly;
+`fuchsia.inspect`, `fuchsia.process.lifecycle` and `fuchsia.sys2` keep the default, True),
+and zx (GN's
 `zircon/vdso/zx` also has the flavor by default; nothing uses it, since FIDL deps on zx
 become `zx-types`). `fuchsia.driver.framework` and `fuchsia.power.broker` have none (M9).
 The 17 are pinned by `//tests/fidl:crate_names_next`, a Fuchsia-only `rustc_library` in
@@ -206,11 +212,11 @@ needed: nothing outside the closure is reached.
 
 | Check | Result |
 |---|---|
-| `uv run pytest` | 420 passed (406 before; +11 regen, +3 `test_fidl.py`) |
-| `uv run reuse lint` | compliant (1189 / 1189 files) |
-| `scripts/bazel build --lockfile_mode=error --config=fuchsia_x64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings` | success, 400 targets (298 before) |
-| same, `--config=fuchsia_arm64` | success, 400 targets |
-| `scripts/bazel build --lockfile_mode=error //... //third_party/crates:aliases //third_party/crates:host_all` | success, 400 targets |
+| `uv run pytest` | 421 passed (406 before; +12 regen, +3 `test_fidl.py`) |
+| `uv run reuse lint` | compliant (1190 / 1190 files) |
+| `scripts/bazel build --lockfile_mode=error --config=fuchsia_x64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings` | success, 401 targets (298 before) |
+| same, `--config=fuchsia_arm64` | success, 401 targets |
+| `scripts/bazel build --lockfile_mode=error //... //third_party/crates:aliases //third_party/crates:host_all` | success, 401 targets |
 | `scripts/bazel test --lockfile_mode=error //...` | 58 tests: 55 passed, 3 skipped (the Fuchsia-only cap-lints tests for `zx`, `fuchsia-async`, `fuchsia-sync`); new: the 2 parity tests, `cap_lints_allow_fuchsia_loom_test` |
 | `scripts/bazel test --lockfile_mode=error --config=fuchsia_x64 //tests/vendor/...` | 8 passed, 1 skipped (`cap_lints_allow_fuchsia_async_macro_test`: proc macros are Linux-only) |
 | `uv run scripts/regen.py --check` | clean |
@@ -226,7 +232,8 @@ anonymously from fuchsia.git, as before.
 ### Disk (C6)
 
 `uv run scripts/disk_report.py` after all builds: Bazel 10.95 of 12 GiB (10.81 after
-M8a; +0.14), total 11.85 of 25 GiB, ok; 17.85 GiB free.
+M8a; +0.14), total 11.85 of 25 GiB, ok; 17.85 GiB free (17.83 after the review fixes, same
+Bazel and total).
 
 ## Deviations from the plan text
 
@@ -239,7 +246,7 @@ M8a; +0.14), total 11.85 of 25 GiB, ok; 17.85 GiB free.
   acceptance count is the closure's 17.
 - **The allowlist**, not in the entry: GN restricts the bindings' visibility to it, and
   the upstream `fidl_next*` BUILD files load it, so `regen.py` needed a mapping for the
-  load. Overlay additions: `//rules:__subpackages__`, `//tests/fidl:__pkg__`.
+  load. Overlay additions: `//rules:__pkg__`, `//tests/fidl:__pkg__`.
 - **`regen.py`: unmappable `test_deps` labels are provisional.** A patch cannot fix a
   label the rewriter rejects (patches apply to the rewritten file), so the rewriter keeps
   such a label inside `test_deps` and fails after the patches if it is still there.
@@ -268,4 +275,33 @@ M8a; +0.14), total 11.85 of 25 GiB, ok; 17.85 GiB free.
 
 ## Review
 
-Pending: the orchestrator's review, before the checkpoint commit.
+**Method:** a reviewer subagent with fresh context, launched by the orchestrator (the
+plan's review method), before the checkpoint commit. It reviewed `ms/M8b` at `d6ad181`
+(`wip` commits `e3e7b5f`, `f581e17`, `d6ad181`) against the design, the M8b entry, this
+evidence and the diff from `5b9f58f`, without modifying anything (`MODULE.bazel.lock`
+unchanged, Bazel 10.95 of 12 GiB). It re-verified the three criteria (both configs build;
+44 `rust_next` crates = 22 libraries in each config, identical lists; the 5 extras correct
+per GN's `enable_rust_next` default; literal crate names; aquery flags, edition and lints;
+`regen.py --check` clean), parity with `fidl_rust_next.gni` at `b5274053`, that the
+`_internal` + group collapse changes no crate name or visibility anything relies on, the
+fail-closed `test_deps` check (patch removed: fails naming file:line), the allowlist drift
+check (entry removed: fails), that `_DRIVER_TRANSPORT = False` declares nothing for the
+driver libraries, and that no FIDL crate is skipped in the Fuchsia `//...` builds.
+**Verdict:** land after fixes (process and documentation). Findings, with the
+orchestrator's decisions:
+
+| # | Severity | Finding | Decision / resolution |
+|---|---|---|---|
+| 1 | minor (record) | Notebook entries batched: three share 03:02, two share 03:08 (repeats the open process-log item) | Recorded: new process-log `instruction gap` entry; stamps not edited |
+| 2 | minor (fix) | `_OVERLAY_ALLOWLIST` is unchecked: an upstream-looking entry (e.g. `//vendor/fuchsia/src/graphics:__subpackages__`) passes `--check` | Fixed: `test_the_overlays_own_allowlist_entries_are_outside_vendor_fuchsia` (pytest); negative check with that entry added: fails |
+| n1 | nit | `//rules:__subpackages__` wider than needed | Narrowed to `//rules:__pkg__` (both macros are in package `//rules`); the three builds pass |
+| n2 | nit | `fuchsia.component.runtime` sets `enable_rust_next = True` explicitly, not by default | Evidence corrected |
+| n3 | nit | reuse count | Final number (1190) |
+| n4 | nit | The drift check reads the Bazel copy of the list and runs only while a vendored BUILD file loads it; say so | Noted in `regen.py`'s comment and in this evidence (GN's copy is LINT.IfChange-linked and identical at this revision) |
+| n5 | nit | Next session names only some `wip` commits | Names all three and the checkpoint |
+
+**After the fixes:** pytest 421; reuse compliant (1190); `regen.py --check` clean; the
+three builds with explicit targets under `--lockfile_mode=error` (401 targets each);
+`bazel test //...` 55 passed + 3 skipped; disk Bazel 10.95 of 12 GiB, total 11.85 of 25;
+`MODULE.bazel.lock` unchanged; plan `## ` headings equal the base's. No second review:
+the fixes are one test, one narrowed visibility entry and documentation.

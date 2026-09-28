@@ -447,7 +447,11 @@ BUILD_INFO_ARGS = ("fuchsia_sync_detect_lock_cycles",)
 # The rust_next allowlist (milestone M8b): upstream's build/rust/fidl_rust_next.bzl holds
 # the list that the fidl_next* crates' public aliases (and GN's rust_next bindings) are
 # visible to. The overlay's //rules:fidl_rust_next.bzl has a copy with the labels mapped
-# (_UPSTREAM_ALLOWLIST there), which generate() compares with the revision's.
+# (_UPSTREAM_ALLOWLIST there), which generate() compares with the revision's. The check
+# reads the Bazel copy of the list; GN's (fidl_rust_next_allowlist in
+# build/rust/fidl_rust_next.gni) is kept identical upstream by LINT.IfChange/ThenChange,
+# and is identical at the lock's revision. It runs only while some vendored BUILD file
+# loads the list (today the five fidl_next* crates).
 _FIDL_RUST_NEXT = "//build/rust:fidl_rust_next.bzl"
 FIDL_RUST_NEXT_UPSTREAM = "build/rust/fidl_rust_next.bzl"
 _OVERLAY_FIDL_RUST_NEXT = "//rules:fidl_rust_next.bzl"

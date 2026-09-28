@@ -68,10 +68,12 @@ _UPSTREAM_ALLOWLIST = [
 
 # Overlay: packages of the overlay itself that use the crates. //rules: the bindings
 # declared by this file's macro name fidl_next (a symbolic macro's own dependencies are
-# checked against the package that defines it). //tests/fidl: the crate-name test
-# (milestone M8b).
+# checked against the package that defines it; both FIDL macros live in //rules itself).
+# //tests/fidl: the crate-name test (milestone M8b). Only packages outside
+# //vendor/fuchsia belong here (tests/test_regen.py checks it): upstream's entries are
+# in _UPSTREAM_ALLOWLIST, which regen.py checks against the revision.
 _OVERLAY_ALLOWLIST = [
-    "//rules:__subpackages__",
+    "//rules:__pkg__",
     "//tests/fidl:__pkg__",
 ]
 

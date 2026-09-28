@@ -328,3 +328,15 @@ Cost: one retried step.
 Prevention: grep the exact lines (`cat -A`) before scripting a multi-line replacement.
 Fix belongs in: agent habit
 Status: open
+
+## 2026-09-28T03:28-07:00 — instruction gap: M8b notebook entries batched under shared stamps
+Chapter: [M8b](notebook/M8b.md)
+What happened: the independent review found three M8b entries under 03:02 (two written
+in one command after the reading they record, plus the decision) and two under 03:08
+(the host decision appended in the same command as a file read). The same pattern as the
+open M8 entry: entries written in a batch after their events rather than one per event.
+Stamps were not edited.
+Cost: coarser timing in the chapter; a repeat of an open process-log item.
+Prevention: one entry per command, appended right after the event it records.
+Fix belongs in: agent habit (lab-notebook skill already says so)
+Status: open

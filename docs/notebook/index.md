@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T03:15-07:00
+Updated: 2026-09-28T03:31-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -122,8 +122,8 @@ Outcome: M8a complete — 23 libraries' `rust` crates build for x64/arm64; split
 - Driver transport deferred (as upstream's Bazel rule); orchestrator: M9 takes it (10 overlay crates)
 
 ### [M8b — FIDL Rust binding rule, `rust_next` flavor](M8b.md)
-Entries: 2026-09-28T02:56-07:00 through 2026-09-28T03:15-07:00
-Outcome: open — implemented and verified (17 / 17 both targets, 22 libraries built); review pending
+Entries: 2026-09-28T02:56-07:00 through 2026-09-28T03:31-07:00
+Outcome: complete — 17 / 17 for both targets (22 libraries built); review fixes applied
 - `rules/fidl_rust_next.bzl` from `fidl_rust_next.gni`/`fidl.gni`; generator parity with M7's FLAVORS by diff test
 - GN's `fidl_rust_next_allowlist` visibility; regen maps upstream's load and checks the list against the revision
 - `fidl_next_protocol` test_deps name a label upstream Bazel lacks: unmappable test_deps are provisional + patch

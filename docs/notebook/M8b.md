@@ -101,3 +101,17 @@ updated (plan `## ` headings equal the base's). `fuchsia-loom`'s cap-lints test 
 after the checks entry: `bazel test //...` 58 (55 + 3 skipped), `--config=fuchsia_x64
 //tests/vendor/...` 8 + 1 skipped. Next: the orchestrator's review, fixes, Review section,
 checkpoint commit `overlay: M8b — FIDL Rust binding rule, rust_next flavor`.
+
+## 2026-09-28T03:28-07:00 — direction: review findings
+The orchestrator's independent reviewer (at `d6ad181`): land after fixes. To do: a
+process-log entry for batched stamps (three at 03:02, two at 03:08); a pytest keeping
+`_OVERLAY_ALLOWLIST` outside `//vendor/fuchsia`; try `//rules:__pkg__` instead of
+`:__subpackages__`; evidence and header wording; Next session names all commits.
+
+## 2026-09-28T03:31-07:00 — checkpoint (closing)
+State: complete. Review fixes done: the overlay-allowlist pytest (negative check with a
+`//vendor/fuchsia` entry fails), `//rules:__pkg__` instead of `:__subpackages__` (builds
+pass), evidence and `regen.py` wording, Next session. Rechecked: pytest 421, reuse 1190,
+`regen.py --check` clean, three builds 401 targets each, `bazel test //...` 55 + 3
+skipped, Bazel 10.95 of 12 GiB, lockfile unchanged, plan headings equal the base's.
+Next: M9.
