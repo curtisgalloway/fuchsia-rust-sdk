@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T08:25-07:00
+Updated: 2026-09-28T09:14-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -184,6 +184,15 @@ Outcome: complete — pilot 1 binds to `PCI0.bus.00_06_0.00_06_0` on the first r
 - `device_categories` blocks nothing; `vfs` statics not observed; new: two Rust `std` copies per driver host (same libc heap)
 - Review: land after fixes (3 minor, 4 nits, fixed); scratch path removed from the opening entry in place (disclosed)
 
+### [G1 — Milestone 1 gate](G1.md)
+Entries: 2026-09-28T08:30-07:00 through 2026-09-28T09:14-07:00
+Outcome: complete — milestone 1 declared; all six checks pass from a simulated fresh container; driver guide followed literally binds a renamed copy
+- Fresh container = caches deleted + GitHub clone; cold x64 6 min 8 s, Bazel peak 12.42 GiB (IDK archive + extraction)
+- M11 replay verbatim, no change needed; ffx prints a symbol-server WARN first in `log`
+- A second driver for a bound spec registers but does not bind ("No new nodes were bound"); guide: stop/start first
+- Guide fixes from the literal run: host skips `bind_test` too; two wording fixes
+- Review: land after fixes (4 minor, 7 nits). Guide `cd ../..` was missing (my run used absolute paths). SSH keys and ffx state survived the "fresh" reset
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
@@ -202,6 +211,8 @@ Outcome: complete — pilot 1 binds to `PCI0.bus.00_06_0.00_06_0` on the first r
   after reclaiming 1.2 GiB the package transition's `-ST-` rebuilds had used.
   [M11](M11.md) adds nothing to Bazel (12.18 of 15); the `emulator` bucket reaches 0.52 GiB
   after two registrations and one reboot (total 13.26 GiB running, 13.10 stopped).
+  [G1](G1.md) rebuilds from empty caches: Bazel peak 12.42 GiB during the IDK fetch, 11.69
+  at the end (all three configs plus the guide copy); total 12.36 GiB.
 - **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
   Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
   [M4](M4.md) derives the Rust cfgs from that file and asserts the HEAD branch at build time.

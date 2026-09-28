@@ -90,7 +90,7 @@ in the cloud.
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | complete |
 | I3 | Emulator bind target for pilot 1 confirmed at this release; pilot builds with it | M3 | cloud (emulator) | complete |
 | M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | complete |
-| G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone; driver guide | M11 | cloud (emulator) | pending |
+| G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone; driver guide | M11 | cloud (emulator) | complete |
 | I4 | Method to replace the in-tree `aml-saradc` on the VIM3 | — | **lab** | pending |
 | M12 | Pilot 2 closure; `aml_saradc` builds for arm64 and passes R7 checks (R4–R7) | G1 | cloud | pending |
 | M13 | Pilot 2 binds on the VIM3 and reads the ADC (R8b) | M12, I4 | **lab** | pending |
@@ -102,6 +102,15 @@ in the cloud.
 | M18 | Generated API docs (rustdoc) for the overlay's driver crates — **runs only on owner approval** | M14 | cloud | pending (owner approval) |
 
 Critical path to milestone 1: I1 → M1 → M2 → M2a → M4 → M5 → M6a → M6b → M7 → M8a → M8b → M9a → M9b → M9c → M10 → M11 → G1.
+
+**Milestone 1: declared 2026-09-28** at G1's checkpoint. R1–R7 and R8a hold together
+from a clean clone ([G1 evidence](evidence/G1.md)). The design's milestone 1 outcomes
+are met:
+- a `bazel build` with no `fuchsia.git` checkout produces a Rust driver package;
+- the package loads and binds on a real node of the emulator.
+
+Next: report to the owner and wait. I4, M12–M18 and G2 start only on the owner's
+go-ahead.
 M3, I2 and I3 run beside it. I4 needs only the lab, so it can run any time before M13.
 
 ## Design coverage
@@ -618,28 +627,35 @@ until a driver uses `vfs`.
 
 ## G1 — Milestone 1 gate
 
-**Design coverage:** R1–R7, R8a together (brief "Done (milestone 1)").
-**Dependencies:** M11.
-**Checks (on a fresh clone in a fresh container):**
-1. `uv run pytest` and `scripts/regen.py --check`.
-2. `scripts/resolve_pins.py 33.20260927.4.1` leaves `overlay.lock.json` unchanged.
-3. `bazel build` and `bazel test` of `//...` under both configs, from an empty output
-   base, with no `fuchsia.git` checkout on disk (outcome 1 of design §1).
-4. Replay the M11 sequence: the driver loads and binds.
-5. Record the disk used, build time, and closure counts (initial R12 data).
-6. **Driver guide.** Write `docs/driver-guide.md` (about 150 lines) from the M10–M11
-   evidence: copy `drivers/simple_rust` under a new name, write the bind rule and its
-   `bind_test` JSON, the BUILD targets (`fuchsia_rust_driver`, `:bind`, `:pkg`), package,
-   load with `scripts/emu driver`, and check the bind. Link it from `README.md`.
-   Verified by following it literally in the fresh clone: a renamed copy builds, passes
-   its tests and binds on the emulator (then removed; not committed). Owner request
-   2026-09-28; not a design requirement.
-
-**Review:** `review-swarm` if available, otherwise a reviewer subagent over the whole
-milestone-1 diff against design §1, §3 and §4.
-**Exit:** all pass → milestone 1 declared in the plan and reported to the owner. Then
-**stop**: milestones after G1 (I4, M12–M18, G2) start only on the owner's go-ahead (owner
-direction 2026-09-28).
+**Outcome:** milestone 1 holds from a clean clone. In a simulated fresh container
+(caches deleted, fresh GitHub clone at `c0ec17d`, no `fuchsia.git` on disk) all six
+checks pass:
+- `uv run pytest` 453, and `regen.py --check` clean;
+- `resolve_pins.py 33.20260927.4.1` leaves the lock byte-identical;
+- `//...` builds and tests cold under `--lockfile_mode=error` for x64 (6 min 8 s), arm64
+  (1 min 5 s) and host (48 s);
+- M11's replay binds pilot 1 verbatim;
+- disk: Bazel peak 12.42 of 15 GiB, 11.69 at the end; total 12.36 of 25. Closure 69
+  in-tree / 121 crates.io / 23 FIDL (initial R12 data);
+- `docs/driver-guide.md` (linked from `README.md`), followed literally, makes a renamed
+  copy that builds, passes its tests for both targets and binds on the emulator.
+**Design coverage:** R1–R7, R8a together (brief "Done (milestone 1)"; the brief's
+`dw-spi` pilot was replaced by `simple_rust` in design D2). **Dependencies:** M11.
+**Status:** complete. An independent reviewer subagent, launched by the orchestrator,
+reviewed before the checkpoint (`review-swarm` unavailable). It re-ran the gate,
+including a guide-made copy binding on the emulator. Verdict: land after fixes, 4 minor
+and 7 nits, all resolved. The detailed entry is in the evidence file (condensed here at
+the checkpoint, disclosed).
+**Evidence:** [G1](evidence/G1.md) · **Notebook:** [G1](notebook/G1.md)
+**Open limitations:**
+- The fresh container was simulated. ffx's SSH keys and state and the harness-installed
+  `openssh-client` survived, so the first-run apt install and key generation were not
+  re-exercised (M3 exercised the apt path).
+- R7's `DT_NEEDED` check compares with another shipped Rust driver (owner's reading);
+  like-for-like is M12's.
+- Only x64 was bound on a target.
+**Exit taken:** milestone 1 declared (below). **Stop:** milestones after G1 (I4, M12–M18,
+G2) start only on the owner's go-ahead (owner direction 2026-09-28).
 
 ---
 
@@ -1235,6 +1251,27 @@ overlay's cfgs and the Fuchsia target `std`. Split point: one crate first, then 
 - **Driver guide and API docs (owner request 2026-09-28).** The driver guide
   (`docs/driver-guide.md`) is G1's check 6; generated API docs are M18, which runs only
   on the owner's approval.
+- **`resolve_pins.py`: retry transient resets per blob (found in the G1 review; for
+  M14/M15).** The reviewer's live run failed twice with `[Errno 104] Connection reset by
+  peer` while streaming the product bundle's blobs for the digest. The lock was left
+  untouched each time, as designed, and the third run passed. `scripts/bazel` already
+  uses `curl --retry 3`; a bounded per-blob retry would stop one reset from failing a
+  ~3-minute resolve (and `regen.py` in CI, M17). Not fixed in G1.
+- **Driver guide written and verified (G1).** `docs/driver-guide.md`; followed literally
+  in G1 to a renamed copy that built, tested and bound. It is 200 lines (asked: about
+  150). Keep it current when the driver rule, `scripts/emu` or the bind targets change.
+- **A second driver for a bound spec registers silently (found in G1).** `ffx driver
+  register` of another URL for the edu spec exits 0 with "No new nodes were bound to the
+  driver being registered."; the first driver keeps the spec until reboot. The guide
+  says to stop and start first. `scripts/emu driver` could check `composite show` after
+  registering and fail when the spec names another URL.
+- **ffx log noise (found in G1).** `ffx log … dump` prints `WARN: missing authentication
+  for symbol servers` first (besides M11's ssh retry noise on reboot); replay scripts
+  must not treat it as a failure.
+- **Cold build numbers for the closure report (found in G1; for M14).** From an empty
+  output base on 4 vCPU: x64 6 min 8 s (IDK fetch included), arm64 1 min 5 s, host 48 s;
+  Bazel peak 12.42 GiB (IDK archive beside its extraction), 11.69 GiB at rest. M14's
+  report could record these with the closure counts (69 in-tree, 121 crates.io, 23 FIDL).
 - **Two Rust `std` copies in a driver host (found in M11; for M12 and later drivers).**
   `driver_host` loads `libstd-<hash>.so`; the overlay's drivers link `std` statically
   (rules_rust), so the process has two `std` copies with separate statics (panic hook,
@@ -1248,24 +1285,19 @@ overlay's cfgs and the Fuchsia target `std`. Split point: one crate first, then 
 
 ## Next session
 
-- Current milestone and status: **M11 complete.** Branch `ms/M11` from `88651a1`;
-  `wip` commits (chapter, first bind, runtime copies, reboot path and
-  `device_categories`, checks and the `scripts/emu.py` docstring, evidence, plan, review
-  findings, review fixes), then the checkpoint commit `overlay: M11 — Pilot 1 binds on
-  the emulator`.
-- Completed work and evidence: [M11 evidence](evidence/M11.md) (the entry as planned, C3
-  table, register output, `driver list`, `composite show 00_06_0`, `list-devices -v`,
-  `ffx log`, the replay sequence for G1, the four backlog answers, project checks, disk,
-  review).
-- Uncommitted state: none expected after the checkpoint; the emulator is stopped and the
-  scratch directory deleted.
-- Remaining work, blockers, and decisions: none for M11. Unchanged: M17 placement. A
-  separate `docs:` commit after the checkpoint applies the owner-approved plan edits
-  (driver guide in G1, M18 API docs, stop after G1); done.
+- Current milestone and status: **G1 complete; milestone 1 declared (2026-09-28).**
+  Branch `ms/G1` from `c0ec17d`. There are 11 `wip` commits: the checks, the guide, the
+  evidence and the review fixes. Then comes the checkpoint commit `overlay: G1 —
+  Milestone 1 gate` (not pushed; the orchestrator opens the PR).
+- Completed work and evidence: [G1 evidence](evidence/G1.md). It has the six checks,
+  requirement and constraint coverage, deviations, disk, closure counts, the guide's
+  verification and the review.
+- Uncommitted state: none. The emulator is stopped and the scratch clone removed.
+- Remaining work, blockers, and decisions: **stop and report to the owner.** Milestones
+  after G1 (I4, M12–M18, G2) start only on the owner's go-ahead (owner direction
+  2026-09-28); M18 additionally needs the owner's approval. Unchanged: M17 placement.
 - Context boundary: normal.
-- Resume action: **G1** (milestone 1 gate from a clean clone; step 4 replays the M11
-  sequence in the evidence; step 6 writes and verifies the driver guide). After G1:
-  report to the owner and **wait**; later milestones start only on the owner's go-ahead
-  (owner direction 2026-09-28).
-- Read first for G1: the G1 entry, [M11 evidence](evidence/M11.md) ("The replay sequence
-  for G1", "Findings for later milestones"), [notebook index](notebook/index.md).
+- Resume action: on the owner's go-ahead, the next eligible milestones are **M12**
+  (pilot 2 builds; depends on G1) and **I4** (lab, any time before M13).
+- Read first when resuming: the M12 entry, [G1 evidence](evidence/G1.md) ("Findings for
+  later milestones"), [driver guide](driver-guide.md), [notebook index](notebook/index.md).
