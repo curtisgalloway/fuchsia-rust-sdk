@@ -90,7 +90,7 @@ in the cloud.
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | complete |
 | I3 | Emulator bind target for pilot 1 confirmed at this release; pilot builds with it | M3 | cloud (emulator) | complete |
 | M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | complete |
-| G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone | M11 | cloud (emulator) | pending |
+| G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone; driver guide | M11 | cloud (emulator) | pending |
 | I4 | Method to replace the in-tree `aml-saradc` on the VIM3 | — | **lab** | pending |
 | M12 | Pilot 2 closure; `aml_saradc` builds for arm64 and passes R7 checks (R4–R7) | G1 | cloud | pending |
 | M13 | Pilot 2 binds on the VIM3 and reads the ADC (R8b) | M12, I4 | **lab** | pending |
@@ -99,6 +99,7 @@ in the cloud.
 | M16 | Driver unit tests build and pass on the emulator (R9) | M12, M3 | cloud (emulator) | pending |
 | M17 | `fuchsia-ci` job runs `regen.py` per mirrored release (R11) | M15 | `fuchsia-ci` repo | pending |
 | G2 | **Final system verification** against the full design | M13–M17 | cloud + **lab** | pending |
+| M18 | Generated API docs (rustdoc) for the overlay's driver crates — **runs only on owner approval** | M14 | cloud | pending (owner approval) |
 
 Critical path to milestone 1: I1 → M1 → M2 → M2a → M4 → M5 → M6a → M6b → M7 → M8a → M8b → M9a → M9b → M9c → M10 → M11 → G1.
 M3, I2 and I3 run beside it. I4 needs only the lab, so it can run any time before M13.
@@ -626,10 +627,19 @@ until a driver uses `vfs`.
    base, with no `fuchsia.git` checkout on disk (outcome 1 of design §1).
 4. Replay the M11 sequence: the driver loads and binds.
 5. Record the disk used, build time, and closure counts (initial R12 data).
+6. **Driver guide.** Write `docs/driver-guide.md` (about 150 lines) from the M10–M11
+   evidence: copy `drivers/simple_rust` under a new name, write the bind rule and its
+   `bind_test` JSON, the BUILD targets (`fuchsia_rust_driver`, `:bind`, `:pkg`), package,
+   load with `scripts/emu driver`, and check the bind. Link it from `README.md`.
+   Verified by following it literally in the fresh clone: a renamed copy builds, passes
+   its tests and binds on the emulator (then removed; not committed). Owner request
+   2026-09-28; not a design requirement.
 
 **Review:** `review-swarm` if available, otherwise a reviewer subagent over the whole
 milestone-1 diff against design §1, §3 and §4.
-**Exit:** all pass → milestone 1 declared in the plan and reported to the owner.
+**Exit:** all pass → milestone 1 declared in the plan and reported to the owner. Then
+**stop**: milestones after G1 (I4, M12–M18, G2) start only on the owner's go-ahead (owner
+direction 2026-09-28).
 
 ---
 
@@ -841,6 +851,31 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 **Review:** full-diff review against the design, by the method in Conventions.
 **Exit:** every design §1 outcome is shown, with evidence links.
+
+---
+
+## M18 — Generated API docs for the driver crates
+
+**Owner approval required before this runs** (owner direction 2026-09-28): the
+orchestrator does not start it on its own; it asks the owner after G2.
+**Design coverage:** none (owner request, not a design requirement).
+**Dependencies:** M14 (regeneration settled, so the documented crate set is stable).
+**In scope:** a Bazel target that builds rustdoc (`rules_rust`'s `rust_doc`) for the
+overlay's driver-facing crates (`fdf_component`, the driver runtime crates, `zx`, the
+FIDL bindings pilots 1 and 2 use) for `fuchsia_x64`; one index page linking them;
+`README.md` and `docs/driver-guide.md` say how to build and open it. The output stays a
+build artifact, not committed.
+**Out of scope:** hosting or publishing the docs; writing doc comments for upstream
+crates (upstream's source is what it is; gaps go in the evidence as candidates for
+upstream reports).
+**Acceptance criteria:**
+- [ ] `scripts/bazel build --config=fuchsia_x64 //docs/api` (or similar) succeeds from a
+  clean output base within the hosted disk budget.
+- [ ] The index links every listed crate; a spot check shows cross-crate links resolve.
+- [ ] `uv run pytest` and `uv run reuse lint` green.
+**Session sizing:** about half a day (one session). Main risk: `rust_doc` with the
+overlay's cfgs and the Fuchsia target `std`. Split point: one crate first, then the set.
+**Status:** pending (owner approval).
 
 ---
 
@@ -1197,6 +1232,9 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   matters. **Answered in M11: blocks nothing** (registering, binding and `Start`
   succeed; `static-checks` still fails that check, exit 0). The manifest stays
   upstream's. Follow-up trigger: if a CI gate runs `static-checks` (M16/M17).
+- **Driver guide and API docs (owner request 2026-09-28).** The driver guide
+  (`docs/driver-guide.md`) is G1's check 6; generated API docs are M18, which runs only
+  on the owner's approval.
 - **Two Rust `std` copies in a driver host (found in M11; for M12 and later drivers).**
   `driver_host` loads `libstd-<hash>.so`; the overlay's drivers link `std` statically
   (rules_rust), so the process has two `std` copies with separate statics (panic hook,
@@ -1223,9 +1261,11 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   scratch directory deleted.
 - Remaining work, blockers, and decisions: none for M11. Unchanged: M17 placement. A
   separate `docs:` commit after the checkpoint applies the owner-approved plan edits
-  (driver guide in G1, M18 API docs, stop after G1).
+  (driver guide in G1, M18 API docs, stop after G1); done.
 - Context boundary: normal.
-- Resume action: after M11's checkpoint, **G1** (milestone 1 gate from a clean clone;
-  step 4 replays the M11 sequence in the evidence).
+- Resume action: **G1** (milestone 1 gate from a clean clone; step 4 replays the M11
+  sequence in the evidence; step 6 writes and verifies the driver guide). After G1:
+  report to the owner and **wait**; later milestones start only on the owner's go-ahead
+  (owner direction 2026-09-28).
 - Read first for G1: the G1 entry, [M11 evidence](evidence/M11.md) ("The replay sequence
   for G1", "Findings for later milestones"), [notebook index](notebook/index.md).
