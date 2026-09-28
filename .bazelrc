@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+common --enable_bzlmod
+common --noenable_workspace
+
+# Fuchsia flag aliases (as fuchsia-infra-bazel-rules config/common_config.bazelrc).
+build --flag_alias=override_fuchsia_api_level=@fuchsia_sdk//flags:fuchsia_api_level
+build --flag_alias=default_fuchsia_api_level=@fuchsia_sdk//flags:repository_default_fuchsia_api_level
+
+# Give each target platform its own output directory (as upstream's template.bazelrc
+# does), so x64, arm64 and host outputs do not overwrite each other in bazel-out/.
+common --experimental_platform_in_output_dir=True
+
+# Target the release's in-development API level, as sdk-samples/drivers does: hardware
+# FIDL is @available(added=HEAD) (design C3).
+build --default_fuchsia_api_level=HEAD
+
+# Fuchsia targets. rules_fuchsia's packaging rules pick the API level up from the default
+# above through a transition; bare rules_rust targets have no such transition, so the
+# configs set it directly. Same level, so packaged and unpackaged builds agree.
+build:fuchsia --override_fuchsia_api_level=HEAD
+build:fuchsia_x64 --config=fuchsia
+build:fuchsia_x64 --platforms=@rules_fuchsia//fuchsia/constraints/platforms:fuchsia_x64
+build:fuchsia_arm64 --config=fuchsia
+build:fuchsia_arm64 --platforms=@rules_fuchsia//fuchsia/constraints/platforms:fuchsia_arm64

@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+# rust.BUILD.bazel becomes the BUILD file of @fuchsia_rust_toolchain (repositories.bzl).
+exports_files(["rust.BUILD.bazel"])

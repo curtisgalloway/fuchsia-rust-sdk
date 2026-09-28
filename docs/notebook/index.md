@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T18:37-07:00
+Updated: 2026-09-27T19:24-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -38,6 +38,6 @@ Outcome: complete — `resolve_pins.py` + `overlay.lock.json` for 33.20260927.4.
 - Review (before checkpoint): git inherited user config (C1); now isolated, tested with a hostile HOME
 - `read(amt)` accepts truncated HTTP bodies; `digest` checks Content-Length
 
-## Threads
-- **Release → revision pinning:** [I1](I1.md) found the method; [M1](M1.md) implements it in `resolve_pins.py`
-  and keeps the builds-agree check (live: `20.20240404.1.1` is rejected).
+### [M2 — Bazel workspace and Fuchsia Rust toolchains](M2.md)
+Entries: 2026-09-27T18:40-07:00 through 2026-09-27T19:24-07:00
+Outcome: complete — both Fuchsia configs link hello_rust from a clean output base; review fixes applied

@@ -22,6 +22,9 @@ BUILDS = ["8669503301662913841", "8669503301662913825", "8669503301662913777"]
 RUST_PIN = "git_revisions:c26ce708de5d14682647895d2f3caf38f70b5aa6,3493720eca95cf844a8d7e58fdd12e0e5644e7d0"
 HOST_ID = "3a8ffdbed3f78ba359e5e9a4677a5d27c8e13d9c4822243bf78b16a57acb225f"
 TARGET_ID = "4fe0f40e20ce02113705648c7123afcee4294c7d5e98459bf1e5c0204f07d603"
+HOST_STD_ID = "1db7ec26634d13d7403dae922ff1fab093b2fa4df082a82a9036af289a72d40e"
+CLANG_PIN = "git_revision:3493720eca95cf844a8d7e58fdd12e0e5644e7d0"
+CLANG_ID = "d37d515293218c424ea50a13037b6a897d032c963b8de4d9ab470e3de7d42e2d"
 IDK_CIPD_ID = "41d82a3f4dbf718a5141040d36e463b218a49c97837b964a5f2a86ab6624a8a9"
 RULES_ID = "8d346b9a21a6c3c0d4e6ffc40e9ef0f81e9545dd75040b068d4fa09d74f54845"
 IDK_BYTES = b"not really a tarball"
@@ -34,6 +37,15 @@ TOOLCHAIN_XML = b"""<?xml version="1.0" encoding="UTF-8"?>
              version="git_revision:0f61051f541a5b8cfce25c84262dfdbadb9ca688"
              platforms="linux-amd64,mac-amd64"
              path="prebuilt/third_party/lldb/{{.OS}}-{{.Arch}}"/>
+    <package name="fuchsia/third_party/clang/${platform}"
+             version="%(clang)s"
+             platforms="linux-amd64,linux-arm64,mac-amd64,mac-arm64,windows-amd64"
+             path="prebuilt/third_party/clang/{{.OS}}-{{.Arch}}"/>
+    <package name="fuchsia/third_party/clang/linux-arm64"
+             version="%(clang)s"
+             platforms="linux-amd64"
+             attributes="clang-arm64"
+             path="prebuilt/third_party/clang/linux-arm64"/>
     <package name="fuchsia/third_party/rust/host/${platform}"
              version="%(pin)s"
              platforms="linux-amd64,linux-arm64,mac-amd64,mac-arm64,windows-amd64"
@@ -46,9 +58,13 @@ TOOLCHAIN_XML = b"""<?xml version="1.0" encoding="UTF-8"?>
              version="%(pin)s"
              platforms="linux-amd64,linux-arm64,mac-amd64,mac-arm64"
              path="prebuilt/third_party/rust/{{.OS}}-{{.Arch}}"/>
+    <package name="fuchsia/third_party/rust/target/x86_64-unknown-linux-gnu"
+             version="%(pin)s"
+             platforms="linux-amd64,linux-arm64,mac-amd64,mac-arm64"
+             path="prebuilt/third_party/rust/{{.OS}}-{{.Arch}}"/>
   </packages>
 </manifest>
-""" % {b"pin": RUST_PIN.encode()}
+""" % {b"pin": RUST_PIN.encode(), b"clang": CLANG_PIN.encode()}
 
 GCS = "https://storage.googleapis.com"
 PB_URL = f"{GCS}/fuchsia/development/{V}/product_bundles.json"
@@ -86,6 +102,8 @@ class Stub:
             ("fuchsia/sdk/core/linux-amd64", f"version:{V}"): IDK_CIPD_ID,
             ("fuchsia/third_party/rust/host/linux-amd64", RUST_PIN): HOST_ID,
             ("fuchsia/third_party/rust/target/fuchsia", RUST_PIN): TARGET_ID,
+            ("fuchsia/third_party/rust/target/x86_64-unknown-linux-gnu", RUST_PIN): HOST_STD_ID,
+            ("fuchsia/third_party/clang/linux-amd64", CLANG_PIN): CLANG_ID,
             ("fuchsia/development/rules_fuchsia", f"git_revision:{INTEG}"): RULES_ID,
             ("fuchsia/development/rules_fuchsia", f"version:{V}"): RULES_ID,
         }
@@ -158,8 +176,8 @@ def test_happy_path_writes_every_field_with_a_source(tmp_path):
     out = tmp_path / "overlay.lock.json"
     assert run(Stub(), out) == 0
     lock = json.loads(out.read_text())
-    assert sorted(lock) == ["bazel_sdk", "cargo_lock_sha256", "fuchsia_revision", "integration_revision",
-                            "rules_fuchsia", "rust_host", "rust_target", "sdk_version"]
+    assert sorted(lock) == ["bazel_sdk", "cargo_lock_sha256", "clang", "fuchsia_revision", "integration_revision",
+                            "rules_fuchsia", "rust_host", "rust_host_std", "rust_target", "sdk_version"]
     for field, entry in lock.items():
         assert entry["value"], field
         assert entry["source"] and all(isinstance(s, str) and s for s in entry["source"]), field
@@ -176,6 +194,19 @@ def test_happy_path_writes_every_field_with_a_source(tmp_path):
     }
     assert lock["rust_target"]["package"] == "fuchsia/third_party/rust/target/fuchsia"
     assert lock["rust_target"]["value"] == TARGET_ID
+    assert lock["rust_host_std"] == {
+        "package": "fuchsia/third_party/rust/target/x86_64-unknown-linux-gnu",
+        "value": HOST_STD_ID,
+        "source": [f"https://fuchsia.googlesource.com/fuchsia {FX}:manifests/toolchain",
+                   "https://chrome-infra-packages.appspot.com/p/fuchsia/third_party/rust/target/"
+                   f"x86_64-unknown-linux-gnu/+/{RUST_PIN}"],
+    }
+    assert lock["clang"] == {
+        "package": "fuchsia/third_party/clang/linux-amd64",
+        "value": CLANG_ID,
+        "source": [f"https://fuchsia.googlesource.com/fuchsia {FX}:manifests/toolchain",
+                   f"https://chrome-infra-packages.appspot.com/p/fuchsia/third_party/clang/linux-amd64/+/{CLANG_PIN}"],
+    }
     assert lock["bazel_sdk"] == {"url": IDK_URL, "value": hashlib.sha256(IDK_BYTES).hexdigest(), "source": [IDK_URL]}
     assert lock["rules_fuchsia"] == {
         "package": "fuchsia/development/rules_fuchsia",
@@ -287,6 +318,29 @@ FAILURES = {
     "target package not pinned":
         ("rust_target", lambda s: s.git.__setitem__("manifests/toolchain", TOOLCHAIN_XML.replace(
             b"rust/target/fuchsia\"", b"rust/target/fuchsiax\""))),
+    "host std package not pinned":
+        ("rust_host_std", lambda s: s.git.__setitem__("manifests/toolchain", TOOLCHAIN_XML.replace(
+            b"target/x86_64-unknown-linux-gnu", b"target/x86_64-unknown-linux-musl"))),
+    "host std pinned at another compiler build":
+        ("rust_host_std", lambda s: s.git.__setitem__("manifests/toolchain", TOOLCHAIN_XML.replace(
+            b'target/x86_64-unknown-linux-gnu"\n             version="git_revisions:c26ce708',
+            b'target/x86_64-unknown-linux-gnu"\n             version="git_revisions:00000000'))),
+    "target pinned at another compiler build":
+        ("rust_target", lambda s: s.git.__setitem__("manifests/toolchain", TOOLCHAIN_XML.replace(
+            b'target/fuchsia"\n             version="git_revisions:c26ce708',
+            b'target/fuchsia"\n             version="git_revisions:00000000'))),
+    "clang package not pinned":
+        ("clang", lambda s: s.git.__setitem__("manifests/toolchain", TOOLCHAIN_XML.replace(
+            b"clang/${platform}", b"clangx/${platform}"))),
+    "clang not for linux-amd64":
+        ("clang", lambda s: s.git.__setitem__("manifests/toolchain", TOOLCHAIN_XML.replace(
+            b'platforms="linux-amd64,linux-arm64,mac-amd64,mac-arm64,windows-amd64"\n'
+            b'             path="prebuilt/third_party/clang', b'platforms="mac-arm64"\n'
+            b'             path="prebuilt/third_party/clang'))),
+    "host std CIPD 404":
+        ("rust_host_std", lambda s: s.cipd.pop(("fuchsia/third_party/rust/target/x86_64-unknown-linux-gnu", RUST_PIN))),
+    "clang CIPD 404":
+        ("clang", lambda s: s.cipd.pop(("fuchsia/third_party/clang/linux-amd64", CLANG_PIN))),
     "host CIPD 404":
         ("rust_host", lambda s: s.cipd.pop(("fuchsia/third_party/rust/host/linux-amd64", RUST_PIN))),
     "target CIPD 404":
@@ -556,8 +610,9 @@ def test_rewritten_lock_keeps_existing_mode(tmp_path):
     assert os.stat(out).st_mode & 0o777 == 0o664
 
 
-def test_parse_toolchain_manifest_reads_both_pins():
-    assert rp.parse_toolchain_manifest(TOOLCHAIN_XML) == {"rust_host": RUST_PIN, "rust_target": RUST_PIN}
+def test_parse_toolchain_manifest_reads_every_pin():
+    assert rp.parse_toolchain_manifest(TOOLCHAIN_XML) == {
+        "rust_host": RUST_PIN, "rust_target": RUST_PIN, "rust_host_std": RUST_PIN, "clang": CLANG_PIN}
 
 
 def test_cipd_xssi_prefix_is_stripped():

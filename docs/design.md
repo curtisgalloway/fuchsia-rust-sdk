@@ -5,7 +5,8 @@ SPDX-License-Identifier: Apache-2.0
 
 # Rust drivers out of tree (the overlay) — Design
 
-Revision: 2026-09-27, draft 1 — approved by the owner 2026-09-27, including D6
+Revision: 2026-09-27, draft 1 — approved by the owner 2026-09-27, including D6;
+amended 2026-09-27 per owner direction and M2 findings (C6, A2, R1, R2, §4.1, §4.2)
 
 Source brief: [`brief.md`](brief.md), copied from `curtisgalloway/fuchsia-ci` at `b061204`
 (`docs/drivers/rust-driver-oot-plan.md`) (the
@@ -132,14 +133,25 @@ Facts found for this design (local tree at `b5274053`, 2026-09-27):
   Vendored Fuchsia code keeps its BSD-3 `LICENSE`; vendored crates keep theirs.
 - **C5. Build host is linux-amd64.** The CIPD host toolchain and the IDK are
   fetched for that platform.
+- **C6. Environment profile; the hosted profile is the default.** Resource limits
+  belong to the environment the work runs in, not to the project (owner direction
+  2026-09-27). The default profile is the Anthropic-hosted cloud container: about
+  30 GB of writable disk, 4 vCPU, no KVM, linux-amd64. Every milestone must pass under
+  it, with total disk use at most 25 GB (5 GB headroom). Other profiles (self-hosted
+  runners, dev VMs, lab boxes) may declare more disk, KVM or attached hardware; the
+  scripts detect or read the profile and relax to match (for example skip the IDK
+  trim, keep caches, use KVM).
 
 ### 2.3 Assumptions (not yet verified)
 
 - **A1.** An SDK version maps to its `fuchsia.git` revision through a published
   artifact (brief §3.6 [verify]). Investigation I1.
-- **A2.** `rules_rust` 0.69.0 with upstream's patch coexists with the
-  `rules_fuchsia` release and Bazel version that `sdk-samples/drivers` uses.
-  Checked in the first build milestone.
+- **A2 (resolved in M2, amended).** `rules_rust` 0.69.0 with upstream's patch loads
+  with this release's `rules_fuchsia` under Bazel 8.5.1, the version `fuchsia.git`
+  pins at the release revision (`manifests/jiri.lock`). The Bazel that
+  `sdk-samples/drivers` pins (8.1.0) cannot load this SDK: its native `cc_import`
+  lacks `strip_include_prefix` (added in Bazel 8.3.0), which the generated
+  `@fuchsia_sdk` uses. See [M2 evidence](evidence/M2.md).
 - **A3.** The pinned toolchain's Rust `std` for `*-unknown-fuchsia` imports no
   symbols on `rules_fuchsia`'s driver restricted-symbols list, or upstream has a
   known config that avoids them. Checked when the driver rule is written.
@@ -150,14 +162,17 @@ Facts found for this design (local tree at `b5274053`, 2026-09-27):
 ## 3. Requirements and acceptance criteria
 
 - **R1. Pinned release lock.** Given an SDK version, a script produces
-  `overlay.lock.json` with: the release revision, both CIPD toolchain instance
-  IDs, the `rules_fuchsia`/Bazel SDK version, and the SHA-256 of the release's
+  `overlay.lock.json` with: the release revision, the CIPD instance IDs of the
+  toolchain packages (Rust host, Rust Fuchsia target std, Rust host std, clang), the
+  `rules_fuchsia`/Bazel SDK version, and the SHA-256 of the release's
   `third_party/rust_crates/Cargo.lock`. *Check:* running it twice gives
   byte-identical output; each field names the upstream artifact it came from.
 - **R2. Fuchsia Rust toolchain.** The overlay registers Rust toolchains for
   `x86_64-unknown-fuchsia` and `aarch64-unknown-fuchsia` from the pinned CIPD
   packages, linking through `@fuchsia_clang` and the IDK sysroot, plus a host
-  toolchain from the same host package for proc macros and build tools.
+  toolchain from the same pinned toolchain revision (the host compiler package plus
+  upstream's separate `x86_64-unknown-linux-gnu` std package) for proc macros and
+  build tools.
   *Check:* `zx-types`, `zx-sys` and `zx` build for both targets; a hello-world
   binary links against `libfdio.so` and runs on the emulator.
 - **R3. Library rules with API-level cfgs.** `rustc_library`,
@@ -217,7 +232,7 @@ Milestone 1 (brief §1) is R1–R7 plus R8a. Milestone 2 is R8b, R9–R12.
 ```
 fuchsia-rust-sdk/
 ├── MODULE.bazel             # rules_fuchsia + fuchsia_sdk at the lock's version; rules_rust 0.69.0 + patch
-├── .bazelversion            # matches sdk-samples/drivers for that release
+├── .bazelversion            # the Bazel fuchsia.git pins at the release revision
 ├── overlay.lock.json        # R1: the only per-release input; everything else derives from it
 ├── toolchain/               # R2: CIPD repo rule + rust_toolchain() for x64/arm64 Fuchsia + host
 ├── rules/
@@ -253,7 +268,7 @@ All later steps read only this file, so a build is reproducible from the repo
 alone. Fails loudly if any field cannot be resolved; never writes a partial
 lock.
 
-**Toolchain (`toolchain/`, R2).** A repository rule downloads the two CIPD
+**Toolchain (`toolchain/`, R2).** A repository rule downloads the pinned CIPD
 instances by instance ID (content-addressed, so the SHA is the pin) over
 anonymous HTTPS and defines `rust_toolchain()` targets, a port of upstream's
 `build/bazel/toolchains/rust/rust.BUILD.bazel`. Linking uses `@fuchsia_clang`

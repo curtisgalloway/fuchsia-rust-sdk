@@ -94,3 +94,28 @@ Cost: one retried step (seconds; no network work lost).
 Prevention: time commands with `date +%s` arithmetic or the shell's `time` keyword.
 Fix belongs in: agent habit (no project change)
 Status: open
+
+## 2026-09-27T19:01-07:00 — failed command: multi-line sed replacement silently did nothing
+Chapter: [M2](notebook/M2.md)
+What happened: a `sed -i 's|…\n|X|'` meant to reword a two-line doc comment matched
+nothing (sed works line by line) and exited 0; noticed only because the next step used a
+Python replacement with an exact-count assert.
+Cost: one redone edit.
+Prevention: for multi-line or exact replacements use the Edit tool or a script that
+asserts the match count, as this project's other edits do.
+Fix belongs in: agent habit (the harness guidance already says so)
+Status: open
+
+## 2026-09-27T19:23-07:00 — instruction gap: M2 notebook entries at 19:01 were written in one batch after the events
+Chapter: [M2](notebook/M2.md)
+What happened: the four M2 entries stamped 19:01 were written together in one call. They
+cover the API-level fix, the rules_cc bump, the Bazel 8.1.0 dead end, the 8.5.1 decision
+and the successful links. That was after three builds and the 8.5.1 download
+(roughly 18:55–19:01). This process-log entry about sed, also stamped 19:01, was written
+right after them. So the stamps are the times of writing, not the times of the events. The same
+pattern was logged for I1. The independent reviewer noticed the shared timestamp.
+Cost: a review nit; less trustworthy ordering in the chapter.
+Prevention: append each entry in the same tool call as the step that triggers it
+(for example, chain the notebook append onto the build command whose outcome it records).
+Fix belongs in: skill `lab-notebook` (the "same call" rule proposed for I1) / agent habit
+Status: open

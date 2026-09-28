@@ -16,9 +16,10 @@ Target release for milestone 1: `33.20260927.4.1` (`LATEST_LINUX` on 2026-09-27)
 | Check | Command | Created in |
 |---|---|---|
 | Script tests | `uv run pytest` | M1 |
-| Build, x64 | `bazel build --config=fuchsia_x64 //...` | M2 (config names proposed) |
-| Build, arm64 | `bazel build --config=fuchsia_arm64 //...` | M2 |
-| Binary checks | `bazel test //...` (symbol and `DT_NEEDED` tests) | M10 |
+| Build, x64 | `scripts/bazel build --config=fuchsia_x64 //...` | M2 |
+| Build, arm64 | `scripts/bazel build --config=fuchsia_arm64 //...` | M2 |
+| Build, host | `scripts/bazel build //...` | M2 |
+| Binary checks | `scripts/bazel test //...` (symbol and `DT_NEEDED` tests) | M10 |
 | Vendor drift | `scripts/regen.py --check` | M5 |
 | License headers | `uv run reuse lint` (chosen in M1; `REUSE.toml` covers files without comments) | M1 |
 
@@ -39,7 +40,13 @@ in the cloud.
 - **Checkpoint commit prefix:** `overlay: M<n> — <title>` for milestones,
   `overlay: I<n> — <title>` for investigations, `docs:` for plan and design edits.
 - **Design gate:** passed. Design draft 1 was approved 2026-09-27, including D6.
-  Material design changes need a new gate before the milestones they affect.
+  Amended 2026-09-27 by owner direction (C6, the environment profile) and M2 findings
+  (A2 resolved with Bazel 8.5.1; R1/R2 toolchain pins); the owner directed C6 and was
+  told of the Bazel change, so no new gate was held. Material design changes need a
+  new gate before the milestones they affect.
+- **Disk budget (C6):** every milestone's evidence records disk use against the active
+  environment profile (hosted default: ≤ 25 GB total). Over budget means verification
+  is incomplete.
 - **User overrides:** none.
 - **Review method:** a reviewer subagent with fresh context (the `Agent` tool), given
   the design, the milestone entry, the evidence file and the diff since the starting
@@ -62,8 +69,9 @@ in the cloud.
 |----|---------|--------------|-------|--------|
 | I1 | Documented anonymous lookup: SDK version → `fuchsia.git` revision | — | cloud | complete |
 | M1 | Repo scaffold + `resolve_pins.py` writes `overlay.lock.json` (R1) | I1 | cloud | complete |
-| M2 | Bazel workspace + Fuchsia Rust toolchains; a Rust binary links for x64 and arm64 (I5, R2) | M1 | cloud | pending |
-| M3 | Emulator harness at the lock's release; the M2 binary runs on it (R2) | M2 | cloud (emulator) | pending |
+| M2 | Bazel workspace + Fuchsia Rust toolchains; a Rust binary links for x64 and arm64 (I5, R2) | M1 | cloud | complete |
+| M2a | Fit the hosted disk budget (C6): trimmed IDK extraction, cache policy, disk report | M2 | cloud | pending |
+| M3 | Portable emulator harness at the lock's release; the M2 binary runs on it (R2, C6) | M2a | cloud (emulator) | pending |
 | M4 | `rustc_*` rules with API-level cfgs (R3) | M2 | cloud | pending |
 | M5 | Vendor stage of `regen.py` + `--check`; `zx-types`, `zx-sys`, `zx` build (R6 mechanism, R2) | M4 | cloud | pending |
 | M6 | Pilot 1 closure measured (D8) + its crates.io crates build (R4) | M5 | cloud | pending |
@@ -84,7 +92,7 @@ in the cloud.
 | M17 | `fuchsia-ci` job runs `regen.py` per mirrored release (R11) | M15 | `fuchsia-ci` repo | pending |
 | G2 | **Final system verification** against the full design | M13–M17 | cloud + **lab** | pending |
 
-Critical path to milestone 1: I1 → M1 → M2 → M4 → M5 → M6 → M7 → M8 → M9 → M10 → M11 → G1.
+Critical path to milestone 1: I1 → M1 → M2 → M2a → M4 → M5 → M6 → M7 → M8 → M9 → M10 → M11 → G1.
 M3, I2 and I3 run beside it. I4 needs only the lab, so it can run any time before M13.
 
 ## Design coverage
@@ -105,6 +113,7 @@ M3, I2 and I3 run beside it. I4 needs only the lab, so it can run any time befor
 | R11 CI | M17 | one release processed end to end, visible in dashboard |
 | R12 closure report | M14 (M15 confirms per release) | report file per release, schema-checked in pytest |
 | I5 (rules coupling) | M2 step 1 | empty workspace loads both rule sets |
+| C6 environment profile | M2a (mechanism); every later milestone (evidence) | disk report against the active profile's budget |
 
 **Gap flagged for the owner (does not block M1–M9).** R7 requires that the driver's
 `DT_NEEDED` set match "the in-tree build of the same driver taken from the release's
@@ -159,72 +168,84 @@ neighboring releases whose rules did not change.
 
 ## M2 — Bazel workspace and Fuchsia Rust toolchains
 
-**Design coverage:** I5, R2 (link half), D3, D4, C5, A2.
-**Dependencies:** M1.
+**Design coverage:** I5, R2 (link half), D3, D4, C5, A2. **Dependencies:** M1.
+**Status:** complete. An independent review ran before the checkpoint (5 minor findings
+and 9 nits, all resolved as the orchestrator decided). The detailed entry is in the
+evidence file.
+**Outcome:** Bazel 8.5.1 (`scripts/bazel`, `.bazelversion`) with `rules_fuchsia`,
+`@fuchsia_sdk` (generated from the release's IDK), `@fuchsia_clang` and the release's
+CIPD Rust toolchain, all from `overlay.lock.json` through two module extensions in
+`toolchain/`; `rules_rust` 0.69.0 + upstream's patch. `examples/hello_rust` links for
+`fuchsia_x64` and `fuchsia_arm64` (`DT_NEEDED` libfdio/libzircon/libc) from a clean
+output base; `examples/hello_host` (binary + proc macro) builds with the host toolchain.
+The lock gained `rust_host_std` and `clang`.
+**Evidence:** [M2](evidence/M2.md) · **Notebook:** [M2](notebook/M2.md)
+**Open limitations:** Bazel version deviates from design §4.1 (the orchestrator amends the
+design); Bazel caches take about 20 GB, leaving 9 GB free (M3 needs about 15 GB; the IDK
+trim is the orchestrator's new M2a under C6); host linking uses the system gcc; no default
+build-flags toolchain (M4 may revisit); no Fuchsia proc-macro use yet (M6).
+
+---
+
+## M2a — Fit the hosted disk budget
+
+**Design coverage:** C6. **Dependencies:** M2.
+**Why:** M2 measured the Bazel output base at 16 GB (extracted IDK 13 GB, of which
+`obj/` 8.3 GB) plus a 3.8 GB repository cache, leaving 9 GB of the hosted profile's 30.
 **In scope:**
-- `MODULE.bazel` and `.bazelversion`, with Bazel matching the release's
-  `sdk-samples/drivers`.
-- `rules_fuchsia` + `@fuchsia_sdk` at the lock's version.
-- `rules_rust` 0.69.0 with upstream's patch in `patches/rules_rust/`.
-- `toolchain/`: a CIPD repository rule, plus `rust_toolchain()` targets for
-  `x86_64-unknown-fuchsia`, `aarch64-unknown-fuchsia` and host.
-- `.bazelrc` with `fuchsia_x64` / `fuchsia_arm64` configs.
-- `examples/hello_rust/` (proposed): a `rust_binary` that calls into `libfdio.so`.
+- Extract only what the overlay builds against from the pinned IDK: the API level(s)
+  the configs use (HEAD) and the x64/arm64 architectures, dropping other API levels'
+  prebuilts and riscv64. The archive stays pinned and verified by SHA-256 before any
+  trim.
+- A repository-cache policy (clear or bound it after fetching).
+- `scripts/disk_report` (proposed): disk use per bucket (output base, repository
+  cache, emulator state, scratch) against the active profile's budget.
+- Profile detection and declaration (hosted by default; a declared large-disk profile
+  skips the trim and keeps caches).
 
-**Out of scope:** running on a device (M3); `rustc_*` wrappers (M4); any vendored crate
-(M5).
-
-### Implementation steps
-1. **I5 first:** an empty workspace with both rule sets that resolves `@fuchsia_clang`
-   and `@fuchsia_sdk`. Record the Bazel version and any `MODULE.bazel` conflicts.
-   `fuchsia-cloud-dev/MODULE.bazel` is a working reference for the `rules_fuchsia`
-   half.
-2. Copy upstream's `rules_rust` patch from `fuchsia.git` at the lock revision (path from
-   brief §3.4) with its license header. Apply it via `single_version_override(patches=…)`.
-3. `toolchain/cipd.bzl` (proposed): a repository rule that downloads a CIPD instance by
-   ID over anonymous HTTPS, then checks it by the content hash the instance ID encodes.
-4. `toolchain/BUILD.bazel`: port `build/bazel/toolchains/rust/rust.BUILD.bazel`, and
-   link through `@fuchsia_clang` with `@fuchsia_sdk//pkg/sysroot`.
-5. Build `hello_rust` under both configs, and read its `DT_NEEDED` with `llvm-readelf`
-   from `@fuchsia_clang`.
+**Out of scope:** emulator assets (M3 measures them with the same report).
 
 ### Acceptance criteria
-- [ ] `bazel build --config=fuchsia_x64 //examples/hello_rust` and `--config=fuchsia_arm64`
-  both succeed from a clean output base.
-- [ ] `llvm-readelf -d` shows `libfdio.so` in `DT_NEEDED`, and the ELF machine matches each
-  target.
-- [ ] Changing the instance ID in the lock by one character fails the fetch with a
-  hash/ID error (then revert).
-- [ ] A host-side `rust_binary` builds (proves the host toolchain for later proc macros).
+- [ ] A tampered IDK archive still fails its SHA-256 check; the trim runs only after
+  verification.
+- [ ] From a clean output base, `//...` builds under `fuchsia_x64`, `fuchsia_arm64`
+  and host.
+- [ ] Output base plus repository cache ≤ 12 GB under the hosted profile, shown by
+  the disk report.
+- [ ] Under a declared large-disk profile, trim and cache clearing are skipped
+  (covered by the script's unit tests, not a second full build).
+- [ ] `uv run pytest` and `uv run reuse lint` pass.
 
 ### Testing and review
-- Verify with the two build commands, `llvm-readelf -h -d` on each output, and the
-  tamper test.
-- Review focus: toolchain definitions against upstream's `rust.BUILD.bazel`, the link
-  line (sysroot, clang target), nothing fetched outside the lock, and the patch
-  carrying its license header.
-- Record Bazel output-base size (disk budget; see Risks).
+- Review focus: the trim cannot hide a missing file the generated SDK needs (a build
+  that never references it passes anyway); the SHA-256 check still covers the whole
+  archive; profile logic.
+- Review method: inherit.
 
 ### Session sizing
-Starts from the design §4.2 "Toolchain", brief §3.4–3.5, `overlay.lock.json`, and
-upstream `rust.BUILD.bazel`. This is the highest-uncertainty build milestone (A2 and
-I5). Split point: land I5 plus the host toolchain first (step 1–3 and the host binary),
-then add the Fuchsia targets.
+One session. The main risk is that `rules_fuchsia`'s generated SDK references other API
+levels' prebuilts. Split point: the trim and measurement first, then the profile and
+cache policy.
 
 ### Evidence and findings
-Status: pending · Evidence: [M2](evidence/M2.md) · Notebook: [M2](notebook/M2.md)
+Status: pending · Evidence: [M2a](evidence/M2a.md) · Notebook: [M2a](notebook/M2a.md)
 
 ---
 
 ## M3 — Emulator harness at the lock's release
 
-**Design coverage:** R2 (runs on emulator), design §7 "Emulator" row, W7 of the brief.
-**Dependencies:** M2.
+**Design coverage:** R2 (runs on emulator), C6, design §7 "Emulator" row, W7 of the brief.
+**Dependencies:** M2a.
 **In scope:**
 - `scripts/emu` (proposed name). It fetches QEMU and the `core.x64` product bundle for
   the lock's `sdk_version`, starts the emulator, and publishes a package. It also runs
   a component and registers a driver.
 - The 6 container workarounds from `fuchsia-cloud-dev`'s README.
+- **Portable across environments (owner direction 2026-09-27):** a plain setup script,
+  with a Claude SessionStart hook only as a thin optional wrapper; KVM when
+  `/dev/kvm` is usable, TCG otherwise; state and cache directories configurable, not
+  tied to `~/`; root/IPv6 workarounds detected, not assumed; host requirements
+  (network hosts, disk, optional KVM) documented as the contract.
 
 **Out of scope:** driver binding (I3, M11); the VIM3.
 
@@ -245,6 +266,10 @@ Status: pending · Evidence: [M2](evidence/M2.md) · Notebook: [M2](notebook/M2.
 - [ ] `hello_rust` runs and its line appears in `ffx log`.
 - [ ] A second `scripts/emu start` with the bundle cached takes under 2 minutes.
 - [ ] Setup failure (a blocked host) exits non-zero naming the host.
+- [ ] Total disk use after setup, build and boot is within the active profile's budget
+  (hosted: ≤ 25 GB), shown by the M2a disk report.
+- [ ] With KVM unavailable (the hosted profile) the harness uses TCG without flags;
+  the KVM path is exercised at least by a unit test of the detection logic.
 
 ### Testing and review
 - Verify with the commands above, recording boot time and total disk after setup.
@@ -253,8 +278,8 @@ Status: pending · Evidence: [M2](evidence/M2.md) · Notebook: [M2](notebook/M2.
 
 ### Session sizing
 Starts from `fuchsia-cloud-dev` README and `dev`, plus the lock. The main risk is disk:
-that repo measures about 15 GB of Bazel cache, and this repo adds the Rust toolchain
-(see Risks). Split point: land the boot and the version check first, then add
+M3 reuses this repo's SDK and clang, so it should add only QEMU and the `core.x64`
+product bundle; measure it against the M2a budget. Split point: land the boot and the version check first, then add
 package run.
 
 ### Evidence and findings
@@ -919,12 +944,25 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 | Risk | Affects | Mitigation |
 |---|---|---|
-| Cloud disk: about 30 GB free. `fuchsia-cloud-dev`'s cache is about 15 GB; this repo adds the Rust toolchain, crates and bindings | M3 onward | Record disk at M2 and M3. Share one Bazel output base. Drop `rules_python`-only deps. If still tight, emulator milestones may need a lab machine or a larger environment |
+| Cloud disk: about 30 GB free. `fuchsia-cloud-dev`'s cache is about 15 GB; this repo adds the Rust toolchain, crates and bindings | M3 onward | Record disk at M2 and M3. Share one Bazel output base. Drop `rules_python`-only deps. If still tight, emulator milestones may need a lab machine or a larger environment. **Measured at M2:** Bazel caches about 20 GB (extracted IDK 13 GB, of which `obj/` 8.3 GB; repository cache 3.8 GB); 9 GB free afterwards. **Response:** constraint C6 and milestone M2a (owner direction 2026-09-27) |
 | TCG emulation is slow | M11, M16 | Budget from `fuchsia-cloud-dev`'s measurements (about 1 min boot, about 2 min driver reload) |
 | I1 finds no anonymous mapping | everything | Stop and escalate at I1; do not guess a revision |
 | Closure larger than the plan's split thresholds | M6, M8, M9, M12 | Split thresholds are stated per milestone; split before starting |
 
 ## Discovered work / backlog
+
+- **Disk before M3 (found in M2) — decided:** the owner requires the hosted profile
+  (30 GB); became constraint C6 and milestone M2a.
+- **Bazel version as a lock field (M14).** fuchsia.git pins Bazel in
+  `manifests/jiri.lock` (`fuchsia/third_party/3pp/bazel`); `resolve_pins.py` could
+  record it so `.bazelversion`/`scripts/bazel.sha256` follow the release automatically.
+- **Hermetic host C toolchain.** Host Rust links with the system gcc; a clang host
+  toolchain from `@fuchsia_clang` would match upstream.
+- **`-pie` linker warning** on every Fuchsia Rust link (from the cc toolchain's flags).
+- **Download allowlist as a standing check.** M2 verified with
+  `--experimental_downloader_config` (allow BCR, github.com, CIPD, GCS,
+  static.crates.io); committing it would catch new unpinned hosts, but M5's crates may
+  add hosts.
 
 - **`fuchsia-cloud-dev` overlap.** `fuchsia-cloud-dev` already solves emulator bring-up
   in cloud containers. After M3, consider whether its `dev` tool and this repo's
@@ -940,23 +978,42 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   - Add QEMU devices beyond `edu` for driver work (one `-device` argument each).
   - Unverified: a `core.arm64` product bundle under TCG for arm64 at run time;
     in-container product assembly for replacing shipped drivers (disk may not allow).
+  - Environment profiles (C6): its README limits become the hosted profile's limits;
+    other environments (KVM, more disk, attached hardware) relax them.
+- **Classify driver protocols by FIDL availability; experiment with our own FIDL
+  (owner interest, 2026-09-27).** The overlay only generates bindings for FIDL that
+  exists. For each candidate driver or bus, classify every parent protocol as:
+  1. *SDK FIDL:* `partner` category, in the IDK; works today (both pilots).
+  2. *Non-SDK FIDL:* in `fuchsia.git` (`internal`/`platform` category) but not the IDK.
+     Bindings can be generated from `.fidl` sources fetched at the release revision
+     (the route M8 uses for `fuchsia.sys2`), but the interface is not a published
+     contract; record each such library in the closure report as RFC evidence.
+  3. *No FIDL:* the parent serves children only over Banjo (out of scope, C2) or not
+     at all; needs a new protocol and a parent-driver migration upstream.
+  Also check that the parent or board actually routes the service to the child's node.
+  The survey would also inform `fuchsia-ci`'s C++ out-of-tree bus-driver work.
+  Follow-up experiment: define our own FIDL library in this repo (compiled with the
+  IDK's `fidlc`, bindings via `rules/fidl_rust.bzl` from M8) for a case-3 interface,
+  served by a parent driver we control (for example an overlay driver on QEMU's `edu`
+  device, publishing a child node), to learn what adding an interface out of tree
+  takes. Earliest after M11 (needs M8's rule and a working pilot 1).
 
 ## Next session
 
-- Current milestone and status: **M1 complete** (branch `ms/M1`, from `e0a9bdb`;
-  checkpoint `overlay: M1 — Repo scaffold and pinned release lock`).
-- Completed work and evidence: [M1 evidence](evidence/M1.md). `overlay.lock.json` for
-  `33.20260927.4.1` (fuchsia.git `b5274053…`, integration `1463df67…`, Rust host
-  `3a8ffdbe…`/target `4fe0f40e…`, IDK `043104ba…`, `rules_fuchsia` `8d346b9a…`).
-  Independent review (reviewer subagent, before the checkpoint): findings fixed, listed
-  in the evidence.
-- Commits: the M1 checkpoint commit only. No uncommitted state.
-- Remaining decisions (unchanged):
-  - the R7 reading for pilot 1 (see Design coverage gap), needed before M10 closes;
-  - the M17 placement, needed before M17.
+- Current milestone and status: **M2 complete** (branch `ms/M2` from `722dc81`;
+  checkpoint `overlay: M2 — Bazel workspace and Fuchsia Rust toolchains` on top of
+  three `wip: M2 — …` commits).
+- Completed work and evidence: [M2 evidence](evidence/M2.md), including the review
+  findings and resolutions. Both Fuchsia configs and the host build pass from a clean
+  output base; pytest (75) and `reuse lint` pass.
+- Commits: `8975e53`, `6b71b8b`, `cca5d08` (wip) and the checkpoint. No uncommitted state.
+- Remaining work, blockers, and decisions:
+  - the orchestrator's docs commit: design amendments (Bazel version, host-std package
+    and five pins, new constraint C6) and the new milestone M2a (IDK trim);
+  - **before M3:** disk (9 GB free after M2), which M2a addresses;
+  - unchanged: the R7 reading for pilot 1 (before M10 closes); M17 placement.
 - Context boundary: normal.
-- Resume action: **begin M2** (needs the owner's go-ahead). M2 reads only
-  `overlay.lock.json`: `rust_host`/`rust_target` (`package` + instance), `bazel_sdk`
-  (`url` + SHA-256) and `rules_fuchsia`.
-- Read first: this plan's M2 entry, [M1 evidence](evidence/M1.md) "The lock", design
-  §4.2 "Toolchain", and the [notebook index](notebook/index.md).
+- Resume action: begin the next eligible milestone the orchestrator names (M2a, then M3
+  or M4).
+- Read first: [M2 evidence](evidence/M2.md), [notebook index](notebook/index.md),
+  `MODULE.bazel`, `toolchain/`.

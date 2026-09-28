@@ -12,6 +12,14 @@
     ],
     "value": "691ef394eb82571dd18eb489c5526b00b236aa33aecc5baf91a5358286ab3a20"
   },
+  "clang": {
+    "package": "fuchsia/third_party/clang/linux-amd64",
+    "source": [
+      "https://fuchsia.googlesource.com/fuchsia b5274053cc0f1ba03cd0902a3da575ac9c31c152:manifests/toolchain",
+      "https://chrome-infra-packages.appspot.com/p/fuchsia/third_party/clang/linux-amd64/+/git_revision:3493720eca95cf844a8d7e58fdd12e0e5644e7d0"
+    ],
+    "value": "d37d515293218c424ea50a13037b6a897d032c963b8de4d9ab470e3de7d42e2d"
+  },
   "fuchsia_revision": {
     "source": [
       "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913697/source_manifest.json",
@@ -53,6 +61,14 @@
       "https://chrome-infra-packages.appspot.com/p/fuchsia/third_party/rust/host/linux-amd64/+/git_revisions:c26ce708de5d14682647895d2f3caf38f70b5aa6,3493720eca95cf844a8d7e58fdd12e0e5644e7d0"
     ],
     "value": "3a8ffdbed3f78ba359e5e9a4677a5d27c8e13d9c4822243bf78b16a57acb225f"
+  },
+  "rust_host_std": {
+    "package": "fuchsia/third_party/rust/target/x86_64-unknown-linux-gnu",
+    "source": [
+      "https://fuchsia.googlesource.com/fuchsia b5274053cc0f1ba03cd0902a3da575ac9c31c152:manifests/toolchain",
+      "https://chrome-infra-packages.appspot.com/p/fuchsia/third_party/rust/target/x86_64-unknown-linux-gnu/+/git_revisions:c26ce708de5d14682647895d2f3caf38f70b5aa6,3493720eca95cf844a8d7e58fdd12e0e5644e7d0"
+    ],
+    "value": "1db7ec26634d13d7403dae922ff1fab093b2fa4df082a82a9036af289a72d40e"
   },
   "rust_target": {
     "package": "fuchsia/third_party/rust/target/fuchsia",
