@@ -133,7 +133,9 @@ build's integration commit. `33.20260927.4.1` → `b5274053cc0f…`; `33.2026091
 **Evidence:** [I1](evidence/I1.md) · **Notebook:** [I1](notebook/I1.md)
 **Open limitations:** fails closed when builds disagree (seen for `20.20240404.1.1`) or
 when a release has no product bundles. CIPD `git_revision` tags are *integration*
-commits, not `fuchsia.git`.
+commits, not `fuchsia.git`, and one integration commit does not fix `fuchsia.git`; the
+IDK's own build is not checked, so the FIDL-blob cross-check is the only direct IDK
+evidence.
 
 ---
 
@@ -149,26 +151,35 @@ commits, not `fuchsia.git`.
    design/plan), `.gitignore` (`bazel-*`, `.dev/`, `__pycache__`), and `pyproject.toml`
    for `uv` with `pytest` as a dev dependency. All carry SPDX headers.
 2. `scripts/resolve_pins.py <sdk-version> [--out overlay.lock.json]`, with these steps:
-   1. Get the revision by the I1 method (`evidence/I1.md` "Method"; keep its
-      agreement check, and record the integration commit too).
+   1. Get the revision by the I1 method (`evidence/I1.md` "Method"), and record the
+      integration commit too. Keep the all-builds-agree check. One integration
+      commit does not fix `fuchsia.git` (`20.20240404.1.1`), and the IDK's own build
+      is not among those checked, so the FIDL-blob cross-check in I1 is the only
+      direct evidence about the IDK itself.
    2. Fetch `manifests/toolchain` at that revision: `git fetch --depth 1` of that
       commit with a sparse, blobless checkout, or `git archive`-style reads through
       git. Never gitiles.
    3. Parse the two Rust packages and their `git_revisions:` version.
    4. Resolve instance IDs with CIPD `ResolveVersion` (brief App. B step 3). The host
       package is resolved for `linux-amd64`.
-   5. Record the Bazel SDK / `rules_fuchsia` CIPD identifiers for that release; the
-      method follows I1 step 3 and `fuchsia-cloud-dev/manifests/*.ensure`. Their
-      `git_revision:` tag is the integration commit. At `33.20260927.4.1`,
-      `rules_fuchsia` resolves by it but `fuchsia-bazel-rules/linux-amd64` does not
-      (no tagged instance; see I1 evidence, "Limitations"). Decide and record how
-      to pin it.
+   5. Pin the Bazel SDK from this release's own artifacts (decided by the
+      orchestrator 2026-09-27):
+      - the IDK `core.tar.gz` from `gs://fuchsia/development/<V>/sdk/linux-amd64/`,
+        pinned by SHA-256;
+      - `fuchsia/development/rules_fuchsia` from CIPD, resolved by
+        `git_revision:<integration_revision>`.
+
+      Never pin a Bazel SDK instance from another release (C3). At
+      `33.20260927.4.1`, `fuchsia/sdk/core/fuchsia-bazel-rules/linux-amd64` has no
+      instance (a publishing gap; see I1 evidence). If that package later gains
+      `version:<V>` for the same release, M1 may use it instead and record why.
    6. Take the SHA-256 of `third_party/rust_crates/Cargo.lock` at the revision.
    7. Write the lock with sorted keys and a trailing newline, via temp file then
       `os.replace`.
 3. The lock schema has one object per field, each with `value` and `source` (the URL
    or git path it came from, per R1). Proposed keys: `sdk_version`, `fuchsia_revision`,
-   `rust_host`, `rust_target`, `bazel_sdk`, `rules_fuchsia`, `cargo_lock_sha256`.
+   `integration_revision`, `rust_host`, `rust_target`, `bazel_sdk`, `rules_fuchsia`,
+   `cargo_lock_sha256`.
 4. `tests/test_resolve_pins.py`: HTTP and git are stubbed behind one small interface.
 5. Commit `overlay.lock.json` for `33.20260927.4.1`.
 
@@ -985,10 +996,12 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   `product_bundles.json` → build `source_manifest.json`, cross-checked with the IDK's
   CIPD `git_revision` (integration commit) and IDK FIDL content.
   `33.20260927.4.1` → `b5274053cc0f1ba03cd0902a3da575ac9c31c152`.
-- Commits: the I1 checkpoint commit only; no uncommitted state.
+- Decided since I1: M1 pins the Bazel SDK from the release's own IDK `core.tar.gz`
+  (SHA-256) plus `rules_fuchsia` by integration `git_revision` (M1 step 2.5).
+- Commits: the I1 checkpoint commit, then `overlay: I1 — address review findings`
+  (independent review, run after the checkpoint; see I1 evidence "Review"). No
+  uncommitted state.
 - Remaining decisions:
-  - how M1 pins the Bazel SDK when `fuchsia-bazel-rules` has no instance tagged for
-    the release (M1 step 2.5);
   - the R7 reading for pilot 1 (see Design coverage gap), needed before M10 closes;
   - the M17 placement, needed before M17.
 - Context boundary: normal.

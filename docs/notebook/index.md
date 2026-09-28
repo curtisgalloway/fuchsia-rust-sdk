@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T17:59-07:00
+Updated: 2026-09-27T18:06-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -21,13 +21,13 @@ Outcome: open
 - rust_next generator is on pilot 1's critical path
 
 ### [I1 — SDK version → release revision](I1.md)
-Entries: 2026-09-27T17:50-07:00 through 2026-09-27T17:59-07:00
+Entries: 2026-09-27T17:50-07:00 through 2026-09-27T18:06-07:00
 Outcome: complete — `product_bundles.json` → build `source_manifest.json` gives the fuchsia.git rev; IDK CIPD `git_revision` = integration commit links the IDK
-- 33.20260927.4.1 → b5274053…; 33.20260919.6.1 → 71dec18a…; IDK FIDL blobs match both
+- 33.20260927.4.1 → b5274053…; 33.20260919.6.1 → 71dec18a…; every IDK .fidl blob present at each commit
 - Dead ends: IDK meta/ has no revision; fuchsia.git has no release tags/branches
 - CIPD `git_revision` (incl. fuchsia-cloud-dev pins) is the private integration commit
-- fuchsia-bazel-rules CIPD has no instance tagged for 33.20260927.4.1 (M1 issue)
-- Old releases (v20) fail the builds-agree check; keep it fail-closed
+- fuchsia-bazel-rules CIPD lacks only 33.20260927.4.1; M1 pins IDK tarball + rules_fuchsia (decided)
+- One integration commit ≠ one fuchsia.git rev (v20); keep builds-agree check; independent review after checkpoint
 
 ## Threads
 - **Release → revision pinning:** [I1](I1.md) found the method; M1 implements it in `resolve_pins.py`.
