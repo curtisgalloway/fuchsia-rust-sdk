@@ -1,0 +1,82 @@
+# Copyright 2021 The Fuchsia Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+# SPDX-FileCopyrightText: 2021 The Fuchsia Authors
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Overlay BUILD file (design §4.2, R6; milestone M9c). Upstream has no BUILD.bazel here:
+# this is fuchsia.git src/lib/diagnostics/inspect/runtime/rust/BUILD.gn at the lock's
+# fuchsia_revision (b5274053cc0f, blob f19d989d45bf) translated by hand.
+# scripts/regen.py copies it to
+# vendor/fuchsia/src/lib/diagnostics/inspect/runtime/rust/BUILD.bazel. GN -> Bazel, as
+# the M9a overlays (overlays/sdk/lib/driver/runtime/rust/BUILD.bazel):
+#   - the rustc_library's name, crate name, edition, version, sources and deps
+#     unchanged; in-tree deps -> //vendor/fuchsia/<path>, //third_party/rust_crates:<c>
+#     -> @rust_crates//vendor:<c>;
+#   - GN adds thiserror when current_build_target_api_level is PLATFORM or HEAD: always
+#     here (the overlay builds Fuchsia code at HEAD);
+#   - GN visibility ":*" -> "...:__pkg__";
+#   - configs += clippy_warn_all -> lint_config = //rules/lints:clippy_warn_all;
+#   - group("rust") (what dependents name) -> an alias of :lib, public. GN's group also
+#     has public_deps //sdk/lib/inspect:client_includes, an expect_includes: dependents'
+#     component manifests must include inspect/client.shard.cml. It is a manifest check,
+#     not a compile input; like //sdk/lib/syslog:client_includes (M9b) it is not
+#     vendored, and the driver manifest's includes are milestone M10's check (pilot 1's
+#     simple_rust_driver.cml includes the shard). group("unchecked_includes") is not
+#     translated (nothing in pilot 1's closure uses it);
+#   - vendored = True (--cap-lints=allow), as regen.py adds to every upstream Rust rule;
+#   - Fuchsia-only (target_compatible_with): pilot 1's closure reaches it in the fuchsia
+#     context only, and its deps (fidl, fuchsia-async) are Fuchsia-only here;
+#   - with_unit_tests kept; test_deps and the test package, test component, its config
+#     and the tests group are not translated (unit tests are milestone M16).
+
+load("//rules:rustc.bzl", "rustc_library")
+
+package(default_applicable_licenses = ["//vendor/fuchsia:license"])
+
+rustc_library(
+    name = "lib",
+    crate_name = "inspect_runtime",
+    srcs = [
+        "src/lib.rs",
+        "src/service.rs",
+    ],
+    edition = "2024",
+    lint_config = "//rules/lints:clippy_warn_all",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+    vendored = True,
+    version = "0.1.0",
+    visibility = ["//vendor/fuchsia/src/lib/diagnostics/inspect/runtime/rust:__pkg__"],
+    with_unit_tests = True,
+    deps = [
+        "//vendor/fuchsia/sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust",
+        "//vendor/fuchsia/sdk/fidl/fuchsia.mem:fuchsia.mem_rust",
+        "//vendor/fuchsia/sdk/rust/zx",
+        # GN //src/lib/diagnostics/inspect/rust; the crate is upstream Bazel's :fuchsia-inspect.
+        "//vendor/fuchsia/src/lib/diagnostics/inspect/rust:fuchsia-inspect",
+        "//vendor/fuchsia/src/lib/fidl/rust/fidl",
+        "//vendor/fuchsia/src/lib/fuchsia-async",
+        "//vendor/fuchsia/src/lib/fuchsia-component/client",
+        "@rust_crates//vendor:anyhow",
+        "@rust_crates//vendor:futures",
+        "@rust_crates//vendor:log",
+        "@rust_crates//vendor:pin-project",
+        # GN: if (current_build_target_api_level == "PLATFORM" || ... == "HEAD")
+        "@rust_crates//vendor:thiserror",
+    ],
+    # GN test_deps (M16): //src/lib/diagnostics/hierarchy/rust,
+    # //src/lib/diagnostics/reader/rust,
+    # //src/lib/diagnostics/testing/diagnostics-assertions/rust:diagnostics-assertions,
+    # //src/lib/fuchsia, //src/lib/fuchsia-async, //src/lib/fuchsia-component-test,
+    # //third_party/rust_crates:assert_matches, //src/sys/lib/component-events.
+)
+
+# GN: group("rust") { public_deps = [ ":lib", "//sdk/lib/inspect:client_includes" ] }
+# (client_includes not translated; see the header).
+alias(
+    name = "rust",
+    actual = ":lib",
+    visibility = ["//visibility:public"],
+)

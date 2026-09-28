@@ -1,0 +1,100 @@
+# Copyright 2024 The Fuchsia Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+# SPDX-FileCopyrightText: 2024 The Fuchsia Authors
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Overlay BUILD file (design §4.2, R6; milestone M9c). Upstream has no BUILD.bazel here:
+# this is fuchsia.git sdk/lib/driver/component/rust/BUILD.gn at the lock's
+# fuchsia_revision (b5274053cc0f, blob a88932efdb99) translated by hand.
+# scripts/regen.py copies it to vendor/fuchsia/sdk/lib/driver/component/rust/BUILD.bazel.
+# GN -> Bazel, as the M9a overlays (overlays/sdk/lib/driver/runtime/rust/BUILD.bazel):
+#   - the rustc_library's name, crate name, edition, version, sources and deps
+#     unchanged; in-tree deps -> //vendor/fuchsia/<path> (FIDL bindings
+#     <lib>:<lib>_rust and <lib>:<lib>_rust_next, as rules/fidl_rust*.bzl name them;
+#     inspect/runtime/rust names that overlay's alias of GN's group("rust")),
+#     //third_party/rust_crates:<c> -> @rust_crates//vendor:<c>;
+#   - no visibility -> public;
+#   - configs += clippy_warn_all -> lint_config = //rules/lints:clippy_warn_all;
+#   - vendored = True (--cap-lints=allow), as regen.py adds to every upstream Rust rule;
+#   - Fuchsia-only (target_compatible_with): GN builds it for Fuchsia only (pilot 1's
+#     closure reaches it in the fuchsia context only), and its deps (the driver runtime,
+#     fidl, fuchsia-async) are Fuchsia-only here;
+#   - with_unit_tests kept; test_deps and the test package and group are not translated
+#     (unit tests are milestone M16). src/testing* are sources of the library itself
+#     (pub mod testing), as in GN.
+
+load("//rules:rustc.bzl", "rustc_library")
+
+package(default_applicable_licenses = ["//vendor/fuchsia:license"])
+
+rustc_library(
+    name = "rust",
+    crate_name = "fdf_component",
+    srcs = [
+        "src/context.rs",
+        "src/error.rs",
+        "src/incoming.rs",
+        "src/lib.rs",
+        "src/macros.rs",
+        "src/node.rs",
+        "src/node/offers.rs",
+        "src/node/properties.rs",
+        "src/server.rs",
+        "src/testing.rs",
+        "src/testing/dut.rs",
+        "src/testing/harness.rs",
+        "src/testing/node.rs",
+    ],
+    edition = "2024",
+    lint_config = "//rules/lints:clippy_warn_all",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+    vendored = True,
+    version = "0.1.0",
+    visibility = ["//visibility:public"],
+    with_unit_tests = True,
+    deps = [
+        "//vendor/fuchsia/sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust",
+        "//vendor/fuchsia/sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust_next",
+        "//vendor/fuchsia/sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_next",
+        "//vendor/fuchsia/sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust",
+        "//vendor/fuchsia/sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust",
+        "//vendor/fuchsia/sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_next",
+        "//vendor/fuchsia/sdk/fidl/fuchsia.io:fuchsia.io_rust",
+        "//vendor/fuchsia/sdk/fidl/fuchsia.io:fuchsia.io_rust_next",
+        "//vendor/fuchsia/sdk/fidl/fuchsia.logger:fuchsia.logger_rust",
+        "//vendor/fuchsia/sdk/lib/async/rust/fidl",
+        "//vendor/fuchsia/sdk/lib/driver/runtime/rust",
+        "//vendor/fuchsia/sdk/lib/driver/runtime/rust/core",
+        "//vendor/fuchsia/sdk/lib/driver/runtime/rust/env",
+        "//vendor/fuchsia/sdk/lib/driver/runtime/rust/fdf_sys",
+        "//vendor/fuchsia/sdk/lib/driver/runtime/rust/fidl",
+        "//vendor/fuchsia/sdk/rust/zx",
+        "//vendor/fuchsia/src/lib/diagnostics/inspect/contrib/rust",
+        "//vendor/fuchsia/src/lib/diagnostics/inspect/runtime/rust",
+        # GN //src/lib/diagnostics/inspect/rust; the crate is upstream Bazel's :fuchsia-inspect.
+        "//vendor/fuchsia/src/lib/diagnostics/inspect/rust:fuchsia-inspect",
+        "//vendor/fuchsia/src/lib/diagnostics/log/rust:no_startup_handle",
+        "//vendor/fuchsia/src/lib/fidl/rust/fidl",
+        "//vendor/fuchsia/src/lib/fidl/rust_next/fidl_next",
+        "//vendor/fuchsia/src/lib/fidl/rust_next/fidl_next_bind",
+        "//vendor/fuchsia/src/lib/fidl/rust_next/fidl_next_protocol",
+        "//vendor/fuchsia/src/lib/fuchsia-async",
+        "//vendor/fuchsia/src/lib/fuchsia-component",
+        "//vendor/fuchsia/src/lib/fuchsia-component/config",
+        "//vendor/fuchsia/src/lib/fuchsia-runtime",
+        "//vendor/fuchsia/src/lib/fuchsia-sync",
+        "//vendor/fuchsia/src/sys/lib/cm_types",
+        "//vendor/fuchsia/src/sys/lib/namespace",
+        "@rust_crates//vendor:anyhow",
+        "@rust_crates//vendor:futures",
+        "@rust_crates//vendor:log",
+    ],
+    # GN test_deps (M16):
+    # //examples/fidl/fuchsia.examples:fuchsia.examples_rust_next,
+    # //sdk/fidl/fuchsia.hardware.i2c:fuchsia.hardware.i2c_rust,
+    # //sdk/fidl/fuchsia.hwinfo:fuchsia.hwinfo_rust, //src/lib/fuchsia,
+    # //third_party/rust_crates:anyhow.
+)

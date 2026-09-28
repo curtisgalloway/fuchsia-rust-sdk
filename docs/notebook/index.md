@@ -5,9 +5,12 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T05:29-07:00
+Updated: 2026-09-28T13:15+00:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
+
+Stamps from M9c on are UTC (`+00:00`): the container clock is UTC. Earlier chapters use
+`-07:00`.
 
 ## Chapters
 
@@ -146,6 +149,15 @@ Outcome: complete — 35 crates (28 upstream + 17 patches; 7 overlays) build for
 - Review: GN parity check committed as a project tool (fails on unresolvable deps); Bazel sub-budget 12 → 15 GiB (orchestrator)
 - My overlays' first build failed: GN "no visibility" needs explicit public; proc macros go in `proc_macro_deps`
 
+### [M9c — Pilot 1's last overlays; `fdf_component`](M9c.md)
+Entries: 2026-09-28T12:37+00:00 through 2026-09-28T13:15+00:00
+Outcome: complete — 6 overlays, no patches; all 68 in-tree crates but the driver build for x64/arm64; `gn_crosscheck.py --all` 68 dirs / 70 targets agree
+- `inspect/runtime/rust`: crate is GN `:lib`; group `rust` → alias without `sdk/lib/inspect:client_includes` (REMOVED_DEPS)
+- GN shorthand `//src/lib/diagnostics/inspect/rust` is upstream Bazel's `:fuchsia-inspect` (first build failed)
+- `fdf_component` reaches all 70 closure targets: the Fuchsia checks name it instead of the two log labels
+- Pilot driver source compiles against it (scratch); GN's Rust driver template allows unused crate deps (M10)
+- Review: stronger REMOVED_DEPS test; M10 entry carries the unused-crate allowance and both manifest shards
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
@@ -159,6 +171,7 @@ Outcome: complete — 35 crates (28 upstream + 17 patches; 7 overlays) build for
   [M8b](M8b.md) adds 0.14 GiB (`rust_next` bindings, 6 crates; total 11.85 GiB, Bazel 10.95 of 12).
   [M9](M9.md) (M9a) adds 0.04 GiB (11 driver runtime crates; total 11.90 GiB, Bazel 10.99 of 12).
   [M9b](M9b.md) adds 0.37 GiB (35 crates, two Fuchsia configs, exec proc macros; total 12.27 GiB, Bazel 11.36 of 12).
+  [M9c](M9c.md) adds 0.11 GiB (6 crates; total 12.39 GiB, Bazel 11.47 of 15).
 - **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
   Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
   [M4](M4.md) derives the Rust cfgs from that file and asserts the HEAD branch at build time.
@@ -188,4 +201,5 @@ Outcome: complete — 35 crates (28 upstream + 17 patches; 7 overlays) build for
 - **Unmappable labels in upstream BUILD files:** [M8](M8.md) keeps an unlisted package in a
   `//conditions:default` branch provisionally (a patch must remove it); M8b adds unmappable
   `test_deps`; [M9b](M9b.md) extends it to any position (targets outside the closure,
-  `syslog:client_includes`) and maps `is_host_os` and trace-engine instead.
+  `syslog:client_includes`) and maps `is_host_os` and trace-engine instead; [M9c](M9c.md)
+  drops `inspect:client_includes` in an overlay (no patch) and lists it in `gn_crosscheck.py`.

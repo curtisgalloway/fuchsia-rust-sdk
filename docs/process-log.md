@@ -432,3 +432,53 @@ fix); keep scratch paths out of the first draft rather than removing them afterw
 append a correction that quotes nothing sensitive and leave the text.
 Fix belongs in: agent habit (lab-notebook skill already says so)
 Status: open
+
+## 2026-09-28T12:54+00:00 — failed command: GN shorthand label copied into an overlay without checking the Bazel target
+Chapter: [M9c](notebook/M9c.md)
+What happened: three M9c overlays named `//vendor/fuchsia/src/lib/diagnostics/inspect/rust`
+(GN's shorthand, target `rust`); upstream's Bazel package defines the crate as
+`:fuchsia-inspect` only. The first arm64 build failed in loading ("no such target ...:rust").
+Cost: one rebuild; a few minutes. M9b's process-log entry (overlay fields from memory) was
+heeded for visibility and proc macros but did not cover labels.
+Prevention: before the first build, resolve every in-tree label in a new overlay against the
+vendored package's declared names (a ten-line script did it after the failure); M9b's
+evidence already noted that upstream Bazel and GN can name a crate's target differently.
+Fix belongs in: agent habit; possibly `gn_crosscheck.py` or `regen.py` (a load-time check
+that overlay labels resolve would need Bazel, so the build is the check today)
+Status: open
+
+## 2026-09-28T12:59+00:00 — failed command: `git grep` over the blobless fuchsia.git clone
+Chapter: [M9c](notebook/M9c.md)
+What happened: to find the `fuchsia_rust_driver` template, `git grep <rev> -- build` ran on
+the depth-1 `--filter=blob:none` clone; it lazily fetches every blob it reads, and hit the
+2-minute tool timeout. Stopped at once; nothing was fetched (clone still 5.4 MB). Earlier in
+the same stretch `unset HOME` in one command broke `scripts/bazel` (`HOME: unbound variable`).
+Cost: two wasted commands, about 3 minutes.
+Prevention: on a blobless clone use `ls-tree` to locate files and `cat-file` for single
+blobs; set `HOME` per git command (`HOME=… git …`) rather than exporting/unsetting it.
+Fix belongs in: agent habit (the `regen.py` git source's docstring could say it)
+Status: open
+
+## 2026-09-28T13:12+00:00 — instruction gap: M9c's index row added at the checkpoint, not at opening
+Chapter: [M9c](notebook/M9c.md)
+What happened: the lab-notebook skill says "Add a row when a chapter opens"; the M9c row
+was first written at the 13:03 checkpoint, so for 26 minutes the index had no M9c row
+(reviewer finding, M9c review). Stamps were not affected.
+Cost: a reviewer finding; a session resuming mid-milestone would not have found the chapter
+from the index.
+Prevention: write the index row (outcome "open") in the same command as the opening entry.
+Fix belongs in: agent habit (lab-notebook skill already says so)
+Status: open
+
+## 2026-09-28T13:12+00:00 — failed command: `git grep` over the blobless fuchsia.git clone (clarification)
+Chapter: [M9c](notebook/M9c.md)
+The 12:59 entry's "hit the 2-minute tool timeout. Stopped at once" means: stopped as soon
+as the timeout moved it to the background (after about 2 minutes), not immediately after
+starting. The notebook's 12:59 entry said "stopped at once"; a correction is appended there.
+Status: open (same as the 12:59 entry)
+
+## 2026-09-28T13:12+00:00 — instruction gap: M9c's index row added at the checkpoint, not at opening (correction)
+Chapter: [M9c](notebook/M9c.md)
+The 13:12 entry's "13:03 checkpoint" and "26 minutes" should read 13:02 and 25 minutes
+(12:37–13:02).
+Status: open (same as the 13:12 entry)

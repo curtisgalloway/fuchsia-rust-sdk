@@ -16,8 +16,8 @@ Target release for milestone 1: `33.20260927.4.1` (`LATEST_LINUX` on 2026-09-27)
 | Check | Command | Created in |
 |---|---|---|
 | Script tests | `uv run pytest` | M1 |
-| Build, x64 | `scripts/bazel build --config=fuchsia_x64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings //vendor/fuchsia/src/lib/diagnostics/log/rust:no_startup_handle //vendor/fuchsia/src/lib/diagnostics/log/encoding/rust:rust` | M2 (crate list: M6b; bindings: M8a; log crates: M9b) |
-| Build, arm64 | `scripts/bazel build --config=fuchsia_arm64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings //vendor/fuchsia/src/lib/diagnostics/log/rust:no_startup_handle //vendor/fuchsia/src/lib/diagnostics/log/encoding/rust:rust` | M2 (crate list: M6b; bindings: M8a; log crates: M9b) |
+| Build, x64 | `scripts/bazel build --config=fuchsia_x64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings //vendor/fuchsia/sdk/lib/driver/component/rust:rust` | M2 (crate list: M6b; bindings: M8a; `fdf_component`, which reaches every in-tree crate: M9c, replacing M9b's two log crates) |
+| Build, arm64 | `scripts/bazel build --config=fuchsia_arm64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings //vendor/fuchsia/sdk/lib/driver/component/rust:rust` | M2 (crate list: M6b; bindings: M8a; `fdf_component`, which reaches every in-tree crate: M9c, replacing M9b's two log crates) |
 | Build, host | `scripts/bazel build //... //third_party/crates:aliases //third_party/crates:host_all` | M2 (crate list: M6b) |
 | Binary checks | `scripts/bazel test //...` (symbol and `DT_NEEDED` tests) | M10 |
 | Vendor drift | `scripts/regen.py --check` | M5 |
@@ -86,7 +86,7 @@ in the cloud.
 | M8b | `rust_next` flavor for the 17 libraries without `contains_drivers` (R5) | M8a | cloud | complete |
 | M9a | Pilot 1's driver runtime vendored (11 overlays); FIDL driver transport on (R6, R5) | M8b | cloud | complete |
 | M9b | 28 upstream-Bazel in-tree crates + 7 overlays (incl. `fuchsia-component`) (R6) | M9a | cloud | complete |
-| M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | pending |
+| M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | complete |
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | pending |
 | I3 | Emulator bind target for pilot 1 confirmed at this release | M3 | cloud (emulator) | pending |
 | M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | pending |
@@ -514,34 +514,24 @@ them once `fdf_component` reaches them).
 
 ## M9c — Pilot 1's last overlays; `fdf_component`
 
+**Outcome:** the last 6 in-tree crates of `pilot1.json` vendored as overlays translated
+from `BUILD.gn` (no patches): `elf_parse`, `process_builder`, `sys/lib/namespace`,
+`inspect/runtime/rust` (crate `inspect_runtime` = GN's `:lib`, plus an alias for GN's
+`group("rust")` without its `expect_includes` `//sdk/lib/inspect:client_includes`),
+`fuchsia-component/config` and `sdk/lib/driver/component/rust` (`fdf_component`). All 68
+in-tree crates but the pilot driver are vendored and build for x64 and arm64;
+`fdf_component` reaches all 70 of their closure targets, so the Fuchsia build checks name
+it (replacing M9b's two log labels). `gn_crosscheck.py --all`: 68 directories, 70 targets
+agree. The pilot driver's `src/lib.rs` compiles against `fdf_component` (scratch; GN's
+driver template allows unused crate deps, which M10's rule must too).
 **Design coverage:** R6 (pilot 1 set), D8. **Dependencies:** M9b.
-**In scope:** 6 overlays translated from `BUILD.gn`, which only `fdf_component`'s side of
-the graph uses: `src/lib/elf_parse`, `src/lib/process_builder`, `src/sys/lib/namespace`,
-`src/lib/diagnostics/inspect/runtime/rust`, `src/lib/fuchsia-component/config` and
-`sdk/lib/driver/component/rust` (`fdf_component`). This completes pilot 1's in-tree set.
-**Out of scope:** pilot 2 crates (`mmio`, `pdev`, `fdf_metadata`); unit tests (M16).
-
-### Implementation steps
-1. Translate each `BUILD.gn` into `overlays/<path>/BUILD.bazel` and check it against GN by
-   hand (M9a's mapping) and with `scripts/gn_crosscheck.py` (M9b); vendor bottom-up.
-2. Any trim becomes a `patches/fuchsia/…` file with a comment giving the reason.
-
-### Acceptance criteria
-- [ ] `fdf_component` and every other in-tree crate in `pilot1.json` (68, all but the
-  pilot driver) build for both targets.
-- [ ] `regen.py --check` is clean; every change against upstream is in `overlays/` or
-  `patches/`; the generated crate set still equals the closure's.
-- [ ] The evidence lists each patch with its reason and each `overlays/` file.
-
-### Testing and review
-- Review focus: overlays against `BUILD.gn`, patch minimality, and that `fdf_component`
-  provides what `examples/drivers/simple/rust` uses (M10 builds it).
-
-### Session sizing
-6 overlays, 9,017 `.rs` lines (`fdf_component` 2,898). Small; can absorb M9b spill-over.
-
-### Evidence and findings
-Status: pending · Evidence: [M9c](evidence/M9c.md) · Notebook: [M9c](notebook/M9c.md)
+**Status:** complete. An independent reviewer subagent (launched by the orchestrator)
+reviewed before the checkpoint: land after fixes (4 minor, 4 nits; all resolved: a
+stronger `REMOVED_DEPS` test, the two M10 obligations in M10's entry). The detailed entry
+is in the evidence file.
+**Evidence:** [M9c](evidence/M9c.md) · **Notebook:** [M9c](notebook/M9c.md)
+**Open limitations:** unit tests of the six not built (M16); the driver manifest's
+`inspect/client.shard.cml` and `syslog/client.shard.cml` includes are M10's check.
 
 ---
 
@@ -573,12 +563,25 @@ Status: pending · Evidence: [M9c](evidence/M9c.md) · Notebook: [M9c](notebook/
 5. If A3 fails (Rust `std` imports a restricted symbol), compare with the in-tree Rust
    driver config (the brief notes `//build/config/rust:bootfs`). Record the fix as a
    decision.
+6. (From M9c.) `fuchsia_rust_driver` allows unused crate dependencies by default, as GN's
+   `set_defaults("fuchsia_rust_driver")` adds
+   `//build/config/rust/lints:allow_unused_crate_dependencies`
+   (`build/drivers/fuchsia_driver.gni:243–249`): the pilot's GN deps `anyhow`, `fdf`, `zx`
+   are unused by its source.
+7. (From M9b/M9c.) The driver's `.cml` includes `syslog/client.shard.cml` and
+   `inspect/client.shard.cml`: the manifest checks GN's `expect_includes` make
+   (`//sdk/lib/syslog:client_includes`, `//sdk/lib/inspect:client_includes`) are dropped
+   by the overlay, so M10 checks the manifest instead.
 
 ### Acceptance criteria
 - [ ] `bazel build --config=fuchsia_x64 //drivers/simple_rust:pkg` and the arm64
   equivalent produce a driver package.
 - [ ] The exported-symbols test passes for both targets.
 - [ ] The restricted-symbols check passes for both targets.
+- [ ] `fuchsia_rust_driver` applies the unused-crate-dependencies allowance by default
+  (GN's `set_defaults`), and pilot 1 compiles with its GN deps unchanged.
+- [ ] The driver's `.cml` includes both `syslog/client.shard.cml` and
+  `inspect/client.shard.cml` (checked by a test or build action).
 - [ ] `DT_NEEDED` comparison recorded; any library absent from the reference driver is
   explained or removed. The owner confirms this reading of R7 (see gap).
 
@@ -1178,19 +1181,30 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   `generate_crates` left `crates_json` unset when no crate is named at all
   (`UnboundLocalError`); only a test tree hit it.
 
+- **Rust drivers allow unused crate deps in GN (found in M9c; for M10).**
+  `set_defaults("fuchsia_rust_driver")` (`build/drivers/fuchsia_driver.gni`) adds
+  `//build/config/rust/lints:allow_unused_crate_dependencies`; the pilot's `BUILD.gn` lists
+  `anyhow`, `//sdk/lib/driver/runtime/rust` and `zx`, which `src/lib.rs` does not use, so
+  under `//rules`' default lints it fails to compile (M9c scratch build). M10's
+  `fuchsia_rust_driver` should default to the `rules/lints` allow variant, as GN does.
+- **`inspect/client.shard.cml` check dropped too (found in M9c; for M10).** `fdf_component`
+  depends on `inspect/runtime/rust`'s `group("rust")`, which adds the `expect_includes`
+  `//sdk/lib/inspect:client_includes`; the overlay's alias omits it (listed in
+  `gn_crosscheck.py`'s `REMOVED_DEPS`). With the syslog item above: M10's driver `.cml`
+  must include both shards (the in-tree `simple_rust_driver.cml` does).
+
 ## Next session
 
-- Current milestone and status: **M9b complete.** Branch `ms/M9b` from `006a91a`; `wip`
-  commits `ae467ad`, `1feb17c`, then the checkpoint commit `overlay: M9b — Pilot 1's
-  upstream-Bazel in-tree crates`, after the reviewer subagent's review and fixes.
-- Completed work and evidence: [M9b evidence](evidence/M9b.md), including the review.
+- Current milestone and status: **M9c complete.** Branch `ms/M9c` from `1ef1833`; `wip`
+  commits `8c4e20e`, `f991868`, then the checkpoint commit `overlay: M9c — Pilot 1's last
+  overlays; fdf_component`, after the reviewer subagent's review and fixes.
+- Completed work and evidence: [M9c evidence](evidence/M9c.md), including the review.
 - Uncommitted state: none.
 - Remaining work, blockers, and decisions: unchanged: the R7 reading for pilot 1 (before
   M10), M17 placement.
 - Context boundary: normal.
-- Resume action: after M9b's checkpoint, begin **M9c** (I3 can run beside it).
-- Read first for M9c: the M9c entry, [M9b evidence](evidence/M9b.md) (overlay mapping;
-  the GN parity method), `scripts/gn_crosscheck.py`'s docstring (run it on each new
-  overlay: `uv run scripts/gn_crosscheck.py <path>…`, then `--all`), an overlay under
-  `overlays/src/lib/fuchsia-component/`, `vendor/crates.txt`,
-  `tests/test_pilot1_crates.py`, [notebook index](notebook/index.md).
+- Resume action: after M9c's checkpoint, begin **M10** (I3 can run beside it).
+- Read first for M10: the M10 entry (steps 6–7 come from M9b/M9c), [M9c evidence](evidence/M9c.md)
+  ("Findings for later milestones"), the backlog items on visibility, `DT_NEEDED`/`vfs`,
+  runtime shared libraries, the two manifest shards and the bind library bindings,
+  [notebook index](notebook/index.md).

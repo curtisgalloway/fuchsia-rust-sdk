@@ -1,11 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Curtis Galloway
 # SPDX-License-Identifier: Apache-2.0
-"""Pilot 1's in-tree crates vendored in milestone M9b match its closure.
+"""Pilot 1's in-tree crates vendored in milestones M9b and M9c match its closure.
 
 Consistency checks between committed files: vendor/crates.txt, overlays/, patches/ and
 the generated vendor/fuchsia/ against docs/closure/pilot1.json. The field-by-field
 comparison with BUILD.gn (names, features, deps, sources) was run against the build
-itself and is recorded in docs/evidence/M9b.md; these tests keep what the files can show.
+itself (scripts/gn_crosscheck.py; docs/evidence/M9b.md, M9c.md); these tests keep what
+the files can show.
 """
 
 from __future__ import annotations
@@ -39,7 +40,8 @@ M9B_UPSTREAM = {
     "src/storage/lib/vfs/rust/name", "src/sys/lib/cm_fidl_validator", "src/sys/lib/cm_graph",
     "src/sys/lib/cm_rust", "src/sys/lib/cm_types", "src/sys/lib/moniker",
 }
-# Not yet vendored: M9c's six overlays, and the pilot driver itself (M10).
+# M9c's six overlays (none has an upstream BUILD.bazel). Not vendored: the pilot driver
+# itself (M10).
 M9C = {
     "src/lib/elf_parse", "src/lib/process_builder", "src/sys/lib/namespace",
     "src/lib/diagnostics/inspect/runtime/rust", "src/lib/fuchsia-component/config",
@@ -54,10 +56,17 @@ def test_m9b_set_is_listed_with_its_mode():
     assert {p: LISTED.get(p) for p in M9B_OVERLAYS} == dict.fromkeys(M9B_OVERLAYS, "overlay")
 
 
-def test_every_closure_crate_but_m9c_and_the_driver_is_listed():
-    assert M9C | {PILOT_DRIVER} <= set(INTREE)
-    assert set(INTREE) - M9C - {PILOT_DRIVER} <= set(LISTED)
-    assert len(set(INTREE) - M9C - {PILOT_DRIVER}) == 62  # 11 (M9a) + 16 (M5-M8b) + 35
+def test_m9c_set_is_listed_as_overlays():
+    assert len(M9C) == 6
+    assert {p: LISTED.get(p) for p in M9C} == dict.fromkeys(M9C, "overlay")
+    assert not any(INTREE[p]["upstream_bazel"] for p in M9C)
+
+
+def test_every_closure_crate_but_the_driver_is_listed():
+    """After M9c, pilot 1's in-tree set is complete but for the driver (M10)."""
+    assert PILOT_DRIVER in INTREE and PILOT_DRIVER not in LISTED
+    assert set(INTREE) - {PILOT_DRIVER} <= set(LISTED)
+    assert len(set(INTREE) - {PILOT_DRIVER}) == 68  # 16 (M5-M8b) + 11 (M9a) + 35 (M9b) + 6
 
 
 def test_upstream_mode_only_where_upstream_has_bazel():
@@ -104,7 +113,7 @@ def _rust_calls(path: str) -> dict[str, dict]:
 
 
 def test_overlays_are_copied_verbatim_and_fuchsia_only():
-    for path in M9B_OVERLAYS:
+    for path in M9B_OVERLAYS | M9C:
         overlay = (ROOT / regen.OVERLAYS / path / "BUILD.bazel").read_text()
         assert (ROOT / regen.VENDOR_OUT / path / "BUILD.bazel").read_text() == overlay, path
         assert overlay.count('target_compatible_with = ["@platforms//os:fuchsia"],') == 1, path
@@ -114,7 +123,7 @@ def test_overlays_are_copied_verbatim_and_fuchsia_only():
 def test_overlays_name_the_closures_crates_and_features():
     """Target name, crate name, edition and features as GN gives them (closure.py's
     evaluation, including storage_trace's same-file template: feature "tracing")."""
-    for path in M9B_OVERLAYS:
+    for path in M9B_OVERLAYS | M9C:
         (target,) = INTREE[path]["targets"]
         (kw,) = _rust_calls(path).values()
         assert (kw["name"], kw["crate_name"], kw["edition"]) == \
@@ -158,3 +167,27 @@ def test_m9b_patches_are_for_upstream_crates():
     m9b = patched & (M9B_UPSTREAM | M9B_OVERLAYS)
     assert m9b <= M9B_UPSTREAM
     assert len(m9b) == 17
+
+
+def test_inspect_runtime_group_is_an_alias_without_client_includes():
+    """GN's group("rust") is :lib (visibility ":*") plus //sdk/lib/inspect:client_includes,
+    an expect_includes manifest check the overlay does not translate (M9c); dependents
+    name the group, which is an alias here."""
+    path = "src/lib/diagnostics/inspect/runtime/rust"
+    (target,) = INTREE[path]["targets"]
+    assert (target["target"], target["crate_name"]) == ("lib", "inspect_runtime")
+    tree = ast.parse((ROOT / regen.OVERLAYS / path / "BUILD.bazel").read_text())
+    aliases = {kw["name"]: kw for kw in (
+        {k.arg: ast.literal_eval(k.value) for k in n.keywords}
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "alias")}
+    assert aliases == {"rust": {"name": "rust", "actual": ":lib", "visibility": ["//visibility:public"]}}
+    overlay = (ROOT / regen.OVERLAYS / path / "BUILD.bazel").read_text()
+    assert "client_includes" in overlay  # documented in the header
+    assert '"//vendor/fuchsia/sdk/lib/inspect' not in overlay
+
+
+def test_m9c_overlays_need_no_patch():
+    patched = {p.parent.relative_to(ROOT / regen.PATCHES).as_posix()
+               for p in (ROOT / regen.PATCHES).rglob("*.patch")}
+    assert not patched & M9C
