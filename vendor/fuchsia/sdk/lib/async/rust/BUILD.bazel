@@ -15,8 +15,10 @@
 #     @rust_crates//vendor:<c>, C libraries -> the IDK's prebuilt @fuchsia_sdk//pkg/<name>
 #     (//sdk/lib/async -> pkg/async, //sdk/lib/async-default -> pkg/async-default,
 #     //src/devices/lib/driver:driver_runtime (the link stub) and
-#     //src/devices/bin/driver_runtime -> pkg/driver_runtime_shared_lib, which has only
-#     the interface library: the driver host provides libdriver_runtime.so);
+#     //src/devices/bin/driver_runtime -> pkg/driver_runtime_shared_lib, a cc_import of
+#     libdriver_runtime.so with both its interface and its shared library (whether a
+#     driver package ships the latter is milestone M10's question: the driver host
+#     provides it));
 #   - GN visibility "//<dir>/*" -> "//vendor/fuchsia/<dir>:__subpackages__", ":*" and
 #     "//<dir>:*" -> "...:__pkg__"; no visibility -> public;
 #   - configs += clippy_warn_all -> lint_config = //rules/lints:clippy_warn_all;

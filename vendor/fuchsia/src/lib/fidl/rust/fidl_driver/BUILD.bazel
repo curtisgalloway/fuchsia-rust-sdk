@@ -15,8 +15,10 @@
 #     @rust_crates//vendor:<c>, C libraries -> the IDK's prebuilt @fuchsia_sdk//pkg/<name>
 #     (//sdk/lib/async -> pkg/async, //sdk/lib/async-default -> pkg/async-default,
 #     //src/devices/lib/driver:driver_runtime (the link stub) and
-#     //src/devices/bin/driver_runtime -> pkg/driver_runtime_shared_lib, which has only
-#     the interface library: the driver host provides libdriver_runtime.so);
+#     //src/devices/bin/driver_runtime -> pkg/driver_runtime_shared_lib, a cc_import of
+#     libdriver_runtime.so with both its interface and its shared library (whether a
+#     driver package ships the latter is milestone M10's question: the driver host
+#     provides it));
 #   - GN visibility "//<dir>/*" -> "//vendor/fuchsia/<dir>:__subpackages__", ":*" and
 #     "//<dir>:*" -> "...:__pkg__"; no visibility -> public;
 #   - configs += clippy_warn_all -> lint_config = //rules/lints:clippy_warn_all;
@@ -42,14 +44,11 @@ rustc_library(
     target_compatible_with = ["@platforms//os:fuchsia"],
     vendored = True,
     # Rust fidl driver transport support is currently experimental, and restricted
-    # by a visibility list. (Upstream's comment, shortened.) Overlay: //rules:__pkg__ is
-    # the package of the overlay's FIDL macros (rules/fidl_rust.bzl adds this crate to
-    # fuchsia.driver.framework's bindings), as regen.py maps upstream Bazel's
-    # //build/bazel/rules/fidl. Bazel 8.5.1 did not check this edge in M9a (the
-    # bindings built with this crate private; docs/evidence/M9.md), unlike the
-    # rust_next flavor's edge to fidl_next (M8b); the entry states the intent.
+    # by a visibility list. (Upstream's comment, shortened.) Overlay: the FIDL macro
+    # adds this crate to fuchsia.driver.framework's bindings from //rules code, and a
+    # target declared inside rustc_library (a symbolic macro defined in //rules) is
+    # visible there without an entry (docs/evidence/M9.md).
     visibility = [
-        "//rules:__pkg__",
         "//vendor/fuchsia/sdk/fidl/fuchsia.driver.framework:__pkg__",
         "//vendor/fuchsia/src/lib/fidl/rust/fidl_driver:__pkg__",
         "//vendor/fuchsia/tools/fidl/fidlc/testdata:__subpackages__",

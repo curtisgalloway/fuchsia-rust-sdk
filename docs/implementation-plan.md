@@ -82,9 +82,10 @@ in the cloud.
 | M7 | Both FIDL generators available as Bazel host tools (R5 tools) | I2, M6b | cloud | complete |
 | M8a | `fidl.bzl` + `fidl_rust.bzl`, `rust` flavor; pilot 1's 23 libraries compile for both targets (R5) | M7 | cloud | complete |
 | M8b | `rust_next` flavor for the 17 libraries without `contains_drivers` (R5) | M8a | cloud | complete |
-| M9a | Pilot 1's driver runtime vendored (11 overlays); FIDL driver transport on (R6, R5) | M8b | cloud | in review |
-| M9b | Pilot 1's remaining 41 in-tree crates vendored; `fdf_component` builds (R6) | M9a | cloud | pending |
-| M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9b | cloud | pending |
+| M9a | Pilot 1's driver runtime vendored (11 overlays); FIDL driver transport on (R6, R5) | M8b | cloud | complete |
+| M9b | 29 upstream-Bazel in-tree crates + the 6 overlays they need (R6) | M9a | cloud | pending |
+| M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | pending |
+| M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | pending |
 | I3 | Emulator bind target for pilot 1 confirmed at this release | M3 | cloud (emulator) | pending |
 | M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | pending |
 | G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone | M11 | cloud (emulator) | pending |
@@ -97,7 +98,7 @@ in the cloud.
 | M17 | `fuchsia-ci` job runs `regen.py` per mirrored release (R11) | M15 | `fuchsia-ci` repo | pending |
 | G2 | **Final system verification** against the full design | M13–M17 | cloud + **lab** | pending |
 
-Critical path to milestone 1: I1 → M1 → M2 → M2a → M4 → M5 → M6a → M6b → M7 → M8a → M8b → M9a → M9b → M10 → M11 → G1.
+Critical path to milestone 1: I1 → M1 → M2 → M2a → M4 → M5 → M6a → M6b → M7 → M8a → M8b → M9a → M9b → M9c → M10 → M11 → G1.
 M3, I2 and I3 run beside it. I4 needs only the lab, so it can run any time before M13.
 
 ## Design coverage
@@ -109,7 +110,7 @@ M3, I2 and I3 run beside it. I4 needs only the lab, so it can run any time befor
 | R3 API-level cfgs | M4 | test crate takes the `HEAD` branch on both targets |
 | R4 crates.io crates | M6 (pilot 1), M12 (pilot 2) | every closure crate builds for both targets; proc macros for host |
 | R5 FIDL bindings | M7 (tools), M8a (rule, `rust`), M8b (`rust_next`), M9a (driver transport), M12 (pilot 2 libraries) | bindings for every closure library compile for both targets, both flavors |
-| R6 vendored crates | M5 (mechanism), M9a, M9b (pilot 1), M12 (pilot 2) | named crates build for both targets; `regen.py --check` clean |
+| R6 vendored crates | M5 (mechanism), M9a–M9c (pilot 1), M12 (pilot 2) | named crates build for both targets; `regen.py --check` clean |
 | R7 driver rule | M10 (pilot 1), M12 (`DT_NEEDED` vs in-tree `aml-saradc`) | `llvm-readelf` tests; restricted-symbols check |
 | R8a pilot 1 | I3, M11 | `ffx driver list`, `list-devices -v`, `ffx log` on emulator |
 | R8b pilot 2 | I4, M13 | `list-devices -v` shows overlay URL; ADC read |
@@ -466,40 +467,79 @@ compile for x64 and arm64 (pilot 1's FIDL closure: `rust` 23, `rust_next` 19);
 `//tests/fidl:driver_transport` fails to compile without either feature.
 **Design coverage:** R6 (driver runtime), R5 (driver transport), D8, §4.2.
 **Dependencies:** M8b.
-**Status:** implemented; review pending (orchestrator). The detailed entry is in the
-evidence file.
+**Status:** complete. An independent reviewer subagent (launched by the orchestrator)
+reviewed before the checkpoint: land after fixes, documentation only (3 minor, 1 nit; all
+fixed). The detailed entry is in the evidence file.
 **Evidence:** [M9](evidence/M9.md) · **Notebook:** [M9](notebook/M9.md) (M9a uses the
-chapter and evidence named `M9`; M9b uses `M9b`)
+chapter and evidence named `M9`; M9b and M9c use their own)
 **Open limitations:** GN's `test_deps`, unit and integration tests, and the two
-`rustc_bindgen_golden` checks are not translated (M16); the rust flavor's edges to
-`fidl_driver`/`fdf` were not visibility-checked by Bazel (backlog).
+`rustc_bindgen_golden` checks are not translated (M16); edges written in `//rules` see
+macro-declared crates regardless of their visibility (backlog, for M10).
 
 ---
 
-## M9b — Pilot 1's remaining in-tree crates; `fdf_component`
+## M9b — Pilot 1's upstream-Bazel in-tree crates
 
 **Design coverage:** R6 (pilot 1 set), D8. **Dependencies:** M9a.
-**In scope:** the 41 in-tree crates of `pilot1.json` not yet vendored (all but
-`examples/drivers/simple/rust`, which is M10's driver): 29 with upstream `BUILD.bazel`
-(`regen.py` `upstream` mode, patches where a label cannot be mapped) and 12 without
-(overlays translated from `BUILD.gn`): `detect-stall`, `elf_parse`, `process_builder`,
-`src/storage/lib/trace`, `src/storage/lib/vfs/rust` (GN `rustc_dylib`),
-`fuchsia-component/{config,escrow,runtime,server}`, `src/sys/lib/namespace`,
-`diagnostics/inspect/runtime/rust` and `sdk/lib/driver/component/rust` (`fdf_component`).
-108,185 `.rs` lines. First exec-config builds of `num-derive` and `paste` (used only by
-these crates). `fuchsia_sync_detect_lock_cycles = False` stays (M6a/M8a).
-**Out of scope:** pilot 2 crates (`mmio`, `pdev`, `fdf_metadata`); unit tests (M16);
-host builds of Fuchsia-only crates.
+**Decided (orchestrator, M9a review):** M9's remainder is split in two, as M9a
+recommended: M9b is the 29 crates with upstream `BUILD.bazel` and the 6 overlays their
+closure needs (35 crates); M9c the other 6 overlays.
+**In scope:** 29 crates with upstream `BUILD.bazel` (`regen.py` `upstream` mode, patches
+where a label cannot be mapped): `sdk/lib/c/rust`, `buf-read-ext`,
+`diagnostics/{hierarchy,inspect,inspect/contrib,inspect/derive,inspect/derive/macro,
+inspect/format,log,log/encoding,log/types,selectors}`, `directed_graph`, `fdio/rust`,
+`fdomain/client`, `from-enum`, `fuchsia-component`, `fuchsia-component/{client,directory}`,
+`fuchsia-fs`, `fuchsia-runtime`, `injectable-time`, `trace/rust`, `vfs/rust/name`,
+`cm_fidl_validator`, `cm_graph`, `cm_rust`, `cm_types`, `moniker`; and 6 overlays
+translated from `BUILD.gn`: `detect-stall`, `fuchsia-component/{escrow,runtime,server}`,
+`src/storage/lib/trace`, `src/storage/lib/vfs/rust` (GN `rustc_dylib`). First
+exec-config builds of `num-derive` and `paste`. `fuchsia_sync_detect_lock_cycles =
+False` stays (M6a/M8a).
+**Out of scope:** M9c's 6 overlays; pilot 2 crates; unit tests (M16); host builds of
+Fuchsia-only crates.
 
 ### Implementation steps
-1. For each crate without Bazel, translate `BUILD.gn` (`sources`, `deps`, `edition`,
-   `features`, `name`, crate type, visibility) into `overlays/<path>/BUILD.bazel`, then
-   check it against GN by hand, as M9a did (design §4.2; see M9a's mapping, which its
-   overlay headers state).
-2. Vendor bottom-up (the layering from `pilot1.json`, recorded in the M9a evidence),
-   building each crate before its dependants.
+1. Vendor bottom-up (the layering in the [M9 evidence](evidence/M9.md)), building each
+   crate before its dependants.
+2. For each overlay, translate `BUILD.gn` (`sources`, `deps`, `edition`, `features`,
+   `name`, crate type, visibility) into `overlays/<path>/BUILD.bazel` and check it against
+   GN by hand, with M9a's mapping (stated in its overlay headers).
 3. Any trim (a conditional dependency the walker counted, a host-only branch) becomes a
    `patches/fuchsia/…` file with a comment giving the reason.
+
+### Acceptance criteria
+- [ ] The 35 crates build for both targets.
+- [ ] `regen.py --check` is clean; every change against upstream is in `overlays/` or
+  `patches/`; the generated crate set still equals the closure's.
+- [ ] The evidence lists each patch with its reason and each `overlays/` file.
+
+### Testing and review
+- Review focus: overlays against `BUILD.gn` (a missed feature flag compiles but changes
+  behavior; `vfs` is a dylib in GN); patch minimality; upstream `BUILD.bazel` labels that
+  `regen.py` cannot map.
+
+### Session sizing
+35 crates, about 99k of the 108k remaining lines; 6 overlays. Split point: layers 0–3,
+then 4–11. Disk: Bazel was at 10.99 of 12 GiB after M9a; measure after each layer.
+
+### Evidence and findings
+Status: pending · Evidence: [M9b](evidence/M9b.md) · Notebook: [M9b](notebook/M9b.md)
+
+---
+
+## M9c — Pilot 1's last overlays; `fdf_component`
+
+**Design coverage:** R6 (pilot 1 set), D8. **Dependencies:** M9b.
+**In scope:** 6 overlays translated from `BUILD.gn`, which only `fdf_component`'s side of
+the graph uses: `src/lib/elf_parse`, `src/lib/process_builder`, `src/sys/lib/namespace`,
+`src/lib/diagnostics/inspect/runtime/rust`, `src/lib/fuchsia-component/config` and
+`sdk/lib/driver/component/rust` (`fdf_component`). This completes pilot 1's in-tree set.
+**Out of scope:** pilot 2 crates (`mmio`, `pdev`, `fdf_metadata`); unit tests (M16).
+
+### Implementation steps
+1. Translate each `BUILD.gn` into `overlays/<path>/BUILD.bazel` and check it against GN by
+   hand (M9a's mapping); vendor bottom-up.
+2. Any trim becomes a `patches/fuchsia/…` file with a comment giving the reason.
 
 ### Acceptance criteria
 - [ ] `fdf_component` and every other in-tree crate in `pilot1.json` (68, all but the
@@ -509,21 +549,14 @@ host builds of Fuchsia-only crates.
 - [ ] The evidence lists each patch with its reason and each `overlays/` file.
 
 ### Testing and review
-- Review focus: overlay BUILD files against their `BUILD.gn` (a missed feature flag
-  compiles but changes behavior; `vfs` is a dylib in GN), and patch minimality.
+- Review focus: overlays against `BUILD.gn`, patch minimality, and that `fdf_component`
+  provides what `examples/drivers/simple/rust` uses (M10 builds it).
 
 ### Session sizing
-Large: 41 crates and about 108k lines, 12 overlays (at the split threshold) plus 29
-upstream BUILD files that may need patches. **Recommended split before starting**
-(orchestrator decision): **M9b** = the 29 crates with upstream Bazel and the 6 overlays
-their closure needs (`detect-stall`, `fuchsia-component/{escrow,runtime,server}`,
-`storage/lib/trace`, `vfs`), 35 crates; **M9c** = the 6 remaining overlays, which only
-`fdf_component`'s side of the graph uses (`elf_parse`, `process_builder`, `namespace`,
-`inspect/runtime`, `fuchsia-component/config`, `fdf_component`). Disk: the Bazel group
-was at 10.99 of 12 GiB after M9a; measure after each layer.
+6 overlays, 9,017 `.rs` lines (`fdf_component` 2,898). Small; can absorb M9b spill-over.
 
 ### Evidence and findings
-Status: pending · Evidence: [M9b](evidence/M9b.md) · Notebook: [M9b](notebook/M9b.md)
+Status: pending · Evidence: [M9c](evidence/M9c.md) · Notebook: [M9c](notebook/M9c.md)
 
 ---
 
@@ -1112,20 +1145,19 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   not define. `regen.py` now keeps such a label provisionally and fails unless a patch
   removes it; `fidl_next_protocol/0001-drop-test-deps.patch` does. M16 revisits it with
   `fuchsia-async`'s.
-- **Macro-added driver deps escape visibility (found in M9a; for M10).** With
-  `fidl_driver` set to `//visibility:private`, `fuchsia.driver.framework_rust` (which
-  `rules/fidl_rust.bzl` gives `fidl_driver` and `fdf` inside a `select()` branch) still
-  analysed and built under Bazel 8.5.1, while ordinary edges and the `rust_next` macro's
-  edge to `fidl_next` are enforced. Cause not established (the `select()` branch is the
-  candidate). Until it is, upstream's restriction on `fidl_driver` is not enforced for
-  that edge, and M10's reasoning about which overlay packages need allowlist entries
-  should be tested, not inferred.
-- **The driver runtime library is not packaged (found in M9a; for M10/M16).** GN's deps
-  on `//src/devices/bin/driver_runtime` (an `sdk_shared_library`) would ship
-  `libdriver_runtime.so`; the overlays use the IDK's `pkg/driver_runtime_shared_lib`,
-  an interface library only, as upstream's Bazel SDK rules do for drivers (the driver
-  host provides it). Code that runs outside a driver host (`fdf_env`, unit tests in
-  M16) needs the real library.
+- **Macro-declared targets are visible to `//rules` code (found in M9a; for M10).** A
+  target declared inside `rustc_library` (a symbolic macro defined in `//rules`) is
+  visible to any edge written in `//rules` code, whatever its visibility (tested in M9a:
+  a private `fdf_core` named from `rules/fidl_rust.bzl` builds; named from
+  `fdf_channel`'s BUILD file it fails). So the FIDL macros' edges to `fidl_driver`/`fdf`
+  ignore upstream's `fidl_driver` restriction, and `//rules:__pkg__` entries are needed
+  only for top-level targets such as the `fidl_next` alias. M10's driver packages are
+  ordinary BUILD files: they need visibility (or allowlist) entries for what they name.
+- **Runtime shared libraries in driver packages (found in M9a; for M10).** The IDK's
+  `pkg/driver_runtime_shared_lib` and `pkg/async-default` are `cc_import`s with both
+  `interface_library` and `shared_library`. M10: check whether packaging pulls in
+  `libdriver_runtime.so` / `libasync-default.so` and exclude them if the driver host
+  provides them (upstream drivers use the link stub).
 - **bindgen golden checks not translated (found in M9a; for M16).** `libasync_sys` and
   `fdf_sys` compile checked-in `bindings.rs`; GN also validates them against bindgen
   over the C headers (`rustc_bindgen_golden`). The overlay does not; a header change in
@@ -1136,18 +1168,17 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M9a implemented, in review** (M9 split before
-  starting; M9b added). Branch `ms/M9` from `1c7bbe7`; `wip` commits only; the
-  checkpoint commit `overlay: M9a — Pilot 1 driver runtime vendored; FIDL driver
-  transport on` follows the orchestrator's review and fixes.
-- Completed work and evidence: [M9 evidence](evidence/M9.md) (Review pending).
-- Uncommitted state: none beyond the `wip` commits.
-- Remaining work, blockers, and decisions: the review; the M9b split recommendation
-  (M9b/M9c, in the M9b entry) for the orchestrator; unchanged: the R7 reading for
-  pilot 1 (before M10), M17 placement.
+- Current milestone and status: **M9a complete** (M9 split before starting; M9b and M9c
+  added, the second split decided by the orchestrator at the M9a review). Branch `ms/M9`
+  from `1c7bbe7`; `wip` commit `0d0ee1e`, then the checkpoint commit `overlay: M9a — Pilot
+  1 driver runtime vendored; FIDL driver transport on`, after the reviewer subagent's
+  review and fixes.
+- Completed work and evidence: [M9 evidence](evidence/M9.md), including the review.
+- Uncommitted state: none.
+- Remaining work, blockers, and decisions: unchanged: the R7 reading for pilot 1 (before
+  M10), M17 placement.
 - Context boundary: normal.
-- Resume action: after M9a's checkpoint, begin **M9b** (or split it first, as its
-  sizing recommends); I3 can run beside it.
-- Read first for M9b: the M9b entry, [M9 evidence](evidence/M9.md) (overlay mapping,
-  the M9b layering), an overlay under `overlays/sdk/lib/driver/runtime/rust/`,
-  `vendor/crates.txt`, [notebook index](notebook/index.md).
+- Resume action: begin **M9b** (I3 can run beside it).
+- Read first for M9b: the M9b entry, [M9 evidence](evidence/M9.md) (overlay mapping, the
+  layering), an overlay under `overlays/sdk/lib/driver/runtime/rust/`,
+  `vendor/crates.txt`, `scripts/regen.py`'s docstring, [notebook index](notebook/index.md).

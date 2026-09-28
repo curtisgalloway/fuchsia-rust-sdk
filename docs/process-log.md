@@ -378,3 +378,17 @@ Prevention: decide the time box before starting such a probe; do scratch edits o
 `vendor/` in a copy of the tree, not in place.
 Fix belongs in: agent habit
 Status: open
+
+## 2026-09-28T04:13-07:00 — instruction gap: M9 failures recorded late, and not in the notebook
+Chapter: [M9](notebook/M9.md)
+What happened: the independent review of M9a found that the three process-log entries
+of 03:55 were all written after the fact, in a row at the end, and that the chapter has
+no entry for the failed commands they describe (the `crates.txt` edit, the two failing
+test runs); the visibility probe was noted in the chapter only at its end (03:51). Stamps
+were not edited. The same pattern as the open M8 and M8b items: entries batched at a
+checkpoint rather than written at the event.
+Cost: a reviewer finding; coarser timing in both records.
+Prevention: write the process-log entry (and a notebook attempt entry when it changes
+the path) in the command right after the failure, before the fix.
+Fix belongs in: agent habit (lab-notebook skill already says so)
+Status: open
