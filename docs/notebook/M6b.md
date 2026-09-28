@@ -103,3 +103,21 @@ the 121 transitive crates with names/versions/proc-macro/patched, alias versions
 `bazel_actual`), per-config cquery counts (x64 99 target + 22 exec, arm64 98 + 22, host
 121), evidence, plan entry/backlog/handoff. A second `regen.py vendor` is byte-identical.
 pytest 340. Next: stop for the orchestrator's review.
+
+## 2026-09-28T00:29-07:00 — direction: review findings and orchestrator decisions
+Reviewer subagent (launched by the orchestrator, fresh context, before the checkpoint)
+over `4c26e20`: land after fixes. The orchestrator decided criterion 1's reading (every
+crate in the configuration it is used in, all 121 for host; design R4 amended by the
+orchestrator later, not here) and asked for fixes: distinct crate counts per config,
+`Cargo.lock` = 666 packages (89 source-less; re-counted), explicit `:aliases`/`:host_all`
+in the plan's build checks, a REUSE annotation for Fuchsia's files in the patched crates
+(`README.fuchsia`, `OWNERS`, and zeroize's Fuchsia-headed `barrier.rs`/`stack.rs`), the
+wip-commit list and the aquery count. The reviewer's "20 exec crates (2 of 22 labels are
+@rules_rust)" does not match this session's `@rust_crates`-filtered cquery, which lists
+22 exec crates by name (15 exec-only + 7 both, consistent with 114 = 99 + 15); the
+evidence records both and the agreed distinct totals.
+
+## 2026-09-28T00:29-07:00 — checkpoint (closing)
+State: complete. Fixes applied; pytest 340, reuse lint, `regen.py --check`, the three
+builds with the explicit crate targets, `bazel test //...` (25 + 1 skipped),
+`check_sdk_files.py`, disk 10.30 / 25 GiB all pass; plan headings 31. Next: M7 after I2.

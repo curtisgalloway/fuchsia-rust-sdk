@@ -11,9 +11,10 @@ note for the orchestrator under "Deviations").
 Notebook: [M6b chapter](../notebook/M6b.md)
 Starting revision and pre-existing changes: `b242fe5` (origin/main: I1, M1–M5, M2a,
 M6a), branch `ms/M6b`; working tree clean. `wip` commits `2124b78` (patched crates in
-regen.py; `zx` builds — the plan's split point) and `4449c69` (the 121 crates and the
-build list); the checkpoint commit `overlay: M6b — Pilot 1's crates.io crates build`
-follows the review.
+regen.py; `zx` builds — the plan's split point), `4449c69` (the 121 crates and the
+build list), `89d9011` (evidence, plan, notebook) and `4c26e20` (handoff wording); the
+checkpoint commit `overlay: M6b — Pilot 1's crates.io crates build` follows the review
+and carries its fixes.
 
 **Decisions relied on** (in force before M6b, rechecked in the plan and design):
 option A for crates (design §4.2 "Third-party crates": upstream's crate_universe BUILD
@@ -172,14 +173,26 @@ in the configuration it is used in, and every crate builds for host. Measured wi
 |---|---|---|---|
 | crates built for the Fuchsia target | 99 | 98 (`cpufeatures` is x86-only) | — |
 | crates built for exec (proc macros, build-script deps) | 22 | 22 | — |
+| of which also built for the target | 7 | 7 | — |
+| distinct crates reached (target + exec-only) | **114** (99 + 15) | **113** (98 + 15) | — |
 | crates built for host (`host_all`) | — | — | 121 |
+
+The 7 built in both configurations are `proc-macro2`, `quote`, `syn-2.0.119`,
+`unicode-ident`, `darling_core`, `ident_case`, `strsim` (libraries with a Fuchsia-context
+alias that proc macros also use). *Count note (review finding 2):* the reviewer counted
+20 exec crates, with 2 of 22 exec labels being `@rules_rust` targets
+(`rules_rust_tinyjson`, `cargo_build_script_runner`). The query here was filtered to
+`@rust_crates` labels and lists 22 exec crates by name (the 15 exec-only plus the 7
+above), which is consistent with 114 = 99 + 15; the distinct totals (114 / 113) and the
+7 host-only crates are the figures both counts agree on.
 
 Not built for a Fuchsia target: the 17 proc macros and 5 host-only libraries (`autocfg`,
 `heck`, `syn-1.0.109`, `syn-3.0.3`, `synstructure`). Of those, 7 are built only for host
 in M6b, because no Fuchsia-side crate uses them yet: `async-trait`, `derivative`,
 `num-derive`, `paste`, `strum_macros` (direct proc-macro aliases; the in-tree crates of
 M9 will pull `num-derive` and `paste` into the exec configuration) and `heck`,
-`syn-1.0.109` (their deps).
+`syn-1.0.109` (their deps). `num-derive` and `paste` have so far been built only in the
+host `k8-fastbuild` configuration, never in `k8-opt-exec`; M9 is their first exec build.
 
 ### Build scripts (15)
 
@@ -190,7 +203,8 @@ needed an override:
 - a static scan of their `build.rs` shows they spawn only `$RUSTC` (`libc`'s
   `freebsd-version` and `emcc` branches are for FreeBSD and Emscripten targets); none
   uses the `cc` crate;
-- `aquery` of the 14 in the x64 build: `RUSTC` is the lock's toolchain rustc
+- `aquery` of the x64 build (14 actions for 13 build scripts; `quote`'s runs for both
+  target and exec): `RUSTC` is the lock's toolchain rustc
   (`fuchsia_rust_toolchain/.../bin/rustc`, target or exec); `CC` is set by rules_rust
   (Fuchsia clang, or `/usr/bin/gcc` for exec — the backlog's "hermetic host C
   toolchain") but not used;
@@ -233,7 +247,7 @@ $ uv run pytest -q tests/test_crates_closure.py
 4 passed
 ```
 
-`Cargo.lock` has 1,000+ packages; only the 121 are generated. Where `Cargo.lock` has
+The release `Cargo.lock` has 666 packages (89 without a source, i.e. local or patched); only the 121 are generated. Where `Cargo.lock` has
 several versions (`syn` 1/2/3, `getrandom` 0.3/0.4), each alias follows upstream's alias
 file, which matches the closure's `bazel_actual` for all 44 (pytest).
 
@@ -293,8 +307,12 @@ and SHA-256 of every file under `vendor/fuchsia` and `third_party/crates`:
 | `ask2patch/byteorder` | 1.5.0 | 12 | Unlicense OR MIT | `COPYING`, `LICENSE-MIT`, `UNLICENSE` | 2015 Andrew Gallant |
 | `ask2patch/memchr` | 2.8.3 | 60 | Unlicense OR MIT | `COPYING`, `LICENSE-MIT`, `UNLICENSE` | 2015 Andrew Gallant |
 
-`uv run reuse lint`: compliant, 789 / 789 files, licenses used Apache-2.0,
-BSD-2-Clause, MIT, Unlicense. The 117 downloaded crates are not committed, so their
+Fuchsia's own files in these trees get a separate, later annotation (The Fuchsia
+Authors, BSD-2-Clause; review finding 5): `README.fuchsia`, `OWNERS`, and zeroize's
+`src/barrier.rs` and `src/stack.rs`, which carry Fuchsia's BSD-style header (`reuse spdx`
+confirms, e.g. `forks/libc-0.2.189/OWNERS`: BSD-2-Clause, The Fuchsia Authors).
+
+`uv run reuse lint`: compliant, licenses used Apache-2.0, BSD-2-Clause, MIT, Unlicense. The 117 downloaded crates are not committed, so their
 licenses (MIT, Apache-2.0, Unicode-3.0, BSD-2-Clause, Unlicense, Zlib, BSD-3-Clause per
 `pilot1.json`) need no REUSE entry; their BUILD files are Fuchsia's (BSD-2-Clause, the
 existing `third_party/crates/BUILD.*.bazel` annotation).
@@ -305,9 +323,9 @@ existing `third_party/crates/BUILD.*.bazel` annotation).
 |---|---|
 | `uv run pytest` | 340 passed (313 before; +27) |
 | `uv run reuse lint` | compliant |
-| `scripts/bazel build --config=fuchsia_x64 //...` | success |
-| `scripts/bazel build --config=fuchsia_arm64 //...` | success |
-| `scripts/bazel build //...` | success |
+| `scripts/bazel build --config=fuchsia_x64 //... //third_party/crates:aliases` | success |
+| `scripts/bazel build --config=fuchsia_arm64 //... //third_party/crates:aliases` | success |
+| `scripts/bazel build //... //third_party/crates:aliases //third_party/crates:host_all` | success |
 | `scripts/bazel test //...` | 25 pass, 1 skipped (`cap_lints_allow_zx_test` on host) |
 | `scripts/regen.py --check` | clean |
 | `uv run scripts/check_sdk_files.py` | 0 missing |
@@ -330,25 +348,31 @@ this size, so per-crate repositories are not needed. The committed tree grows by
 
 ## Deviations from the plan text
 
+- **Criterion 1 reading — decided by the orchestrator (review finding 1).** "Every
+  crates.io crate … builds for both Fuchsia targets; proc-macro crates build for host"
+  is accepted as: *every crate builds in the configuration it is used in (Fuchsia
+  target or exec), and all 121 build for host.* Not self-accepted: the implementer
+  proposed it, the reviewer judged it honest, the orchestrator decided. The orchestrator
+  amends design R4's *Check:* line after the checkpoint (not changed here).
 - **Build list location.** The plan proposed "a generated test package that depends on
   every direct alias, or `bazel build` over a query". The filegroups are generated into
-  `third_party/crates/BUILD.bazel` (regen already owns it) instead of a test package, so
-  `//...` builds the set in every project check; and they are split as above because
-  not every crate can build for Fuchsia (criterion 1 reading).
+  `third_party/crates/BUILD.bazel` (regen already owns it) instead of a test package, and
+  split as above because not every crate can build for Fuchsia. The plan's three build
+  checks name them explicitly (review finding 4), so an incompatible member fails
+  instead of dropping out of `//...`.
 - **Design R4 wording** lists the patched crates as "`byteorder`, `memchr`, `libc`,
   `tokio`"; pilot 1 reaches `byteorder`, `memchr`, `libc` and `zeroize`, not `tokio`
-  (the plan already says so). The design text is the orchestrator's to amend.
+  (the plan already says so). The orchestrator amends the design after the checkpoint.
 - **Patched BUILD files named `BUILD.<kind>.<dir>.bazel` with `/` as `.`** (the plan's
   `BUILD.<kind>.<dir>.bazel` for nested dirs such as `forks/bluetooth/bt-bass`); a name
   collision fails the run.
 
 ## Findings for later milestones (also in the plan backlog)
 
-- A filegroup made incompatible by one member is skipped silently by `//...`: the
-  `aliases`/`host_all` groups (and any Fuchsia-only target) could drop out of the
-  standard builds without an error. The evidence uses explicit targets; a standing check
-  (e.g. an analysis test that the groups are compatible under each config) would make
-  it permanent.
+- A filegroup made incompatible by one member is skipped silently by `//...`. For the
+  crate list this is addressed: the plan's build checks now name
+  `//third_party/crates:aliases` (all configs) and `:host_all` (host) explicitly. Other
+  targets that must not drop out (e.g. driver packages) need the same treatment.
 - `num-derive` and `paste` are built only for host until M9's in-tree crates use them
   from Fuchsia crates (exec configuration then).
 
@@ -362,4 +386,45 @@ this size, so per-crate repositories are not needed. The committed tree grows by
 
 ## Review
 
-*(to be filled in after the orchestrator's review; it precedes the checkpoint commit)*
+**Method:** a reviewer subagent with fresh context, launched by the orchestrator (plan
+conventions), over `ms/M6b` at `4c26e20` (the four wip commits) against the design, the
+milestone entry and this file. It did not modify the worktree. It ran **before the
+checkpoint commit**; the fixes below and the checkpoint follow it. The reviewer's
+findings as relayed by the orchestrator are the artifact; every resolution was decided
+by the orchestrator. Verdict: land after fixes.
+
+**Verified by the reviewer:** all six criteria re-run — cquery counts; explicit
+`:aliases`, `zx` and `:host_all` builds with `--repository_disable_download`; a no-network
+rebuild after `bazel clean` with sandbox network off (x64, arm64, host, `bazel test
+//...`); an offline `@rust_crates` fetch in a fresh output base; `crates.json` equal to
+`pilot1.json`'s 121; the patched crates byte-identical to the upstream blobs and modes
+(libc 406, zeroize 15, byteorder 12, memchr 60); license texts; source-less `Cargo.lock`
+entries; `MODULE.bazel.lock` unchanged; plan headings 31. It judged the criterion-1
+reading honest (every Fuchsia-context library alias is target-built; the 7 host-only
+crates are proc macros and proc-macro deps).
+
+| # | Severity | Finding | Resolution (decided by the orchestrator) |
+|---|---|---|---|
+| 1 | major (record) | Criterion 1 cannot hold literally (per-platform features; proc macros); the reading must be decided, not self-accepted | **Decided:** every crate builds in the configuration it is used in (Fuchsia target or exec), and all 121 build for host. Recorded under "Deviations"; the orchestrator amends design R4's *Check:* line and patched-crate list (zeroize, not tokio) after the checkpoint; `docs/design.md` not edited here |
+| 2 | minor | Exec counts: 22 exec labels include 2 non-crates, so 20 crates; state distinct crates per config | Table now gives distinct crates: x64 114 = 99 target + 15 exec-only, arm64 113 = 98 + 15, 7 in both, 7 host-only; plan Outcome updated. The `@rust_crates`-filtered query lists 22 exec crates by name (15 exec-only + 7 both), consistent with 114; the count note in "Criterion 1" records the difference |
+| 3 | minor | The release `Cargo.lock` has 666 packages (89 source-less), not "1,000+" | Fixed (re-counted: 666 / 89) |
+| 4 | minor | Incompatible filegroups drop out of `//...` silently | The plan's three build checks name `//third_party/crates:aliases` (all configs) and `:host_all` (host); backlog item updated |
+| 5 | minor | Fuchsia's metadata files in the patched crates attributed to the crate authors | New last-matching `REUSE.toml` annotation (The Fuchsia Authors, BSD-2-Clause) for `third_party/crates/src/**/README.fuchsia`, `**/OWNERS`, and zeroize's Fuchsia-authored `src/barrier.rs`, `src/stack.rs`; checked with `reuse spdx` |
+| n1 | nit | Evidence header should list all four wip commits | Fixed |
+| n2 | nit | "aquery of the 14" — 13 build scripts, 14 actions (`quote` in both configs) | Fixed |
+| n3 | note | `num-derive` and `paste` built only in host fastbuild, never `k8-opt-exec` | Recorded under "Criterion 1"; M9 is their first exec build |
+
+**Re-verification after the fixes:**
+
+| Check | Result |
+|---|---|
+| `uv run pytest` | 340 passed |
+| `uv run reuse lint` | compliant |
+| `scripts/regen.py --check` | clean |
+| `scripts/bazel build --config=fuchsia_x64 //... //third_party/crates:aliases` | success |
+| `scripts/bazel build --config=fuchsia_arm64 //... //third_party/crates:aliases` | success |
+| `scripts/bazel build //... //third_party/crates:aliases //third_party/crates:host_all` | success |
+| `scripts/bazel test //...` | 25 pass, 1 skipped |
+| `uv run scripts/check_sdk_files.py` | 0 missing |
+| `uv run scripts/disk_report.py` | total 10.30 GiB of 25, ok |
+| plan `## ` headings vs `b242fe5` | 31, unchanged; only M6b's entry, its status row, the Project checks build commands (finding 4), the backlog and Next session changed |

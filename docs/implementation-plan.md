@@ -16,9 +16,9 @@ Target release for milestone 1: `33.20260927.4.1` (`LATEST_LINUX` on 2026-09-27)
 | Check | Command | Created in |
 |---|---|---|
 | Script tests | `uv run pytest` | M1 |
-| Build, x64 | `scripts/bazel build --config=fuchsia_x64 //...` | M2 |
-| Build, arm64 | `scripts/bazel build --config=fuchsia_arm64 //...` | M2 |
-| Build, host | `scripts/bazel build //...` | M2 |
+| Build, x64 | `scripts/bazel build --config=fuchsia_x64 //... //third_party/crates:aliases` | M2 (crate list: M6b) |
+| Build, arm64 | `scripts/bazel build --config=fuchsia_arm64 //... //third_party/crates:aliases` | M2 (crate list: M6b) |
+| Build, host | `scripts/bazel build //... //third_party/crates:aliases //third_party/crates:host_all` | M2 (crate list: M6b) |
 | Binary checks | `scripts/bazel test //...` (symbol and `DT_NEEDED` tests) | M10 |
 | Vendor drift | `scripts/regen.py --check` | M5 |
 | License headers | `uv run reuse lint` (chosen in M1; `REUSE.toml` covers files without comments) | M1 |
@@ -77,7 +77,7 @@ in the cloud.
 | M4 | `rustc_*` rules with API-level cfgs (R3) | M2 | cloud | complete |
 | M5 | Vendor stage of `regen.py` + `--check`; `zx-types`, `zx-sys`, `zx` build (R6 mechanism, R2) | M4 | cloud | complete |
 | M6a | Pilot 1 closure measured (D8, R12 data): `closure.py`, `docs/closure/pilot1.json` | M5 | cloud | complete |
-| M6b | Pilot 1's crates.io crates build, incl. the patched ones and `zx` (R4) | M6a | cloud | in_progress (review) |
+| M6b | Pilot 1's crates.io crates build, incl. the patched ones and `zx` (R4) | M6a | cloud | complete |
 | I2 | Prebuilt `fidlgen_rust` / `fidlgen_rust_next`: published or not | — | cloud | pending |
 | M7 | Both FIDL generators available as Bazel host tools (R5 tools) | I2, M6b | cloud | pending |
 | M8 | `fidl_rust.bzl`, `rust` + `rust_next` flavors; pilot 1 FIDL closure compiles (R5) | M7 | cloud | pending |
@@ -328,9 +328,11 @@ would be UNKNOWN; the report is refreshed by hand until M14.
 **Design coverage:** R4 (pilot 1 subset), D6, C1, C3, C4; R2 (`zx`, deferred from M5).
 **Dependencies:** M6a, M5. Later entries that name "M6" for crates (M7's host crates,
 M14's crates stage) mean M6b.
-**Status:** in_progress — implementation and verification done; awaiting the
-independent review, which precedes the checkpoint commit. The detailed entry is in the
-evidence file.
+**Status:** complete. An independent review ran before the checkpoint (1 major
+record, 4 minor findings, 2 nits, all resolved as the orchestrator decided; criterion 1
+is read as "every crate builds in the configuration it is used in, Fuchsia target or
+exec, and all 121 build for host", decided by the orchestrator). The detailed entry is
+in the evidence file.
 **Outcome:** `regen.py` follows and commits the patched crates (`forks/`, `ask2patch/`)
 under `third_party/crates/src/<kind>/<dir>/` (byte for byte, BUILD file beside the
 others as `BUILD.<kind>.<dir>.bazel`), and `toolchain/crates.bzl` links them into
@@ -338,9 +340,10 @@ others as `BUILD.<kind>.<dir>.bazel`), and `toolchain/crates.bzl` links them int
 generated set is exactly the closure's 121 crates (117 crates.io + `forks/libc-0.2.189`,
 `forks/zeroize`, `ask2patch/byteorder`, `ask2patch/memchr`), checked against
 `pilot1.json` in pytest. `zx` is vendored and builds for x64 and arm64. A generated build
-list (`//third_party/crates:aliases`, `:host_all`) makes the three `//...` builds compile
-the set: for Fuchsia every crate the target side needs (x64 99 target + 22 exec, arm64
-98 + 22), for host all 121; crate_universe's per-platform features mean host-only crates
+list (`//third_party/crates:aliases`, `:host_all`, named explicitly in the three build
+checks) compiles the set: for Fuchsia every crate the target side needs (x64 99 target + 22 exec, arm64
+98 + 22: 114 / 113 distinct crates, of which 7 are built for both target and exec), for
+host all 121; crate_universe's per-platform features mean host-only crates
 (e.g. `synstructure`) do not build for Fuchsia. With `@rust_crates` deleted, downloads
 disabled and the network blocked, the three builds and `bazel test //...` pass; the 15
 build scripts need no overrides and run with sandbox networking off. `--check` names a
@@ -1003,12 +1006,13 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   for Fuchsia. None mattered for pilot 1 (0 gaps, 0 UNKNOWN conditions). M14 folds the
   walker into `regen.py` and could let it drive the crate roots.
 
-- **Incompatible targets drop out of `//...` silently (found in M6b).** A filegroup
-  with one member incompatible under a config (e.g. `//third_party/crates:aliases` if a
-  new crate were Fuchsia-incompatible) is skipped by `//...` without an error, as are
-  Fuchsia-only targets on host. M6b's evidence builds the groups as explicit targets;
-  a standing check (an analysis test per config, or explicit targets in the project
-  checks) would keep the crate build list from shrinking unnoticed.
+- **Incompatible targets drop out of `//...` silently (found in M6b) — addressed for
+  the crate list.** A filegroup with one member incompatible under a config is skipped
+  by `//...` without an error, as are Fuchsia-only targets on host. Decision
+  (orchestrator, M6b review): the three build checks name `//third_party/crates:aliases`
+  (all configs) and `:host_all` (host) explicitly, so an incompatible member fails
+  loudly. Other targets (e.g. a future driver package) are still skipped silently; add
+  them to the checks the same way when they matter.
 - **crates.io roots by hand (found in M6b; for M14).** `vendor/crates_io.txt` copies
   `pilot1.json`'s `crates_io.direct` (pytest keeps them equal); when M14 folds the
   walker into `regen.py`, the closure can drive the roots, and pilot 2's aliases join.
@@ -1017,21 +1021,19 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M6b in_progress, awaiting review** (branch `ms/M6b`
-  from `b242fe5`; wip commits `2124b78` — patched crates in regen.py, `zx` builds (the
-  split point) — `4449c69` — the 121 crates and the build list — and a wip commit with
-  the evidence, plan and notebook; tree clean). Implementation and verification
-  are done; the independent review precedes the checkpoint `overlay: M6b — Pilot 1's
-  crates.io crates build`.
-- Completed work and evidence: [M6b evidence](evidence/M6b.md) (all but Review).
-- Remaining work, blockers, and decisions: the review, its fixes, the evidence's Review
-  section, the checkpoint commit. For the orchestrator: design R4's patched-crate list
-  ("… `tokio`") could name the measured set; the criterion-1 reading (every crate in
-  the configuration it is used in; all for host) is in the evidence. Unchanged: the R7
+- Current milestone and status: **M6b complete** (branch `ms/M6b` from `b242fe5`; wip
+  commits `2124b78`, `4449c69`, `89d9011`, `4c26e20`, then the checkpoint
+  `overlay: M6b — Pilot 1's crates.io crates build` with the review fixes).
+- Completed work and evidence: [M6b evidence](evidence/M6b.md), including the review
+  findings and resolutions.
+- Uncommitted state: none.
+- Remaining work, blockers, and decisions: none for M6b. Orchestrator, after the
+  checkpoint: amend design R4's *Check:* line (the criterion-1 reading decided in the
+  review) and its patched-crate list (`zeroize`, not `tokio`). Unchanged: the R7
   reading for pilot 1 (before M10); M17 placement.
 - Context boundary: normal.
-- Resume action: finish **M6b** (review → fixes → checkpoint); then M7 (I2 first; I3
-  can run beside it).
-- Read first: the M6b entry, [M6b evidence](evidence/M6b.md), [notebook index](notebook/index.md)
-  and the [M6b chapter](notebook/M6b.md), `scripts/regen.py` (`generate_crates`,
-  `_copy_patched`, `crates_build`), `toolchain/crates.bzl`.
+- Resume action: begin **M7** after **I2** (I3 can run beside them).
+- Read first for M7: the I2 and M7 entries, [M6b evidence](evidence/M6b.md) ("How
+  patched crates work", "Crate roots and the build list": M7's host crates go through
+  `vendor/crates_io.txt` or the vendored BUILD files), `scripts/regen.py`
+  (`generate_crates`), `toolchain/crates.bzl`, [notebook index](notebook/index.md).

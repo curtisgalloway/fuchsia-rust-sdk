@@ -114,3 +114,18 @@ path = ["third_party/crates/src/ask2patch/byteorder/**", "third_party/crates/src
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2015 Andrew Gallant"
 SPDX-License-Identifier = "Unlicense OR MIT"
+
+# Fuchsia's own files inside the patched crates (the last matching annotation wins, so
+# these are not attributed to the crates' authors): its third-party metadata
+# (README.fuchsia, OWNERS) and the files Fuchsia's zeroize fork adds, which carry
+# Fuchsia's BSD-style header ("found in the LICENSE file": LICENSES/BSD-2-Clause.txt).
+[[annotations]]
+path = [
+    "third_party/crates/src/**/README.fuchsia",
+    "third_party/crates/src/**/OWNERS",
+    "third_party/crates/src/forks/zeroize/src/barrier.rs",
+    "third_party/crates/src/forks/zeroize/src/stack.rs",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "The Fuchsia Authors"
+SPDX-License-Identifier = "BSD-2-Clause"
