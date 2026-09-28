@@ -61,27 +61,44 @@ def test_every_closure_crate_but_m9c_and_the_driver_is_listed():
 
 
 def test_upstream_mode_only_where_upstream_has_bazel():
-    """closure.py recorded which directories have a BUILD.bazel; fuchsia-component has one,
-    but it is an empty stub filegroup, so it is an overlay (evidence M9b)."""
+    """closure.py recorded which directories have a BUILD.bazel. fuchsia-component has one,
+    but it is an empty stub filegroup, so it is an overlay: regen.py checks on every run
+    that upstream's file there still builds no Rust (check_upstream_stub; test_regen.py)."""
     for path in M9B_UPSTREAM:
         assert INTREE[path]["upstream_bazel"], path
     assert {p for p in M9B_OVERLAYS if INTREE[p]["upstream_bazel"]} == {"src/lib/fuchsia-component"}
-    stub = (ROOT / regen.OVERLAYS / "src/lib/fuchsia-component/BUILD.bazel").read_text()
-    assert "empty filegroup" in stub
+
+
+# select() keys that match under a Fuchsia target configuration; any other key but
+# //conditions:default (e.g. //rules:is_host_os) does not.
+_FUCHSIA_KEYS = ("@platforms//os:fuchsia",)
+
+
+def _value(node: ast.AST, variables: dict[str, ast.AST]):
+    """A BUILD expression's value under a Fuchsia configuration: literals, top-level
+    variables, list concatenation, and select() (the Fuchsia key, else the default)."""
+    if isinstance(node, ast.Name) and node.id in variables:
+        return _value(variables[node.id], variables)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return _value(node.left, variables) + _value(node.right, variables)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "select":
+        branches = {ast.literal_eval(k): v for k, v in zip(node.args[0].keys, node.args[0].values)}
+        key = next((k for k in _FUCHSIA_KEYS if k in branches), "//conditions:default")
+        return _value(branches[key], variables)
+    return ast.literal_eval(node)
 
 
 def _rust_calls(path: str) -> dict[str, dict]:
-    """name -> keyword arguments (literals only) of each rustc_* call in a vendored BUILD file."""
+    """name -> keyword arguments of each rustc_* call in a vendored BUILD file, evaluated
+    as a Fuchsia build sees them (_value)."""
     tree = ast.parse((ROOT / regen.VENDOR_OUT / path / "BUILD.bazel").read_text())
+    variables = {n.targets[0].id: n.value for n in tree.body
+                 if isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name)}
     out = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id.startswith("rustc_"):
-            kw = {}
-            for k in node.keywords:
-                try:
-                    kw[k.arg] = ast.literal_eval(k.value)
-                except ValueError:
-                    kw[k.arg] = ast.unparse(k.value)
+            kw = {k.arg: _value(k.value, variables) for k in node.keywords
+                  if k.arg not in ("visibility", "target_compatible_with")}
             out[kw["name"]] = kw
     return out
 
@@ -116,28 +133,23 @@ def test_vfs_is_a_gn_dylib_built_as_an_rlib():
 
 def test_upstream_crates_define_the_closures_targets():
     """Each closure target of an upstream-mode crate exists with GN's crate name and
-    features. zx-libc is the one whose Bazel target name differs from GN's."""
+    features, select()s evaluated for Fuchsia (hierarchy, log/types, cm_rust and moniker
+    select their features). zx-libc is the one whose Bazel target name differs from GN's."""
     renamed = {("sdk/lib/c/rust", "zx-libc"): "rust"}
     for path in M9B_UPSTREAM:
         calls = _rust_calls(path)
         for t in INTREE[path]["targets"]:
             kw = calls[renamed.get((path, t["target"]), t["target"])]
             assert kw.get("crate_name", t["target"].replace("-", "_")) == t["crate_name"], (path, t["target"])
-            features = kw.get("crate_features", [])
-            assert (features if isinstance(features, list) else []) == t["features"], (path, t["target"])
+            assert kw.get("crate_features", []) == t["features"], (path, t["target"])
 
 
 def test_m9b_crates_have_no_test_deps():
     """Unit tests are M16: patches empty test_deps, so regen.py fetches no crate outside
     the closure for them (the crate set is checked in test_crates_closure.py)."""
     for path in M9B_UPSTREAM:
-        text = (ROOT / regen.VENDOR_OUT / path / "BUILD.bazel").read_text()
-        tree = ast.parse(text)
-        empty = {n.targets[0].id for n in tree.body if isinstance(n, ast.Assign)
-                 and isinstance(n.targets[0], ast.Name) and isinstance(n.value, ast.List) and not n.value.elts}
         for name, kw in _rust_calls(path).items():
-            value = kw.get("test_deps", [])
-            assert value == [] or value in empty, (path, name, value)
+            assert kw.get("test_deps", []) == [], (path, name)
 
 
 def test_m9b_patches_are_for_upstream_crates():

@@ -16,13 +16,14 @@ Target release for milestone 1: `33.20260927.4.1` (`LATEST_LINUX` on 2026-09-27)
 | Check | Command | Created in |
 |---|---|---|
 | Script tests | `uv run pytest` | M1 |
-| Build, x64 | `scripts/bazel build --config=fuchsia_x64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings` | M2 (crate list: M6b; bindings: M8a) |
-| Build, arm64 | `scripts/bazel build --config=fuchsia_arm64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings` | M2 (crate list: M6b; bindings: M8a) |
+| Build, x64 | `scripts/bazel build --config=fuchsia_x64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings //vendor/fuchsia/src/lib/diagnostics/log/rust:no_startup_handle //vendor/fuchsia/src/lib/diagnostics/log/encoding/rust:rust` | M2 (crate list: M6b; bindings: M8a; log crates: M9b) |
+| Build, arm64 | `scripts/bazel build --config=fuchsia_arm64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings //vendor/fuchsia/src/lib/diagnostics/log/rust:no_startup_handle //vendor/fuchsia/src/lib/diagnostics/log/encoding/rust:rust` | M2 (crate list: M6b; bindings: M8a; log crates: M9b) |
 | Build, host | `scripts/bazel build //... //third_party/crates:aliases //third_party/crates:host_all` | M2 (crate list: M6b) |
 | Binary checks | `scripts/bazel test //...` (symbol and `DT_NEEDED` tests) | M10 |
 | Vendor drift | `scripts/regen.py --check` | M5 |
 | License headers | `uv run reuse lint` (chosen in M1; `REUSE.toml` covers files without comments) | M1 |
 | SDK files present | `uv run scripts/check_sdk_files.py` (every source file the three configs can reach exists after the IDK trim) | M2a |
+| GN parity (M9b) | `uv run scripts/gn_crosscheck.py --all` (each vendored in-tree closure crate compiles as its `BUILD.gn` says: crate name and type, edition, features, externs, root, sources, C libraries; needs fuchsia.git over git, like `regen.py --check`) | M9b |
 | Disk budget (C6) | `uv run scripts/disk_report.py` (exit 1 when over the active profile's budget) | M2a |
 
 **Where work runs.** Unless marked, a milestone runs in a Claude Code cloud container.
@@ -47,8 +48,9 @@ in the cloud.
   told of the Bazel change, so no new gate was held. Material design changes need a
   new gate before the milestones they affect.
 - **Disk budget (C6):** every milestone's evidence records disk use against the active
-  environment profile (hosted default: ≤ 25 GB total). Over budget means verification
-  is incomplete.
+  environment profile (hosted default: ≤ 25 GB total; Bazel's output base and
+  repository cache ≤ 15 GiB of it, raised from M2a's 12 by the orchestrator in M9b,
+  2026-09-28). Over budget means verification is incomplete.
 - **User overrides:** none.
 - **Review method:** a reviewer subagent with fresh context (the `Agent` tool), given
   the design, the milestone entry, the evidence file and the diff since the starting
@@ -83,7 +85,7 @@ in the cloud.
 | M8a | `fidl.bzl` + `fidl_rust.bzl`, `rust` flavor; pilot 1's 23 libraries compile for both targets (R5) | M7 | cloud | complete |
 | M8b | `rust_next` flavor for the 17 libraries without `contains_drivers` (R5) | M8a | cloud | complete |
 | M9a | Pilot 1's driver runtime vendored (11 overlays); FIDL driver transport on (R6, R5) | M8b | cloud | complete |
-| M9b | 28 upstream-Bazel in-tree crates + 7 overlays (incl. `fuchsia-component`) (R6) | M9a | cloud | in review |
+| M9b | 28 upstream-Bazel in-tree crates + 7 overlays (incl. `fuchsia-component`) (R6) | M9a | cloud | complete |
 | M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | pending |
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | pending |
 | I3 | Emulator bind target for pilot 1 confirmed at this release | M3 | cloud (emulator) | pending |
@@ -207,7 +209,7 @@ only profile code `@fuchsia_idk` depends on; budgets and other fields are in
 levels), riscv64 libraries and arm64 host tools (3.6 GB instead of 13 GB), and
 `scripts/bazel` prunes the IDK tarball from the repository cache after fetching. From a
 clean output base all three `//...` builds pass. Output base + repository cache is
-7.69 GiB (budget 12) and the total 8.21 GiB (budget 25), by `scripts/disk_report.py`;
+7.69 GiB (budget 12, 15 since M9b) and the total 8.21 GiB (budget 25), by `scripts/disk_report.py`;
 `scripts/check_sdk_files.py` shows no reachable SDK file missing and no unexplained
 cquery error. pytest 135 and `reuse lint` pass.
 **Evidence:** [M2a](evidence/M2a.md) · **Notebook:** [M2a](notebook/M2a.md)
@@ -490,17 +492,23 @@ translated from `BUILD.gn`: `detect-stall`, `fuchsia-component/{escrow,runtime,s
 crate type) and `fuchsia-component` itself, whose upstream `BUILD.bazel` is an empty
 stub (so 28 + 7, not the planned 29 + 6). `regen.py` maps `is_host_os` and
 `trace-engine`, and keeps any unlisted in-tree label provisionally (a patch must remove
-it). A scripted check of every crate's compile (`aquery`) against its `BUILD.gn` (closure
-evaluator) agrees on crate name, edition, features, externs, root and sources for all 37
-targets; `third_party/crates/` is unchanged.
+it), and checks that an overlay replaces only a stub upstream file.
+`scripts/gn_crosscheck.py` (new project check) compares each crate's compile with its
+`BUILD.gn`: all 62 vendored closure crates (64 targets, both Fuchsia configs) agree, with
+one allowlisted deviation (`vfs`); `third_party/crates/` is unchanged. Orchestrator
+decision at the review: the hosted Bazel sub-budget is 15 GiB (was 12).
 **Design coverage:** R6 (pilot 1 set), D8. **Dependencies:** M9a.
-**Status:** implemented; review pending (orchestrator). The detailed entry is in the
-evidence file.
+**Status:** complete. An independent reviewer subagent (launched by the orchestrator)
+reviewed before the checkpoint: land after fixes (1 major, 4 minor, 4 nits; all
+resolved). The detailed entry is in the evidence file.
 **Evidence:** [M9b](evidence/M9b.md) · **Notebook:** [M9b](notebook/M9b.md)
 **Open limitations:** unit tests not built (13 patches empty `test_deps`; M16); `vfs` is
-static where GN links `libvfs_rust.so` (M10's `DT_NEEDED` comparison); the
-`syslog/client.shard.cml` manifest check is M10's; `diagnostics_log` and
-`diagnostics_log_encoding` are pinned by `//...` only until M9c's `fdf_component`.
+static where GN links `libvfs_rust.so`, so its process-wide state (`temp_clone.rs`
+statics, a 2-thread pool) is per driver, not per driver host, and M10's `DT_NEEDED`
+comparison differs by that library; the `syslog/client.shard.cml` manifest check is
+M10's. `diagnostics_log` and `diagnostics_log_encoding`, visible only inside
+`//vendor/fuchsia`, are named explicitly by the two Fuchsia build checks (M9c may drop
+them once `fdf_component` reaches them).
 
 ---
 
@@ -515,7 +523,7 @@ the graph uses: `src/lib/elf_parse`, `src/lib/process_builder`, `src/sys/lib/nam
 
 ### Implementation steps
 1. Translate each `BUILD.gn` into `overlays/<path>/BUILD.bazel` and check it against GN by
-   hand (M9a's mapping); vendor bottom-up.
+   hand (M9a's mapping) and with `scripts/gn_crosscheck.py` (M9b); vendor bottom-up.
 2. Any trim becomes a `patches/fuchsia/…` file with a comment giving the reason.
 
 ### Acceptance criteria
@@ -1104,7 +1112,9 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   the disk report, and consider pruning `bazel-out` configs (`-ST-` transition dirs) or
   raising the Bazel group's share if it tips over. After M8b: 10.95 of 12 GiB (total
   11.85 of 25). After M9a: 10.99 of 12 GiB (total 11.90 of 25). After M9b: 11.36 of 12
-  GiB (total 12.27 of 25); 0.64 GiB left for M9c and M10.
+  GiB (total 12.27 of 25); 0.64 GiB left for M9c and M10. **Decided (orchestrator,
+  2026-09-28, M9b review):** the hosted Bazel sub-budget rises to 15 GiB; the total
+  (≤ 25 GiB, C6) is unchanged.
 - **Driver transport switch in two files (found in M8b; for M9) — done in M9a.** `_DRIVER_TRANSPORT`
   is in `rules/fidl_rust.bzl` (the `rust` flavor) and `rules/fidl_rust_next.bzl`
   (`rust_next`; while off, a `contains_drivers` library gets no `rust_next` targets). M9
@@ -1145,7 +1155,10 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   `build/drivers/driver_shared_library_allowlist`); the overlay links it statically
   (rules_rust has no dylib crate type). An in-tree reference driver that uses `vfs` may
   list `libvfs_rust.so` in `DT_NEEDED` where pilot 1 does not; M10's comparison should
-  expect that difference.
+  expect that difference. Its process-wide state is per binary too: `src/temp_clone.rs`
+  keeps statics (`CLONES`; `STATE`, which spawns a 2-thread pool), one copy per
+  statically linked driver instead of one per driver host (M9b review; benign for
+  pilot 1).
 - **`syslog/client.shard.cml` check dropped (found in M9b; for M10).**
   `diagnostics_log` depends on `//sdk/lib/syslog:client_includes`, an empty stub in
   upstream Bazel and in GN an `expect_includes` that makes dependents' manifests include
@@ -1167,15 +1180,17 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M9b implemented, in review** (orchestrator). Branch
-  `ms/M9b` from `006a91a`; `wip` commits (`wip: M9b — …`), then, after the review and its
-  fixes, the checkpoint commit `overlay: M9b — Pilot 1's upstream-Bazel in-tree crates`.
-- Completed work and evidence: [M9b evidence](evidence/M9b.md) (Review pending).
-- Uncommitted state: none expected after the checkpoint.
-- Remaining work, blockers, and decisions: the review; unchanged: the R7 reading for
-  pilot 1 (before M10), M17 placement.
+- Current milestone and status: **M9b complete.** Branch `ms/M9b` from `006a91a`; `wip`
+  commits `ae467ad`, `1feb17c`, then the checkpoint commit `overlay: M9b — Pilot 1's
+  upstream-Bazel in-tree crates`, after the reviewer subagent's review and fixes.
+- Completed work and evidence: [M9b evidence](evidence/M9b.md), including the review.
+- Uncommitted state: none.
+- Remaining work, blockers, and decisions: unchanged: the R7 reading for pilot 1 (before
+  M10), M17 placement.
 - Context boundary: normal.
 - Resume action: after M9b's checkpoint, begin **M9c** (I3 can run beside it).
-- Read first for M9c: the M9c entry, [M9b evidence](evidence/M9b.md) (overlay mapping,
-  cross-check method), an overlay under `overlays/src/lib/fuchsia-component/`,
-  `vendor/crates.txt`, `tests/test_pilot1_crates.py`, [notebook index](notebook/index.md).
+- Read first for M9c: the M9c entry, [M9b evidence](evidence/M9b.md) (overlay mapping;
+  the GN parity method), `scripts/gn_crosscheck.py`'s docstring (run it on each new
+  overlay: `uv run scripts/gn_crosscheck.py <path>…`, then `--all`), an overlay under
+  `overlays/src/lib/fuchsia-component/`, `vendor/crates.txt`,
+  `tests/test_pilot1_crates.py`, [notebook index](notebook/index.md).

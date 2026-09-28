@@ -19,7 +19,9 @@ Inputs, all committed:
                            rewritten, with its .fidl sources taken from the IDK (D7)
   vendor/crates_io.txt     @rust_crates//vendor aliases to generate besides those the
                            vendored BUILD files use (the pilots' direct crates.io deps)
-  overlays/<path>/BUILD.bazel     hand-written BUILD file for an "overlay" crate
+  overlays/<path>/BUILD.bazel     hand-written BUILD file for an "overlay" crate; if
+                           upstream has a BUILD.bazel there, it must build no Rust (a
+                           stub, M9b), or the run fails
   patches/fuchsia/<path>/*.patch  applied in name order after the BUILD files
 
 Outputs, generated and committed (D6); never edit them by hand:
@@ -933,6 +935,21 @@ def check_overlay_build(text: str, where: str) -> None:
     _check_all_vendored(text, where)
 
 
+def check_upstream_stub(text: str, where: str) -> None:
+    """An overlay may replace an upstream BUILD.bazel only while that file builds no Rust
+    (M9b: src/lib/fuchsia-component's is an empty stub filegroup, fxbug.dev/500609897).
+    Once upstream's file defines a Rust target, the crate should be 'upstream' again."""
+    src = _Source(text, where)
+    for node in ast.walk(src.tree):
+        if isinstance(node, ast.Call):
+            func = node.func
+            name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
+            if _RUST_CALL_NAME.match(name):
+                raise src.fail(node, f"upstream's BUILD.bazel now defines {name}(), but {VENDOR_LIST} "
+                                     "lists this crate 'overlay'; list it 'upstream' (patching what "
+                                     "the overlay changed) or confirm the overlay is still needed")
+
+
 def build_strings(text: str, where: str) -> list[str]:
     """Every string constant in a BUILD file."""
     return [n.value for n in ast.walk(_Source(text, where).tree)
@@ -1255,6 +1272,8 @@ def generate(root: Path, source: Source, out: Path, cargo_lock_sha256: str, home
                                  f"{OVERLAYS}/{crate.path}/BUILD.bazel does not exist")
             text = overlay.read_text()
             check_overlay_build(text, f"{OVERLAYS}/{crate.path}/BUILD.bazel")
+            if build in contents:
+                check_upstream_stub(contents[build].decode(), build)
         _write(vendor, build, text.encode())
 
     if uses_allowlist:

@@ -1367,3 +1367,39 @@ def test_the_overlays_own_allowlist_entries_are_outside_vendor_fuchsia():
         assert entry.startswith("//") and not entry.startswith(("//vendor/", "//third_party/")), entry
         assert entry.endswith((":__pkg__", ":__subpackages__")), entry
     assert "fidl_rust_next_allowlist = _UPSTREAM_ALLOWLIST + _OVERLAY_ALLOWLIST" in text
+
+
+# --- M9b: provisional labels anywhere, end to end; overlays over upstream stubs -----
+
+PLAIN_DEP = _HDR + '''\
+load("//build/bazel/rules/rust:defs.bzl", "rustc_library")
+
+rustc_library(
+    name = "a",
+    srcs = ["src/lib.rs"],
+    deps = ["//sdk/rust/b", "//src/lib/other:x"],
+)
+'''
+
+
+def test_an_unlisted_plain_dep_left_after_the_patches_fails(env, capsys):
+    """Outside any select() (M9b generalized M8a's rule): kept provisionally, then the run
+    fails naming file:line, since no patch removes it."""
+    upstream, repo, run = env
+    _write(upstream, "sdk/rust/a/BUILD.bazel", PLAIN_DEP)
+    assert run("vendor") == 2
+    assert ("sdk/rust/a/BUILD.bazel:10: depends on //src/lib/other, but src/lib/other is not "
+            "listed in vendor/crates.txt; list it, or remove the label with a patch under "
+            "patches/fuchsia/sdk/rust/a/") in capsys.readouterr().err
+
+
+def test_an_overlay_may_replace_only_a_stub_upstream_build_file(env, capsys):
+    upstream, repo, run = env
+    _write(upstream, "sdk/rust/b/BUILD.bazel", '# stub\nfilegroup(name = "b", srcs = [])\n')
+    assert run("vendor") == 0
+    assert (repo / "vendor/fuchsia/sdk/rust/b/BUILD.bazel").read_text() == B_OVERLAY
+    _write(upstream, "sdk/rust/b/BUILD.bazel",
+           'load("//build/bazel/rules/rust:defs.bzl", "rustc_library")\nrustc_library(name = "b")\n')
+    assert run("vendor") == 2
+    assert ("sdk/rust/b/BUILD.bazel:2: upstream's BUILD.bazel now defines rustc_library(), but "
+            "vendor/crates.txt lists this crate 'overlay'") in capsys.readouterr().err

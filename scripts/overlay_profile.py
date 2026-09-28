@@ -60,9 +60,10 @@ PROFILES: dict[str, Profile] = {
             ),
             trim_idk=idk_trim.TRIM_BY_PROFILE["hosted"],
             cache_idk_archive=False,
-            # C6: total <= 25 GB (5 GB headroom). The Bazel caches get 12 of them (M2a),
-            # leaving the rest for the emulator (M3), the checkout and scratch.
-            budgets={"total": 25 * GIB, "bazel": 12 * GIB},
+            # C6: total <= 25 GB (5 GB headroom). The Bazel caches get 15 of them (12 in
+            # M2a; raised by the orchestrator in M9b, when they reached 11.4 with the total
+            # at 12.3), leaving the rest for the emulator (M3), the checkout and scratch.
+            budgets={"total": 25 * GIB, "bazel": 15 * GIB},
             # The hosted container has no /dev/kvm; auto detects that and uses TCG, and
             # would use KVM if a hosted environment ever offered it.
             emulator_accel="auto",

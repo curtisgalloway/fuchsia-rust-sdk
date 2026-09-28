@@ -92,7 +92,7 @@ def test_hosted_budget_ok_and_over():
                                                repository_cache=1 * op.GIB), hosted)}
     assert ok["bazel"].used == 8 * op.GIB and not ok["bazel"].over
     assert not ok["total"].over
-    over = {g.name: g for g in dr.evaluate(sizes(output_base=11 * op.GIB,
+    over = {g.name: g for g in dr.evaluate(sizes(output_base=14 * op.GIB,
                                                  repository_cache=2 * op.GIB), hosted)}
     assert over["bazel"].over and not over["total"].over
     total = {g.name: g for g in dr.evaluate(sizes(output_base=8 * op.GIB,
@@ -141,7 +141,7 @@ def test_prune_large_disk_is_skipped(tmp_path):
 
 def test_render_names_every_bucket_and_group(tmp_path):
     hosted = op.PROFILES["hosted"]
-    s = sizes(output_base=13 * op.GIB)
+    s = sizes(output_base=16 * op.GIB)
     text = dr.render(hosted, "default", dr.bucket_paths({}, {"HOME": str(tmp_path)}, []),
                      s, dr.evaluate(s, hosted))
     for name in (*dr.BUCKETS, *dr.GROUPS):

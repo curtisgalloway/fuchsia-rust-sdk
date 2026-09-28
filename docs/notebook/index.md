@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T04:55-07:00
+Updated: 2026-09-28T05:29-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -138,12 +138,12 @@ Outcome: complete (M9a) — 11 driver runtime overlays; FIDL driver transport on
 - Corrected: macro-declared crates are visible to edges written in `//rules` (not a `select()` effect); only top-level targets need `//rules:__pkg__`
 
 ### [M9b — Pilot 1's upstream-Bazel in-tree crates](M9b.md)
-Entries: 2026-09-28T04:18-07:00 through 2026-09-28T04:55-07:00
-Outcome: implemented, in review — 35 crates (28 upstream, 17 patches; 7 overlays) build for x64/arm64; all 37 targets match GN
-- `fuchsia-component`'s upstream BUILD.bazel is an empty stub: overlay from BUILD.gn (28+7, not 29+6)
+Entries: 2026-09-28T04:18-07:00 through 2026-09-28T05:29-07:00
+Outcome: complete — 35 crates (28 upstream + 17 patches; 7 overlays) build for x64/arm64; `scripts/gn_crosscheck.py`: all 62 vendored closure crates match GN
+- `fuchsia-component`'s upstream BUILD.bazel is an empty stub: overlay (28+7); `regen.py` now checks overlays replace only stubs
 - `regen.py`: `is_host_os` → `//rules:is_host_os`, trace-engine → IDK, unlisted labels provisional anywhere (patch removes)
-- `vfs` (GN dylib) built as an rlib; M10 `DT_NEEDED` may differ by `libvfs_rust.so`
-- New check: aquery compile vs closure's GN evaluation (crate, edition, features, externs, srcs); validated on M9a and a negative edit
+- `vfs` (GN dylib) built as an rlib: `temp_clone.rs` statics become per driver; M10 `DT_NEEDED` differs by `libvfs_rust.so`
+- Review: GN parity check committed as a project tool (fails on unresolvable deps); Bazel sub-budget 12 → 15 GiB (orchestrator)
 - My overlays' first build failed: GN "no visibility" needs explicit public; proc macros go in `proc_macro_deps`
 
 ## Threads

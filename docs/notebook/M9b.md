@@ -149,3 +149,55 @@ x64 and arm64; the GN cross-check agrees for all 37 targets; project checks gree
 Review; plan: M9b entry condensed ("in review"), backlog (4 items, disk numbers), Next
 session; `## ` headings equal the base. Next: the orchestrator's review, then fixes,
 Review section, checkpoint commit.
+
+## 2026-09-28T05:06-07:00 — direction: review findings and a budget decision
+The orchestrator's reviewer subagent: land after fixes. To do: (1, major) commit the GN
+parity cross-check as `scripts/gn_crosscheck.py` with tests (repo paths, regen's git
+source, `crate_type` against a deviation allowlist, fail on unresolvable deps, both
+Fuchsia configs), run it over M9a+M9b's 48 crates; (2) correct the `vfs` rlib claim
+(`temp_clone.rs` statics); (3) explicit check target for `log/rust`/`log/encoding` if
+feasible; (4) record non-closure targets; (5) process-log entry on batched notebook
+entries; nits in tests. Orchestrator decision: the hosted Bazel sub-budget rises from 12
+to 15 GiB (total 25 unchanged).
+
+## 2026-09-28T05:19-07:00 — attempt: `scripts/gn_crosscheck.py` committed; first `--all` runs
+Budget first: `overlay_profile.py` hosted `bazel` 12 → 15 GiB, its test and two
+`test_disk_report.py` fixtures (over-budget sizes 11+2 → 14+2 and 13 → 16 GiB), README,
+plan Conventions and M2a line. Then the tool: GN side from `regen.GitSource` and
+`closure.Evaluated`; Bazel side one `aquery` (Rustc argv) and one `cquery`
+(`CrateInfo` root/srcs, `CcInfo` libraries) per config; `crate_type` against
+`CRATE_TYPE_DEVIATIONS` (`vfs`); unresolvable GN deps raise (exit 2); C deps from a
+table must appear in `CcInfo`; `syslog:client_includes` a listed removal. First `--all`
+run: exit 2 on `fuchsia-inspect-derive-macro`, whose `BUILD.gn` defines it only
+`if (is_host)` (GN builds proc macros in the host toolchain); now retried in the host
+context for `rustc_macro`. Second run (5 min 21 s, blobs read one by one): 62
+directories, 64 targets, 124 (target, config) pairs agree, including M5–M8b's 16 crates.
+Added a batched prefetch of every listed `BUILD.gn`; 7 unit tests in
+`tests/test_gn_crosscheck.py` (one expected message fixed on the first run).
+
+## 2026-09-28T05:22-07:00 — correction of the 04:35 decision entry (`vfs` as an rlib)
+"A static link changes where the code lives, not what it does" is wrong (review finding
+2): `src/temp_clone.rs` has process-wide statics (`CLONES`; `STATE`, which spawns a
+2-thread pool), so each statically linked binary gets its own copies where GN's drivers
+in one driver host share those of `libvfs_rust.so`. Benign for pilot 1; recorded for
+M10. The overlay header and the evidence are corrected.
+
+## 2026-09-28T05:26-07:00 — attempt: remaining review fixes
+`--all` with the prefetch: 14 s, same result; M9a+M9b paths: 46 directories, 48 targets
+agree; negative edit (`storage_trace` without `tracing`) exits 1 on both configs
+(restored, regenerated). Finding 3: `log/rust:no_startup_handle` and
+`log/encoding/rust:rust` added to the two Fuchsia build check commands (explicit
+targets need no visibility). Nits: `regen.py` now fails if an overlay replaces an
+upstream `BUILD.bazel` that defines Rust (`check_upstream_stub`, so `fuchsia-component`'s
+stub is checked on every run, not by the overlay's text); an end-to-end test for an
+unlisted plain dep; `test_pilot1_crates.py` evaluates `select()` for Fuchsia. The plan
+names `gn_crosscheck.py --all` as a project check and M9c's method. pytest 444.
+
+## 2026-09-28T05:29-07:00 — checkpoint (closing)
+State: complete. Review fixes done and rechecked on the final tree: pytest 444, reuse
+compliant (1654), `regen.py --check` clean, `gn_crosscheck.py --all` 62 directories /
+64 targets agree, three builds (Fuchsia ones with the two log targets) at 479 targets
+under `--lockfile_mode=error`, `bazel test //...` 55 + 18 skipped, `check_sdk_files` 0
+missing, lock unchanged, disk Bazel 11.36 of 15 GiB (budget raised by the orchestrator),
+total 12.28 of 25. Evidence Review filled in; plan M9b complete, Next session → M9c.
+Next: the checkpoint commit `overlay: M9b — Pilot 1's upstream-Bazel in-tree crates`.

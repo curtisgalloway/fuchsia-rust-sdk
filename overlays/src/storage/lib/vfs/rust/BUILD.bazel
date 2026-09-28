@@ -30,9 +30,12 @@
 # dep and no "use_log" feature. Decisions (milestone M9b; see docs/evidence/M9b.md):
 #   - GN builds this crate as a Rust dylib (crate_type "dylib", output libvfs_rust.so,
 #     which build/drivers/driver_shared_library_allowlist lets a driver load). The overlay
-#     builds an rlib: rules_rust has no dylib crate type (rust_shared_library is a cdylib),
-#     and linking it statically changes where the code lives, not what it does. Milestone
-#     M10's DT_NEEDED comparison should expect libvfs_rust.so in the in-tree driver only.
+#     builds an rlib: rules_rust has no dylib crate type (rust_shared_library is a cdylib).
+#     The code is the same, but its process-wide state is not shared: src/temp_clone.rs
+#     keeps statics (CLONES, and STATE, which starts a 2-thread pool on first use), so each
+#     binary that links vfs statically gets its own copies, where GN's drivers in one
+#     driver host share those of the one libvfs_rust.so. Milestone M10's DT_NEEDED
+#     comparison should expect libvfs_rust.so in the in-tree driver only.
 #   - configs += //build/config/rust:bootfs (-Copt-level=s on Fuchsia) is not translated:
 #     an optimization setting, like the rest of GN's configs (the overlay's toolchain
 #     sets its own).
