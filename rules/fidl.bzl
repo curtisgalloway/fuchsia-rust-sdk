@@ -465,7 +465,8 @@ def _fidl_library_impl(
     if enable_rust_next:
         # TODO(https://fxbug.dev/454452299): Implement next-generation Rust bindings and conversions.
         # Overlay: the rust_next flavor from GN (fidl.gni, fidl_rust_next.gni; milestone
-        # M8b); the contains_drivers libraries follow in M9. Conversion crates are not built.
+        # M8b), with the driver transport for contains_drivers libraries (M9a). Conversion
+        # crates are not built.
         fidl_rust_next_library(
             name = name,
             fidl_library_name = library_name,

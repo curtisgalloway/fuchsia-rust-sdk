@@ -21,9 +21,9 @@
 #   - Not built: the FDomain flavor (<name>_rust_fdomain_next) and the conversion crate
 #     (<name>_rust_next_convert): no crate in pilot 1's closure uses them.
 #   - The driver transport (contains_drivers: feature "driver" and
-#     //sdk/lib/driver/runtime/rust/fidl) is milestone M9. Until then the flavor declares
-#     no targets for such a library (fidlgen_rust_next uses ::fdf_fidl without a feature
-#     gate, so its crates cannot compile without the driver runtime).
+#     //sdk/lib/driver/runtime/rust/fidl, on Fuchsia only) is as GN since milestone M9a,
+#     which vendors the driver runtime; before it, the flavor declared no targets for
+#     such a library (fidlgen_rust_next uses ::fdf_fidl without a feature gate).
 #   - The generator is the release's prebuilt //tools/fidlgen_rust_next (M7); the rustfmt
 #     config is fuchsia.git's root rustfmt.toml (//vendor/fuchsia:rustfmt.toml).
 #   - Allowlist: upstream's, with labels mapped to //vendor/fuchsia/<path> as regen.py
@@ -91,10 +91,6 @@ _ZX_FIDL = Label("//vendor/fuchsia/zircon/vdso/zx:zx")
 # GN: //sdk/lib/driver/runtime/rust/fidl, added with contains_drivers.
 _DRIVER_RUNTIME_FIDL = Label("//vendor/fuchsia/sdk/lib/driver/runtime/rust/fidl")
 
-# Overlay: the driver transport is milestone M9 (see the header). While False, a library
-# with contains_drivers gets no rust_next targets.
-_DRIVER_TRANSPORT = False
-
 # GN's lint configs for the bindings, the same as the rust flavor's (fidl_rust_next.gni:
 # rustc_library's defaults with disable_clippy, allow_unused_crate_dependencies,
 # deny_unused_results).
@@ -124,10 +120,6 @@ def fidl_rust_next_library(
         visibility: the library's visibility; the crates get its intersection with
             fidl_rust_next_allowlist, as fidl.gni computes it.
     """
-    if contains_drivers and not _DRIVER_TRANSPORT:
-        # Overlay: milestone M9 (see the header).
-        return
-
     crate_visibility = _allowlisted_visibility(visibility)
     common_crate = rust_next_crate_name(fidl_library_name, common = True)
     for common in (True, False):

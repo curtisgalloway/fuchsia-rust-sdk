@@ -5,11 +5,17 @@
 # each rustc_* call it copies; milestone M5, after the M4 review): upstream code built at
 # HEAD, with the overlay's lints, is not ours to fix.
 # fidl and rust_constants (M8) are left out: upstream restricts their visibility; so are
-# the fidl_next* crates (M8b), visible only to fidl_rust_next_allowlist.
+# the fidl_next* crates (M8b), visible only to fidl_rust_next_allowlist, and the driver
+# runtime crates (M9a) other than fdf, fdf_env and fdf_fidl. regen.py itself fails if an
+# overlay BUILD file's Rust rule lacks vendored = True.
 
+load("//rules:rustc.bzl", "rustc_library")
 load("//tests/api_level:cap_lints_test.bzl", "cap_lints_test")
 
 _VENDORED = [
+    "//vendor/fuchsia/sdk/lib/driver/runtime/rust",
+    "//vendor/fuchsia/sdk/lib/driver/runtime/rust/env",
+    "//vendor/fuchsia/sdk/lib/driver/runtime/rust/fidl",
     "//vendor/fuchsia/sdk/lib/fuchsia-loom",
     "//vendor/fuchsia/sdk/rust/zx",
     "//vendor/fuchsia/sdk/rust/zx-status",
@@ -21,11 +27,36 @@ _VENDORED = [
     "//vendor/fuchsia/src/lib/fuchsia-sync",
 ]
 
+_TEST_NAMES = {
+    "//vendor/fuchsia/sdk/lib/driver/runtime/rust": "fdf",
+    "//vendor/fuchsia/sdk/lib/driver/runtime/rust/env": "fdf_env",
+    "//vendor/fuchsia/sdk/lib/driver/runtime/rust/fidl": "fdf_fidl",
+}
+
 [
     cap_lints_test(
-        name = "cap_lints_allow_" + target.split("/")[-1].replace("-", "_") + "_test",
+        # The last path component, or the crate for the driver runtime's generic names
+        # (rust, env, fidl).
+        name = "cap_lints_allow_" + _TEST_NAMES.get(target, target.split("/")[-1].replace("-", "_")) + "_test",
         expected = "allow",
         target_under_test = target,
     )
     for target in _VENDORED
 ]
+
+# The driver runtime crates (milestone M9a) with public visibility, by crate name. The
+# Fuchsia build checks name this through //tests/fidl:fuchsia_bindings, so fdf_env, which
+# no FIDL binding depends on, cannot be skipped silently (the M6b finding); the others
+# are built as the driver transport's deps too.
+rustc_library(
+    name = "driver_runtime_crates",
+    srcs = ["src/driver_runtime_crates.rs"],
+    edition = "2024",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+    visibility = ["//tests/fidl:__pkg__"],
+    deps = [
+        "//vendor/fuchsia/sdk/lib/driver/runtime/rust",
+        "//vendor/fuchsia/sdk/lib/driver/runtime/rust/env",
+        "//vendor/fuchsia/sdk/lib/driver/runtime/rust/fidl",
+    ],
+)

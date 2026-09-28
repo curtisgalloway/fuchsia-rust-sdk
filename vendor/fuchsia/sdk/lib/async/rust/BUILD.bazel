@@ -1,0 +1,64 @@
+# Copyright 2025 The Fuchsia Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+# SPDX-FileCopyrightText: 2025 The Fuchsia Authors
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Overlay BUILD file (design §4.2, R6; milestone M9a). Upstream has no BUILD.bazel here:
+# this is fuchsia.git sdk/lib/async/rust/BUILD.gn at the lock's fuchsia_revision (b5274053cc0f,
+# blob c4f384fb3906) translated by hand. scripts/regen.py copies it to
+# vendor/fuchsia/sdk/lib/async/rust/BUILD.bazel. GN -> Bazel:
+#   - the rustc_library's name, crate name, edition, version, sources and deps unchanged;
+#     in-tree deps -> //vendor/fuchsia/<path>, //third_party/rust_crates:<c> ->
+#     @rust_crates//vendor:<c>, C libraries -> the IDK's prebuilt @fuchsia_sdk//pkg/<name>
+#     (//sdk/lib/async -> pkg/async, //sdk/lib/async-default -> pkg/async-default,
+#     //src/devices/lib/driver:driver_runtime (the link stub) and
+#     //src/devices/bin/driver_runtime -> pkg/driver_runtime_shared_lib, which has only
+#     the interface library: the driver host provides libdriver_runtime.so);
+#   - GN visibility "//<dir>/*" -> "//vendor/fuchsia/<dir>:__subpackages__", ":*" and
+#     "//<dir>:*" -> "...:__pkg__"; no visibility -> public;
+#   - configs += clippy_warn_all -> lint_config = //rules/lints:clippy_warn_all;
+#   - vendored = True (--cap-lints=allow), as regen.py adds to every upstream Rust rule;
+#   - Fuchsia-only (target_compatible_with): GN builds it for Fuchsia only (pilot 1's
+#     closure reaches it in the fuchsia context only), and its C deps are Fuchsia-only;
+#   - with_unit_tests kept; test_deps and the test, bindgen-golden and package targets
+#     are not translated (unit tests are milestone M16).
+
+load("//rules:rustc.bzl", "rustc_library")
+
+package(default_applicable_licenses = ["//vendor/fuchsia:license"])
+
+rustc_library(
+    name = "rust",
+    crate_name = "libasync",
+    srcs = [
+        "src/after_deadline.rs",
+        "src/callback_state.rs",
+        "src/lib.rs",
+        "src/on_interrupt.rs",
+        "src/on_signals.rs",
+    ],
+    edition = "2024",
+    lint_config = "//rules/lints:clippy_warn_all",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+    vendored = True,
+    version = "0.1.0",
+    visibility = [
+        "//vendor/fuchsia/sdk/lib/async:__subpackages__",
+        "//vendor/fuchsia/sdk/lib/driver:__subpackages__",
+        "//vendor/fuchsia/src/devices/bin/driver-host:__subpackages__",
+        "//vendor/fuchsia/src/lib/trace/rust:__subpackages__",
+        "//vendor/fuchsia/src/ui/lib/input_pipeline:__subpackages__",
+    ],
+    with_unit_tests = True,
+    deps = [
+        "//vendor/fuchsia/sdk/lib/async/rust/dispatcher",
+        "//vendor/fuchsia/sdk/lib/async/rust/sys",
+        "//vendor/fuchsia/sdk/rust/zx",
+        "@fuchsia_sdk//pkg/async",
+        "@rust_crates//vendor:futures",
+    ],
+    # GN test_deps (M16): //sdk/lib/driver/runtime/rust/env.
+)

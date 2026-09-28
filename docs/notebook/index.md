@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T03:31-07:00
+Updated: 2026-09-28T03:56-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -129,6 +129,14 @@ Outcome: complete — 17 / 17 for both targets (22 libraries built); review fixe
 - `fidl_next_protocol` test_deps name a label upstream Bazel lacks: unmappable test_deps are provisional + patch
 - Host: codec/protocol/loom compile; the rest incompatible via `fuchsia-async` (as M8a); driver libraries wait for M9
 
+### [M9 — Pilot 1 in-tree crates (M9a: driver runtime; M9b uses M9b.md)](M9.md)
+Entries: 2026-09-28T03:33-07:00 through 2026-09-28T03:56-07:00
+Outcome: open — M9a implemented (11 overlays, driver transport on, 19/19 `rust_next`); review pending
+- Split before starting: 52 crates left, 23 without upstream Bazel; M9a 11 overlays, M9b 41 crates (M9b/M9c split recommended)
+- Overlays translated from BUILD.gn and machine-compared; C deps → IDK `pkg/async`, `async-default`, `driver_runtime_shared_lib`
+- GN gives `driver` + `fidl_driver`/`fdf` to both `rust` and `rust_common`; `//tests/fidl:driver_transport` fails without either flavor's feature
+- Surprise: the `rust` flavor's macro-added driver deps are not visibility-checked (private `fidl_driver` builds); `rust_next`'s are; cause open
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
@@ -140,6 +148,7 @@ Outcome: complete — 17 / 17 for both targets (22 libraries built); review fixe
   [M7](M7.md) adds about 1 GiB (the release's Go SDK, rules_go, the Go builds; total 11.29 GiB).
   [M8](M8.md) adds 0.4 GiB (bindings for three configs; total 11.71 GiB, Bazel 10.81 of 12).
   [M8b](M8b.md) adds 0.14 GiB (`rust_next` bindings, 6 crates; total 11.85 GiB, Bazel 10.95 of 12).
+  [M9](M9.md) (M9a) adds 0.04 GiB (11 driver runtime crates; total 11.90 GiB, Bazel 10.99 of 12).
 - **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
   Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
   [M4](M4.md) derives the Rust cfgs from that file and asserts the HEAD branch at build time.
@@ -162,3 +171,7 @@ Outcome: complete — 17 / 17 for both targets (22 libraries built); review fixe
   against M7's genrules.
 - **Host vs Fuchsia API level:** [M4](M4.md) puts host cfgs at PLATFORM (rules_fuchsia's
   flag fails unset); [M8](M8.md) generates host FIDL at PLATFORM too, tested.
+- **FIDL driver transport:** [M8](M8.md) finds it needs 10 in-tree crates without Bazel
+  and defers it (as upstream's Bazel rule); [M8b](M8b.md) writes the `rust_next` driver
+  path behind a flag; [M9](M9.md) (M9a) vendors the runtime as overlays, removes both
+  flags and pins the transport with `//tests/fidl:driver_transport`.
