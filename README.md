@@ -43,8 +43,8 @@ release; both wait on the owner's go-ahead.
 ## How this was built
 
 The [design](docs/design.md) states the requirements (R1–R12) and constraints; it starts
-from a brief in the owner's private repository, which is not published (see the design's
-header). The [implementation plan](docs/implementation-plan.md) splits the work into
+from a [brief](docs/brief.md) copied from the owner's `curtisgalloway/fuchsia-ci`
+repository, which is not published yet. The [implementation plan](docs/implementation-plan.md) splits the work into
 milestones with acceptance criteria. Each finished milestone has an evidence file under
 `docs/evidence/` (checks run, outputs, review findings) and a lab-notebook chapter
 ([index](docs/notebook/index.md)); the [process log](docs/process-log.md) records where
