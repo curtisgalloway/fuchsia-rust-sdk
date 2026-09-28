@@ -675,6 +675,9 @@ def resolve_fidlgen_rust_next(up: Upstream, version: str, product: str = EMULATO
         m = re.search(r"/builds/(\d+)/", str(b.get("transfer_manifest_url", "")))
         if not m:
             raise ResolveError(field, f"{pb_url}: no build id in {b.get('transfer_manifest_url')!r}")
+        if m.group(1) in builds:
+            raise ResolveError(field, f"{pb_url}: {b.get('name')} and {builds[m.group(1)]} "
+                                      f"name the same build {m.group(1)}")
         builds[m.group(1)] = str(b.get("name"))
     main = [build for build, name in builds.items() if name == product]
     if len(main) != 1:

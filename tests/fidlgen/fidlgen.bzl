@@ -64,15 +64,19 @@ def fidlgen_rust_outputs(name, ir, library, rust_args = []):
             testonly = True,
         )
 
+def _shell_quote(s):
+    """s as one single-quoted shell word; a ' inside becomes '\\''."""
+    return "'" + s.replace("'", "'\\''") + "'"
+
 def _contains_test_impl(ctx):
     src = ctx.file.src
-    lines = ["#!/bin/sh", "set -u", "status=0", "f=\"%s\"" % src.short_path]
+    lines = ["#!/bin/sh", "set -u", "status=0", "f=%s" % _shell_quote(src.short_path)]
     lines.append("[ -s \"$f\" ] || { echo \"$f: empty or missing\"; exit 1; }")
     for needle in ctx.attr.expected:
-        lines.append("grep -qF -- '%s' \"$f\" || { echo \"$f: no line containing: %s\"; status=1; }" % (
-            needle.replace("'", ""),
-            needle.replace("'", ""),
-        ))
+        if "\n" in needle:
+            fail("contains_test: %r: grep -F matches one line; split it" % needle)
+        q = _shell_quote(needle)
+        lines.append("grep -qF -- %s \"$f\" || { echo \"$f: no line containing:\" %s; status=1; }" % (q, q))
     lines.append("exit $status")
     script = ctx.actions.declare_file(ctx.label.name + ".sh")
     ctx.actions.write(script, "\n".join(lines) + "\n", is_executable = True)

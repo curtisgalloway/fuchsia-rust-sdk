@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T01:29-07:00
+Updated: 2026-09-28T01:53-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -105,8 +105,8 @@ Outcome: complete — `fidlgen_rust_next` found in the public debug store, pinne
 - `fidlgen_rust` is Go, stdlib-only, upstream `BUILD.bazel`; built via Bazel upstream
 
 ### [M7 — FIDL generators as Bazel host tools](M7.md)
-Entries: 2026-09-28T00:51-07:00 through 2026-09-28T01:29-07:00
-Outcome: open — implemented, review pending; both generators run under Bazel and match upstream goldens
+Entries: 2026-09-28T00:51-07:00 through 2026-09-28T01:53-07:00
+Outcome: complete — both generators run under Bazel and match upstream goldens; review: land
 - Lock gains `go` (fuchsia.git's `fuchsia/go` CIPD pin, go1.21.8) and `fidlgen_rust_next` (build-ids.json → debug store, ELF note checked)
 - regen.py maps rules_go loads, drops Go test calls (fail-closed); upstream BUILD files otherwise unchanged
 - Goldens: 17/20 until upstream's per-library flags (`--api-coverage`, `--include-drivers`) were passed

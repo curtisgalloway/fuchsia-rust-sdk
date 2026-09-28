@@ -587,11 +587,13 @@ def _statement_span(src: _Source, node: ast.stmt) -> tuple[int, int]:
     return start, end
 
 
-def _drop_calls(src: _Source, dropped: set[str]) -> tuple[list[tuple[int, int, str]], set[int]]:
+def _drop_calls(src: _Source, dropped: set[str],
+                dropped_names: list[str]) -> tuple[list[tuple[int, int, str]], set[int]]:
     """Edits removing every call of a dropped (test) rule, and the ids of those calls.
 
-    Each must be a whole top-level statement; a call used in any other way fails, since
-    removing it would change the meaning of the code around it.
+    Each must be a whole top-level statement with a plain name (appended to
+    `dropped_names` as "<rule> <name>", for the header); a call used in any other way
+    fails, since removing it would change the meaning of the code around it.
     """
     edits, nodes = [], set()
     top = {id(stmt.value): stmt for stmt in src.tree.body if isinstance(stmt, ast.Expr)}
@@ -603,6 +605,12 @@ def _drop_calls(src: _Source, dropped: set[str]) -> tuple[list[tuple[int, int, s
             start, end = _statement_span(src, top[id(node)])
             edits.append((start, end, ""))
             nodes.add(id(node))
+            names = [k.value.value for k in node.keywords if k.arg == "name"
+                     and isinstance(k.value, ast.Constant) and isinstance(k.value.value, str)]
+            if len(names) != 1:
+                raise src.fail(node, f"{node.func.id}() is dropped by regen.py, so it needs a plain "
+                                     "name = \"...\" to record in the header")
+            dropped_names.append(f"{node.func.id} {names[0]}")
     return edits, nodes
 
 
@@ -691,7 +699,8 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
             raise src.fail(node, f"{s}: no overlay mapping for this label")
         raise src.fail(node, f"depends on {s}, but {pkg} is not listed in {VENDOR_LIST}")
 
-    drop_edits, drop_nodes = _drop_calls(src, dropped)
+    dropped_names: list[str] = []
+    drop_edits, drop_nodes = _drop_calls(src, dropped, dropped_names)
     edits += drop_edits
     edits += _string_edits(src, label, load_nodes | drop_nodes)
     rust_calls = _wrapper_calls(src, wrappers, frozenset(go_rules | dropped))
@@ -705,7 +714,7 @@ def rewrite_upstream_build(text: str, where: str, vendored_paths: set[str],
         if go_rules or dropped:
             notes.append("Go loads mapped")
         if drop_edits:
-            notes.append("test targets dropped")
+            notes.append(f"test targets dropped: {', '.join(dropped_names)}")
     return out
 
 

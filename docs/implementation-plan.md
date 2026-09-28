@@ -79,7 +79,7 @@ in the cloud.
 | M6a | Pilot 1 closure measured (D8, R12 data): `closure.py`, `docs/closure/pilot1.json` | M5 | cloud | complete |
 | M6b | Pilot 1's crates.io crates build, incl. the patched ones and `zx` (R4) | M6a | cloud | complete |
 | I2 | Prebuilt `fidlgen_rust` / `fidlgen_rust_next`: published or not | — | cloud | complete |
-| M7 | Both FIDL generators available as Bazel host tools (R5 tools) | I2, M6b | cloud | in_progress (review pending) |
+| M7 | Both FIDL generators available as Bazel host tools (R5 tools) | I2, M6b | cloud | complete |
 | M8 | `fidl_rust.bzl`, `rust` + `rust_next` flavors; pilot 1 FIDL closure compiles (R5) | M7 | cloud | pending |
 | M9 | Pilot 1's in-tree crates vendored; `fdf`, `fdf_component` build (R6) | M8 | cloud | pending |
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9 | cloud | pending |
@@ -386,7 +386,7 @@ does). Both reproduce upstream's goldens byte for byte (20 `diff_test`s) and gen
 both crates from `fuchsia.mem` IR made by the IDK's `fidlc`; nothing builds for Fuchsia
 targets; 0 host crates added.
 **Design coverage:** R5 (tools), A4, D7. **Dependencies:** I2, M6b.
-**Status:** implemented; review pending (orchestrator), then the checkpoint commit.
+**Status:** complete (independent review before the checkpoint: land; fixes in the evidence).
 **Evidence:** [M7](evidence/M7.md) (definition moved there) · **Notebook:** [M7](notebook/M7.md)
 **Open limitations:** fuchsia.mem output checked for content, compiled only in M8;
 `tests/fidlgen/testdata` is a hand copy to refresh per release (backlog); rules_go's
@@ -1019,21 +1019,20 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M7 implemented, review pending** (branch `ms/M7` from
-  `ce21570`; `wip` commits `5da8bfc`, `cf901e1` and `wip: M7 — evidence, plan,
-  notebook, minimal lockfile`; the checkpoint commit `overlay: M7 — FIDL generators as
-  Bazel host tools` follows the orchestrator's review and fixes).
-- Completed work and evidence: [M7 evidence](evidence/M7.md): lock fields `go` and
-  `fidlgen_rust_next` (two live resolves byte-identical), `rules_go` with the release's
-  Go SDK, Go rules in `regen.py`, `//tools/fidlgen_rust` and `//tools/fidlgen_rust_next`
-  (`--help` works), 24 tests in `tests/fidlgen` (20 upstream goldens byte-identical,
-  4 on `fuchsia.mem` from the IDK's `fidlc`); all project checks green; disk 11.3 of 25 GiB.
-- Remaining work, blockers, and decisions: the review (fill in the evidence's Review
-  section), fixes, M7 status → complete, then the checkpoint commit. Unchanged: the R7
-  reading for pilot 1 (before M10); M17 placement. For the orchestrator: design A4/R1
-  wording (evidence "Deviations").
+- Current milestone and status: **M7 complete** (branch `ms/M7` from `ce21570`; `wip`
+  commits `5da8bfc`, `cf901e1`, `168a458`, then the checkpoint commit
+  `overlay: M7 — FIDL generators as Bazel host tools`, after the reviewer subagent's
+  review and fixes).
+- Completed work and evidence: [M7 evidence](evidence/M7.md), including the review
+  findings and resolutions: lock fields `go` and `fidlgen_rust_next` (two live resolves
+  byte-identical), `rules_go` with the release's Go SDK, Go rules in `regen.py`,
+  `//tools/fidlgen_rust` and `//tools/fidlgen_rust_next`, 24 tests in `tests/fidlgen`
+  (20 upstream goldens byte-identical, 4 on `fuchsia.mem` from the IDK's `fidlc`).
+- Uncommitted state: none.
+- Remaining work, blockers, and decisions: the orchestrator amends design A4/R1 wording.
+  Unchanged: the R7 reading for pilot 1 (before M10); M17 placement.
 - Context boundary: normal.
-- Resume action: after M7 lands, begin **M8** (I3 can run beside it).
+- Resume action: begin **M8** (I3 can run beside it).
 - Read first for M8: the M8 entry, [M7 evidence](evidence/M7.md) ("Findings for later
   milestones"), `tests/fidlgen/fidlgen.bzl`, the backlog items "FIDL binding flavors and
   template deps" and "Generator arguments for M8", `docs/closure/pilot1.json`,

@@ -820,6 +820,14 @@ def test_fidlgen_rust_next_needs_exactly_one_core_x64_build():
         assert e.value.field == "fidlgen_rust_next"
 
 
+def test_fidlgen_rust_next_refuses_two_bundles_of_one_build():
+    stub = Stub()
+    stub.gets[PB_URL][2]["transfer_manifest_url"] = stub.gets[PB_URL][1]["transfer_manifest_url"]
+    with pytest.raises(rp.ResolveError, match=f"minimal.arm64 and core.x64 name the same build {BUILDS[1]}") as e:
+        rp.resolve_fidlgen_rust_next(stub, V)
+    assert e.value.field == "fidlgen_rust_next"
+
+
 def test_fidlgen_rust_next_only_in_core_x64_is_accepted(tmp_path):
     stub = Stub()
     stub.gets[bid_url(BUILDS[2])] = {}
