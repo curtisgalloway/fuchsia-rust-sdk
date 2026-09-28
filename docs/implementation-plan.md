@@ -78,7 +78,7 @@ in the cloud.
 | M5 | Vendor stage of `regen.py` + `--check`; `zx-types`, `zx-sys`, `zx` build (R6 mechanism, R2) | M4 | cloud | complete |
 | M6a | Pilot 1 closure measured (D8, R12 data): `closure.py`, `docs/closure/pilot1.json` | M5 | cloud | complete |
 | M6b | Pilot 1's crates.io crates build, incl. the patched ones and `zx` (R4) | M6a | cloud | complete |
-| I2 | Prebuilt `fidlgen_rust` / `fidlgen_rust_next`: published or not | — | cloud | pending |
+| I2 | Prebuilt `fidlgen_rust` / `fidlgen_rust_next`: published or not | — | cloud | complete |
 | M7 | Both FIDL generators available as Bazel host tools (R5 tools) | I2, M6b | cloud | pending |
 | M8 | `fidl_rust.bzl`, `rust` + `rust_next` flavors; pilot 1 FIDL closure compiles (R5) | M7 | cloud | pending |
 | M9 | Pilot 1's in-tree crates vendored; `fdf`, `fdf_component` build (R6) | M8 | cloud | pending |
@@ -359,39 +359,55 @@ catch drift); `num-derive` and `paste` build only for host until M9 uses them.
 
 ## I2 — Prebuilt FIDL generators
 
-**Design coverage:** I2 (shapes R5). **Dependencies:** none; run any time before M7.
-**Evidence to collect:**
-- The GCS listing of the release's build directory (the method from I1).
-- CIPD package search for `fidlgen` (`https://chrome-infra-packages.appspot.com/prpc/cipd.Repository/ListPrefix`
-  on `fuchsia/`).
-- Whether the IDK's `tools/` has either generator (brief F1 says no; recheck at this
-  release).
-
-**Exit:** either a pinned anonymous URL plus hash for each generator for linux-amd64,
-or "not published" recorded, which selects the build-from-source route in M7. Evidence
-goes in `docs/evidence/I2.md`.
+**Outcome:** split answer for `33.20260927.4.1`. `fidlgen_rust_next` is published
+anonymously, but only in the release's public debug-symbol store:
+`https://storage.googleapis.com/fuchsia-public-artifacts-release/buildid/ad8c417e211deb69e793b2d354c96c310416fc3c/executable`,
+SHA-256 `c03f7086aa6de3dbfa1cc06647d2667455d81c7f539f3d932ec08bd4fe5ee1ae` (decoded
+bytes; Bazel's `http_file` verifies it). The release's own build manifests
+(`build-ids.json`, 9 of 10 builds) name that build ID. `fidlgen_rust` (Go) is **not
+published**: not in the build directories, the debug store, CIPD or the IDK.
+**Dependencies:** none. **Status:** complete.
+**Evidence:** [I2](evidence/I2.md) · **Notebook:** [I2](notebook/I2.md)
+**Open limitations:** the build ID is not recomputable from the file; the store's
+lifecycle is not readable anonymously (copies from 2025-04 still exist). M7 route decided
+by the orchestrator: fetch `fidlgen_rust_next` by pin, build `fidlgen_rust` from source.
 
 ---
 
 ## M7 — FIDL generators as Bazel host tools
 
 **Design coverage:** R5 (tools), A4, D7. **Dependencies:** I2, M6.
-**In scope:** `tools/fidlgen_rust` and `tools/fidlgen_rust_next`, either fetched by pin
-(I2 found prebuilts, added to the lock) or built from source at the revision. If built
-from source:
-- `fidlgen_rust` (Go) uses `rules_go` and upstream's `BUILD.bazel`.
-- `fidlgen_rust_next` (Rust, askama templates) needs a hand-written
-  `overlays/tools/fidl/fidlgen_rust_next/BUILD.bazel` and host crates.
+**In scope:** `tools/fidlgen_rust_next`, fetched by pin (added to the lock), and
+`tools/fidlgen_rust`, built from source at the revision with `rules_go` and upstream's
+`BUILD.bazel` (route below).
 
 **Out of scope:** the binding rule (M8).
 
+**Route (orchestrator decision, 2026-09-28, after I2's review):** `fidlgen_rust_next`
+is **fetched by pin** from the release's public debug-symbol store
+(`buildid/<id>/executable`; URL, hash and resolution in [I2 evidence](evidence/I2.md),
+"Implications for M7"); building it from source is the documented fallback.
+`fidlgen_rust` is **built from source** (not published): Go, standard library only,
+upstream `BUILD.bazel` files (`go_binary_host_tool` wraps rules_go's `go_binary`), no Go
+module downloads. Caveats: a debug-symbol store, not a distribution channel; retention
+unknown; host glibc ≥ 2.18; unstripped binary.
+
 ### Implementation steps
-1. If prebuilt, add the entries to `resolve_pins.py` and the lock, plus a repository
-   rule; done.
-2. Otherwise, vendor `tools/fidl/fidlgen_rust`, `tools/fidl/lib/fidlgen` and
-   `tools/fidl/fidlgen_rust_next` via `regen.py vendor`. Add `rules_go` to
-   `MODULE.bazel`, and extend `third_party/crates/` with `fidlgen_rust_next`'s host
-   crates (from its `BUILD.gn`).
+1. `fidlgen_rust_next` (prebuilt): `resolve_pins.py` resolves the build ID from the
+   lock's core.x64 `build-ids.json` (label
+   `//tools/fidl/fidlgen_rust_next:fidlgen_rust_next.actual(//build/toolchain:host_x64)`),
+   requires every `host_x64` build of the release to agree, downloads
+   `buildid/<id>/executable`, checks its `.note.gnu.build-id`, records the SHA-256 of the
+   decoded bytes in the lock, and fails closed on any mismatch or missing object. Add a
+   repository rule (`http_file` exposes a filegroup, so wrap it in an executable target).
+   Fallback, only if the pin route fails: build from source (Rust 2024, `BUILD.gn` only;
+   deps `fidl_ir`, `fidlgen_rs`, `fuchsia-sync`, crates argh/askama/bitflags/serde/
+   serde_json, 28 packages in the unfiltered Cargo.lock closure; a hand-written
+   `overlays/tools/fidl/fidlgen_rust_next/BUILD.bazel`).
+2. `fidlgen_rust` (source): vendor `tools/fidl/fidlgen_rust` and `tools/fidl/lib/fidlgen`
+   via `regen.py vendor` with upstream's `BUILD.bazel` (loads rewritten:
+   `go_binary_host_tool` → `go_binary`, test macros dropped). Add `rules_go` and a pinned
+   Go SDK to `MODULE.bazel`.
 3. Run both on the IR of one small IDK library (`fuchsia.mem`), produced by the IDK's
    `fidlc`.
 
@@ -412,6 +428,9 @@ The build-from-source route is two tools in two languages, and too much for one
 session. If I2 says "not published", split before starting: M7a covers
 `fidlgen_rust_next`, which is on the critical path for every pilot (F6); M7b covers
 `fidlgen_rust`.
+After I2 (route above): only `fidlgen_rust` is built from source, so M7 should fit one
+session; if it grows, split at the same line (M7a the pinned `fidlgen_rust_next`, M7b
+`fidlgen_rust`). If the pin route fails and the fallback is needed, split before starting.
 
 ### Evidence and findings
 Status: pending · Evidence: [M7](evidence/M7.md) · Notebook: [M7](notebook/M7.md)
@@ -1021,19 +1040,21 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M6b complete** (branch `ms/M6b` from `b242fe5`; wip
-  commits `2124b78`, `4449c69`, `89d9011`, `4c26e20`, then the checkpoint
-  `overlay: M6b — Pilot 1's crates.io crates build` with the review fixes).
-- Completed work and evidence: [M6b evidence](evidence/M6b.md), including the review
-  findings and resolutions.
+- Current milestone and status: **I2 complete** (branch `ms/I2` from `4406b14`;
+  checkpoint commit `overlay: I2 — Prebuilt FIDL generators`, after the reviewer
+  subagent's review and fixes).
+- Completed work and evidence: [I2 evidence](evidence/I2.md), including the review
+  findings and resolutions: `fidlgen_rust_next` found in the public debug-symbol store
+  (pinned by SHA-256, tied to the release by its build manifests and toolchain
+  strings); `fidlgen_rust` not published.
 - Uncommitted state: none.
-- Remaining work, blockers, and decisions: none for M6b. Orchestrator, after the
-  checkpoint: amend design R4's *Check:* line (the criterion-1 reading decided in the
-  review) and its patched-crate list (`zeroize`, not `tokio`). Unchanged: the R7
-  reading for pilot 1 (before M10); M17 placement.
+- Remaining work, blockers, and decisions: M7 route decided (orchestrator, 2026-09-28):
+  fetch `fidlgen_rust_next` by pin, build `fidlgen_rust` from source (the M7 entry).
+  Unchanged: the R7 reading for pilot 1 (before M10); M17 placement.
 - Context boundary: normal.
-- Resume action: begin **M7** after **I2** (I3 can run beside them).
-- Read first for M7: the I2 and M7 entries, [M6b evidence](evidence/M6b.md) ("How
-  patched crates work", "Crate roots and the build list": M7's host crates go through
-  `vendor/crates_io.txt` or the vendored BUILD files), `scripts/regen.py`
-  (`generate_crates`), `toolchain/crates.bzl`, [notebook index](notebook/index.md).
+- Resume action: begin **M7** (I3 can run beside it).
+- Read first for M7: the M7 entry, [I2 evidence](evidence/I2.md) ("Building from
+  source", "Implications for M7"), [M6b evidence](evidence/M6b.md) ("How patched crates
+  work", "Crate roots and the build list"), `scripts/resolve_pins.py`,
+  `scripts/regen.py` (vendoring), `toolchain/crates.bzl`,
+  [notebook index](notebook/index.md).
