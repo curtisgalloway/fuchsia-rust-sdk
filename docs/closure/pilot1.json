@@ -8,30 +8,36 @@
   "//examples/drivers/simple/rust:driver"
  ],
  "generated_by": "scripts/closure.py",
- "method": "GN deps, public_deps, non_rust_deps and proc_macro_deps (not test_deps) from the roots; conditions evaluated per toolchain (fuchsia, host), unknown ones followed both ways; FIDL deps followed per flavor; crates.io deps followed through upstream's crate_universe BUILD files, select() limited to the Fuchsia targets and linux-x64 host",
+ "method": "GN deps, public_deps, non_rust_deps and proc_macro_deps (not test_deps) from the roots; conditions evaluated per toolchain (fuchsia, host), unknown ones followed both ways; build arguments at their defaults except overlay_args; same-file templates expanded; FIDL deps and the binding templates' deps followed per flavor (closure.FIDL_FLAVORS); crates.io deps followed through upstream's crate_universe BUILD files, select() limited to the Fuchsia targets and linux-x64 host; anything not followed is listed in evaluation_gaps and counted in unknown_deps",
+ "overlay_args": {
+  "fuchsia_sync_detect_lock_cycles": false
+ },
  "counts": {
-  "intree_crates": 66,
-  "intree_crates_with_upstream_bazel": 44,
-  "intree_rs_lines": 174652,
-  "crates_io_direct_aliases": 45,
-  "crates_io_direct_crates": 45,
-  "crates_io_transitive": 124,
-  "crates_io_transitive_patched": 5,
+  "intree_crates": 69,
+  "intree_crates_with_upstream_bazel": 45,
+  "intree_rs_lines": 178945,
+  "crates_io_direct_aliases": 44,
+  "crates_io_direct_crates": 44,
+  "crates_io_direct_without_bazel_alias": 0,
+  "crates_io_transitive": 121,
+  "crates_io_transitive_patched": 4,
   "crates_io_transitive_proc_macro": 17,
-  "crates_io_transitive_unfiltered_select": 124,
-  "fidl_libraries": 24,
+  "crates_io_transitive_unfiltered_select": 121,
+  "fidl_libraries": 23,
   "fidl_libraries_direct": 18,
   "fidl_libraries_not_in_idk": 1,
   "bind_libraries": 1,
   "native_targets": 9,
-  "unresolved": 0
+  "unresolved": 0,
+  "unknown_deps": 0,
+  "evaluation_gaps": 0
  },
  "upper_bound_counts": {
-  "intree_crates": 69,
-  "intree_rs_lines": 178543,
+  "intree_crates": 72,
+  "intree_rs_lines": 182836,
   "crates_io_direct_aliases": 50,
   "crates_io_transitive": 145,
-  "fidl_libraries": 25,
+  "fidl_libraries": 24,
   "only_in_upper_bound": {
    "intree": [
     "src/lib/fidl/rust/fidl_message",
@@ -43,7 +49,8 @@
     "parking_lot",
     "parking_lot_core",
     "schemars",
-    "tokio"
+    "tokio",
+    "tracing-mutex-0.3.2"
    ],
    "fidl": [
     "fuchsia.fdomain"
@@ -63,6 +70,7 @@
      "crate_name": "driver",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -85,6 +93,7 @@
      "crate_name": "libasync",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -108,6 +117,7 @@
      "crate_name": "libasync_dispatcher",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -134,6 +144,7 @@
      "crate_name": "libasync_fidl",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -157,6 +168,7 @@
      "crate_name": "libasync_sys",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -182,6 +194,7 @@
      "crate_name": "zx_libc",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -204,6 +217,7 @@
      "crate_name": "fdf_component",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -227,12 +241,16 @@
      "crate_name": "fdf",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
      "used_by": [
       "//examples/drivers/simple/rust:driver",
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust",
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_common",
       "//sdk/lib/driver/component/rust",
+      "//src/lib/fidl/rust/fidl_driver",
       "<root>"
      ],
      "unknown_deps": 0
@@ -251,6 +269,7 @@
      "crate_name": "fdf_channel",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -274,6 +293,7 @@
      "crate_name": "fdf_core",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -300,6 +320,7 @@
      "crate_name": "fdf_env",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -322,6 +343,7 @@
      "crate_name": "fdf_sys",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -348,10 +370,15 @@
      "crate_name": "fdf_fidl",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
      "used_by": [
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_next",
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_next_common",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_next",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_next_common",
       "//sdk/lib/driver/component/rust"
      ],
      "unknown_deps": 0
@@ -370,6 +397,7 @@
      "crate_name": "fuchsia_loom",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -392,11 +420,58 @@
      "crate_name": "zx",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
      "used_by": [
       "//examples/drivers/simple/rust:driver",
+      "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust",
+      "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust_common",
+      "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust",
+      "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust_common",
+      "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust",
+      "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_common",
+      "//sdk/fidl/fuchsia.component.runtime:fuchsia.component.runtime_rust",
+      "//sdk/fidl/fuchsia.component.runtime:fuchsia.component.runtime_rust_common",
+      "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust",
+      "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust_common",
+      "//sdk/fidl/fuchsia.component:fuchsia.component_rust",
+      "//sdk/fidl/fuchsia.component:fuchsia.component_rust_common",
+      "//sdk/fidl/fuchsia.data:fuchsia.data_rust",
+      "//sdk/fidl/fuchsia.data:fuchsia.data_rust_common",
+      "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust",
+      "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust_common",
+      "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust",
+      "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust_common",
+      "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust",
+      "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust_common",
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust",
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_common",
+      "//sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust",
+      "//sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust_common",
+      "//sdk/fidl/fuchsia.io:fuchsia.io_rust",
+      "//sdk/fidl/fuchsia.io:fuchsia.io_rust_common",
+      "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust",
+      "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust_common",
+      "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust",
+      "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust_common",
+      "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust",
+      "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust_common",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_common",
+      "//sdk/fidl/fuchsia.process.lifecycle:fuchsia.process.lifecycle_rust",
+      "//sdk/fidl/fuchsia.process.lifecycle:fuchsia.process.lifecycle_rust_common",
+      "//sdk/fidl/fuchsia.process:fuchsia.process_rust",
+      "//sdk/fidl/fuchsia.process:fuchsia.process_rust_common",
+      "//sdk/fidl/fuchsia.sys2:fuchsia.sys2_rust",
+      "//sdk/fidl/fuchsia.sys2:fuchsia.sys2_rust_common",
+      "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust",
+      "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust_common",
+      "//sdk/fidl/fuchsia.url:fuchsia.url_rust",
+      "//sdk/fidl/fuchsia.url:fuchsia.url_rust_common",
+      "//sdk/fidl/fuchsia.version:fuchsia.version_rust",
+      "//sdk/fidl/fuchsia.version:fuchsia.version_rust_common",
       "//sdk/lib/async/rust",
       "//sdk/lib/async/rust/fidl",
       "//sdk/lib/c/rust:zx-libc",
@@ -416,6 +491,7 @@
       "//src/lib/fdio/rust:fdio",
       "//src/lib/fdomain/client:flex_fidl",
       "//src/lib/fidl/rust/fidl",
+      "//src/lib/fidl/rust/fidl_driver",
       "//src/lib/fidl/rust_next/fidl_next_bind:fidl_next_bind_internal",
       "//src/lib/fidl/rust_next/fidl_next_codec:fidl_next_codec_internal",
       "//src/lib/fidl/rust_next/fidl_next_protocol:fidl_next_protocol_internal",
@@ -430,6 +506,7 @@
       "//src/lib/fuchsia-sync",
       "//src/lib/injectable-time",
       "//src/lib/process_builder",
+      "//src/lib/trace/rust:trace",
       "//src/storage/lib/vfs/rust:vfs",
       "//src/sys/lib/namespace"
      ],
@@ -449,16 +526,64 @@
      "crate_name": "zx_status",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
      "used_by": [
+      "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust",
+      "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust_common",
+      "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust",
+      "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust_common",
+      "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust",
+      "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_common",
+      "//sdk/fidl/fuchsia.component.runtime:fuchsia.component.runtime_rust",
+      "//sdk/fidl/fuchsia.component.runtime:fuchsia.component.runtime_rust_common",
+      "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust",
+      "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust_common",
+      "//sdk/fidl/fuchsia.component:fuchsia.component_rust",
+      "//sdk/fidl/fuchsia.component:fuchsia.component_rust_common",
+      "//sdk/fidl/fuchsia.data:fuchsia.data_rust",
+      "//sdk/fidl/fuchsia.data:fuchsia.data_rust_common",
+      "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust",
+      "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust_common",
+      "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust",
+      "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust_common",
+      "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust",
+      "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust_common",
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust",
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_common",
+      "//sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust",
+      "//sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust_common",
+      "//sdk/fidl/fuchsia.io:fuchsia.io_rust",
+      "//sdk/fidl/fuchsia.io:fuchsia.io_rust_common",
+      "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust",
+      "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust_common",
+      "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust",
+      "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust_common",
+      "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust",
+      "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust_common",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_common",
+      "//sdk/fidl/fuchsia.process.lifecycle:fuchsia.process.lifecycle_rust",
+      "//sdk/fidl/fuchsia.process.lifecycle:fuchsia.process.lifecycle_rust_common",
+      "//sdk/fidl/fuchsia.process:fuchsia.process_rust",
+      "//sdk/fidl/fuchsia.process:fuchsia.process_rust_common",
+      "//sdk/fidl/fuchsia.sys2:fuchsia.sys2_rust",
+      "//sdk/fidl/fuchsia.sys2:fuchsia.sys2_rust_common",
+      "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust",
+      "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust_common",
+      "//sdk/fidl/fuchsia.url:fuchsia.url_rust",
+      "//sdk/fidl/fuchsia.url:fuchsia.url_rust_common",
+      "//sdk/fidl/fuchsia.version:fuchsia.version_rust",
+      "//sdk/fidl/fuchsia.version:fuchsia.version_rust_common",
       "//sdk/lib/async/rust/dispatcher",
       "//sdk/rust/zx",
       "//sdk/rust/zx-status-ext",
       "//src/lib/fidl/rust/fidl",
       "//src/lib/fuchsia-fs",
-      "//src/storage/lib/vfs/rust/name"
+      "//src/storage/lib/vfs/rust/name",
+      "//src/storage/lib/vfs/rust:vfs"
      ],
      "unknown_deps": 0
     }
@@ -476,6 +601,7 @@
      "crate_name": "zx_status_ext",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -500,6 +626,7 @@
      "crate_name": "zx_sys",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -524,10 +651,71 @@
      "features": [
       "zerocopy"
      ],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
      "used_by": [
+      "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust",
+      "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_common",
+      "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_next",
+      "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_next_common",
+      "//sdk/fidl/fuchsia.component.runtime:fuchsia.component.runtime_rust",
+      "//sdk/fidl/fuchsia.component.runtime:fuchsia.component.runtime_rust_common",
+      "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust",
+      "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust_common",
+      "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust_next",
+      "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust_next_common",
+      "//sdk/fidl/fuchsia.component:fuchsia.component_rust",
+      "//sdk/fidl/fuchsia.component:fuchsia.component_rust_common",
+      "//sdk/fidl/fuchsia.component:fuchsia.component_rust_next",
+      "//sdk/fidl/fuchsia.component:fuchsia.component_rust_next_common",
+      "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust",
+      "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust_common",
+      "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust_next",
+      "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust_next_common",
+      "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust",
+      "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust_common",
+      "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust_next",
+      "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust_next_common",
+      "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust",
+      "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust_common",
+      "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust_next",
+      "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust_next_common",
+      "//sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust",
+      "//sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust_common",
+      "//sdk/fidl/fuchsia.io:fuchsia.io_rust",
+      "//sdk/fidl/fuchsia.io:fuchsia.io_rust_common",
+      "//sdk/fidl/fuchsia.io:fuchsia.io_rust_next",
+      "//sdk/fidl/fuchsia.io:fuchsia.io_rust_next_common",
+      "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust",
+      "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust_common",
+      "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust_next",
+      "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust_next_common",
+      "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust",
+      "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust_common",
+      "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust_next",
+      "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust_next_common",
+      "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust",
+      "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust_common",
+      "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust_next",
+      "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust_next_common",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_common",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_next",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_next_common",
+      "//sdk/fidl/fuchsia.process.lifecycle:fuchsia.process.lifecycle_rust",
+      "//sdk/fidl/fuchsia.process.lifecycle:fuchsia.process.lifecycle_rust_common",
+      "//sdk/fidl/fuchsia.process:fuchsia.process_rust",
+      "//sdk/fidl/fuchsia.process:fuchsia.process_rust_common",
+      "//sdk/fidl/fuchsia.process:fuchsia.process_rust_next",
+      "//sdk/fidl/fuchsia.process:fuchsia.process_rust_next_common",
+      "//sdk/fidl/fuchsia.sys2:fuchsia.sys2_rust",
+      "//sdk/fidl/fuchsia.sys2:fuchsia.sys2_rust_common",
+      "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust",
+      "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust_common",
+      "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust_next",
+      "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust_next_common",
       "//sdk/lib/async/rust/dispatcher",
       "//sdk/lib/async/rust/sys",
       "//sdk/lib/driver/runtime/rust/fdf_sys",
@@ -551,6 +739,7 @@
      "crate_name": "buf_read_ext",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -573,6 +762,7 @@
      "crate_name": "detect_stall",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -595,6 +785,7 @@
      "crate_name": "diagnostics_hierarchy",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -618,6 +809,7 @@
      "crate_name": "fuchsia_inspect_contrib",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -640,6 +832,7 @@
      "crate_name": "fuchsia_inspect_derive",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -662,6 +855,7 @@
      "crate_name": "fuchsia_inspect_derive_macro",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "host"
      ],
@@ -684,6 +878,7 @@
      "crate_name": "inspect_format",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -706,6 +901,7 @@
      "crate_name": "inspect_runtime",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -728,6 +924,7 @@
      "crate_name": "fuchsia_inspect",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -754,6 +951,7 @@
      "crate_name": "diagnostics_log_encoding",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -778,6 +976,7 @@
      "features": [
       "no_startup_handle"
      ],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -800,6 +999,7 @@
      "crate_name": "diagnostics_log_types",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -823,6 +1023,7 @@
      "crate_name": "selectors",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -845,6 +1046,7 @@
      "crate_name": "directed_graph",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -869,6 +1071,7 @@
      "crate_name": "elf_parse",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -891,6 +1094,7 @@
      "crate_name": "fdio",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -915,6 +1119,7 @@
      "crate_name": "flex_client",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -938,11 +1143,58 @@
      "crate_name": "fidl",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
      "used_by": [
       "//examples/drivers/simple/rust:driver",
+      "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust",
+      "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust_common",
+      "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust",
+      "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust_common",
+      "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust",
+      "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_common",
+      "//sdk/fidl/fuchsia.component.runtime:fuchsia.component.runtime_rust",
+      "//sdk/fidl/fuchsia.component.runtime:fuchsia.component.runtime_rust_common",
+      "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust",
+      "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust_common",
+      "//sdk/fidl/fuchsia.component:fuchsia.component_rust",
+      "//sdk/fidl/fuchsia.component:fuchsia.component_rust_common",
+      "//sdk/fidl/fuchsia.data:fuchsia.data_rust",
+      "//sdk/fidl/fuchsia.data:fuchsia.data_rust_common",
+      "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust",
+      "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust_common",
+      "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust",
+      "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust_common",
+      "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust",
+      "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust_common",
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust",
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_common",
+      "//sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust",
+      "//sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust_common",
+      "//sdk/fidl/fuchsia.io:fuchsia.io_rust",
+      "//sdk/fidl/fuchsia.io:fuchsia.io_rust_common",
+      "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust",
+      "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust_common",
+      "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust",
+      "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust_common",
+      "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust",
+      "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust_common",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_common",
+      "//sdk/fidl/fuchsia.process.lifecycle:fuchsia.process.lifecycle_rust",
+      "//sdk/fidl/fuchsia.process.lifecycle:fuchsia.process.lifecycle_rust_common",
+      "//sdk/fidl/fuchsia.process:fuchsia.process_rust",
+      "//sdk/fidl/fuchsia.process:fuchsia.process_rust_common",
+      "//sdk/fidl/fuchsia.sys2:fuchsia.sys2_rust",
+      "//sdk/fidl/fuchsia.sys2:fuchsia.sys2_rust_common",
+      "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust",
+      "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust_common",
+      "//sdk/fidl/fuchsia.url:fuchsia.url_rust",
+      "//sdk/fidl/fuchsia.url:fuchsia.url_rust_common",
+      "//sdk/fidl/fuchsia.version:fuchsia.version_rust",
+      "//sdk/fidl/fuchsia.version:fuchsia.version_rust_common",
       "//sdk/lib/driver/component/rust",
       "//src/lib/detect-stall",
       "//src/lib/diagnostics/inspect/contrib/rust:fuchsia-inspect-contrib",
@@ -951,6 +1203,7 @@
       "//src/lib/diagnostics/log/rust:no_startup_handle",
       "//src/lib/fdio/rust:fdio",
       "//src/lib/fdomain/client:flex_fidl",
+      "//src/lib/fidl/rust/fidl_driver",
       "//src/lib/fuchsia-component/client",
       "//src/lib/fuchsia-component/config",
       "//src/lib/fuchsia-component/directory",
@@ -959,8 +1212,33 @@
       "//src/lib/fuchsia-component/server",
       "//src/lib/fuchsia-fs",
       "//src/lib/process_builder",
+      "//src/storage/lib/vfs/rust:vfs",
       "//src/sys/lib/cm_types",
       "//src/sys/lib/namespace"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/fidl/rust/fidl_driver",
+   "rs_lines": 252,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "fidl_driver",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fidl_driver",
+     "edition": "2024",
+     "features": [],
+     "same_file_template": null,
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust",
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_common"
      ],
      "unknown_deps": 0
     }
@@ -978,6 +1256,7 @@
      "crate_name": "fidl_constants",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1002,10 +1281,49 @@
      "crate_name": "fidl_next",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
      "used_by": [
+      "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust_next",
+      "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust_next_common",
+      "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust_next",
+      "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust_next_common",
+      "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_next",
+      "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_next_common",
+      "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust_next",
+      "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust_next_common",
+      "//sdk/fidl/fuchsia.component:fuchsia.component_rust_next",
+      "//sdk/fidl/fuchsia.component:fuchsia.component_rust_next_common",
+      "//sdk/fidl/fuchsia.data:fuchsia.data_rust_next",
+      "//sdk/fidl/fuchsia.data:fuchsia.data_rust_next_common",
+      "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust_next",
+      "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust_next_common",
+      "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust_next",
+      "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust_next_common",
+      "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust_next",
+      "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust_next_common",
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_next",
+      "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_next_common",
+      "//sdk/fidl/fuchsia.io:fuchsia.io_rust_next",
+      "//sdk/fidl/fuchsia.io:fuchsia.io_rust_next_common",
+      "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust_next",
+      "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust_next_common",
+      "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust_next",
+      "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust_next_common",
+      "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust_next",
+      "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust_next_common",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_next",
+      "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_next_common",
+      "//sdk/fidl/fuchsia.process:fuchsia.process_rust_next",
+      "//sdk/fidl/fuchsia.process:fuchsia.process_rust_next_common",
+      "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust_next",
+      "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust_next_common",
+      "//sdk/fidl/fuchsia.url:fuchsia.url_rust_next",
+      "//sdk/fidl/fuchsia.url:fuchsia.url_rust_next_common",
+      "//sdk/fidl/fuchsia.version:fuchsia.version_rust_next",
+      "//sdk/fidl/fuchsia.version:fuchsia.version_rust_next_common",
       "//sdk/lib/async/rust/fidl",
       "//sdk/lib/driver/component/rust",
       "//sdk/lib/driver/runtime/rust/fidl",
@@ -1031,6 +1349,7 @@
       "fasync",
       "fuchsia"
      ],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1057,6 +1376,7 @@
      "features": [
       "fuchsia"
      ],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1083,6 +1403,7 @@
      "features": [
       "fuchsia"
      ],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1108,6 +1429,7 @@
      "crate_name": "fidl_next_util",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1130,6 +1452,7 @@
      "crate_name": "from_enum",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1145,6 +1468,7 @@
      "crate_name": "from_enum_derive",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "host"
      ],
@@ -1167,6 +1491,7 @@
      "crate_name": "fuchsia_async",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1183,7 +1508,8 @@
       "//src/lib/fuchsia-component/escrow",
       "//src/lib/fuchsia-component/server",
       "//src/lib/fuchsia-fs",
-      "//src/lib/process_builder"
+      "//src/lib/process_builder",
+      "//src/storage/lib/vfs/rust:vfs"
      ],
      "unknown_deps": 0
     }
@@ -1201,6 +1527,7 @@
      "crate_name": "fuchsia_async_macro",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "host"
      ],
@@ -1223,6 +1550,7 @@
      "crate_name": "fuchsia_component",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1245,6 +1573,7 @@
      "crate_name": "fuchsia_component_client",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1271,6 +1600,7 @@
      "crate_name": "fuchsia_component_config",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1293,6 +1623,7 @@
      "crate_name": "fuchsia_component_directory",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1316,6 +1647,7 @@
      "crate_name": "fuchsia_component_escrow",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1338,6 +1670,7 @@
      "crate_name": "fuchsia_component_runtime",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1361,6 +1694,7 @@
      "crate_name": "fuchsia_component_server",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1383,6 +1717,7 @@
      "crate_name": "fuchsia_fs",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1405,6 +1740,7 @@
      "crate_name": "fuchsia_runtime",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1417,6 +1753,7 @@
       "//src/lib/fuchsia-component/escrow",
       "//src/lib/fuchsia-component/server",
       "//src/lib/process_builder",
+      "//src/lib/trace/rust:trace",
       "//src/sys/lib/cm_types"
      ],
      "unknown_deps": 0
@@ -1435,6 +1772,7 @@
      "crate_name": "fuchsia_sync",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1451,7 +1789,8 @@
       "//src/lib/fidl/rust/fidl",
       "//src/lib/fuchsia-async",
       "//src/lib/fuchsia-component/escrow",
-      "//src/lib/injectable-time"
+      "//src/lib/injectable-time",
+      "//src/storage/lib/vfs/rust:vfs"
      ],
      "unknown_deps": 0
     }
@@ -1469,6 +1808,7 @@
      "crate_name": "injectable_time",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1491,11 +1831,60 @@
      "crate_name": "process_builder",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
      "used_by": [
       "//src/sys/lib/namespace"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/lib/trace/rust",
+   "rs_lines": 3730,
+   "upstream_bazel": true,
+   "targets": [
+    {
+     "target": "trace",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "fuchsia_trace",
+     "edition": "2024",
+     "features": [],
+     "same_file_template": null,
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/storage/lib/trace"
+     ],
+     "unknown_deps": 0
+    }
+   ]
+  },
+  {
+   "path": "src/storage/lib/trace",
+   "rs_lines": 311,
+   "upstream_bazel": false,
+   "targets": [
+    {
+     "target": "trace",
+     "gn_template": "rustc_library",
+     "crate_type": "lib",
+     "crate_name": "storage_trace",
+     "edition": "2024",
+     "features": [
+      "tracing"
+     ],
+     "same_file_template": "rust_storage_trace",
+     "contexts": [
+      "fuchsia"
+     ],
+     "used_by": [
+      "//src/storage/lib/vfs/rust:vfs"
      ],
      "unknown_deps": 0
     }
@@ -1511,8 +1900,9 @@
      "gn_template": "rustc_dylib",
      "crate_type": "dylib",
      "crate_name": "vfs",
-     "edition": null,
+     "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1536,10 +1926,12 @@
      "crate_name": "name",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
      "used_by": [
+      "//src/storage/lib/vfs/rust:vfs",
       "//src/sys/lib/cm_types"
      ],
      "unknown_deps": 0
@@ -1558,6 +1950,7 @@
      "crate_name": "cm_fidl_validator",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1580,6 +1973,7 @@
      "crate_name": "cm_graph",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1602,6 +1996,7 @@
      "crate_name": "cm_rust",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1617,6 +2012,7 @@
      "crate_name": "cm_rust_derive",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "host"
      ],
@@ -1639,6 +2035,7 @@
      "crate_name": "cm_types",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1665,6 +2062,7 @@
      "crate_name": "moniker",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1687,6 +2085,7 @@
      "crate_name": "namespace",
      "edition": "2024",
      "features": [],
+     "same_file_template": null,
      "contexts": [
       "fuchsia"
      ],
@@ -1719,7 +2118,8 @@
      "//src/lib/fuchsia-component/directory",
      "//src/lib/fuchsia-component/escrow",
      "//src/lib/fuchsia-component/server",
-     "//src/lib/process_builder"
+     "//src/lib/process_builder",
+     "//src/storage/lib/vfs/rust:vfs"
     ]
    },
    {
@@ -1767,6 +2167,52 @@
      "fuchsia"
     ],
     "used_by": [
+     "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust",
+     "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust_common",
+     "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust",
+     "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust_common",
+     "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust",
+     "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_common",
+     "//sdk/fidl/fuchsia.component.runtime:fuchsia.component.runtime_rust",
+     "//sdk/fidl/fuchsia.component.runtime:fuchsia.component.runtime_rust_common",
+     "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust",
+     "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust_common",
+     "//sdk/fidl/fuchsia.component:fuchsia.component_rust",
+     "//sdk/fidl/fuchsia.component:fuchsia.component_rust_common",
+     "//sdk/fidl/fuchsia.data:fuchsia.data_rust",
+     "//sdk/fidl/fuchsia.data:fuchsia.data_rust_common",
+     "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust",
+     "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust_common",
+     "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust",
+     "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust_common",
+     "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust",
+     "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust_common",
+     "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust",
+     "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_common",
+     "//sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust",
+     "//sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust_common",
+     "//sdk/fidl/fuchsia.io:fuchsia.io_rust",
+     "//sdk/fidl/fuchsia.io:fuchsia.io_rust_common",
+     "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust",
+     "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust_common",
+     "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust",
+     "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust_common",
+     "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust",
+     "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust_common",
+     "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust",
+     "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_common",
+     "//sdk/fidl/fuchsia.process.lifecycle:fuchsia.process.lifecycle_rust",
+     "//sdk/fidl/fuchsia.process.lifecycle:fuchsia.process.lifecycle_rust_common",
+     "//sdk/fidl/fuchsia.process:fuchsia.process_rust",
+     "//sdk/fidl/fuchsia.process:fuchsia.process_rust_common",
+     "//sdk/fidl/fuchsia.sys2:fuchsia.sys2_rust",
+     "//sdk/fidl/fuchsia.sys2:fuchsia.sys2_rust_common",
+     "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust",
+     "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust_common",
+     "//sdk/fidl/fuchsia.url:fuchsia.url_rust",
+     "//sdk/fidl/fuchsia.url:fuchsia.url_rust_common",
+     "//sdk/fidl/fuchsia.version:fuchsia.version_rust",
+     "//sdk/fidl/fuchsia.version:fuchsia.version_rust_common",
      "//sdk/rust/zx",
      "//src/lib/diagnostics/selectors",
      "//src/lib/elf_parse",
@@ -1898,6 +2344,52 @@
      "fuchsia"
     ],
     "used_by": [
+     "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust",
+     "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust_common",
+     "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust",
+     "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust_common",
+     "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust",
+     "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_common",
+     "//sdk/fidl/fuchsia.component.runtime:fuchsia.component.runtime_rust",
+     "//sdk/fidl/fuchsia.component.runtime:fuchsia.component.runtime_rust_common",
+     "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust",
+     "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust_common",
+     "//sdk/fidl/fuchsia.component:fuchsia.component_rust",
+     "//sdk/fidl/fuchsia.component:fuchsia.component_rust_common",
+     "//sdk/fidl/fuchsia.data:fuchsia.data_rust",
+     "//sdk/fidl/fuchsia.data:fuchsia.data_rust_common",
+     "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust",
+     "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust_common",
+     "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust",
+     "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust_common",
+     "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust",
+     "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust_common",
+     "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust",
+     "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_common",
+     "//sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust",
+     "//sdk/fidl/fuchsia.inspect:fuchsia.inspect_rust_common",
+     "//sdk/fidl/fuchsia.io:fuchsia.io_rust",
+     "//sdk/fidl/fuchsia.io:fuchsia.io_rust_common",
+     "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust",
+     "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust_common",
+     "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust",
+     "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust_common",
+     "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust",
+     "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust_common",
+     "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust",
+     "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_common",
+     "//sdk/fidl/fuchsia.process.lifecycle:fuchsia.process.lifecycle_rust",
+     "//sdk/fidl/fuchsia.process.lifecycle:fuchsia.process.lifecycle_rust_common",
+     "//sdk/fidl/fuchsia.process:fuchsia.process_rust",
+     "//sdk/fidl/fuchsia.process:fuchsia.process_rust_common",
+     "//sdk/fidl/fuchsia.sys2:fuchsia.sys2_rust",
+     "//sdk/fidl/fuchsia.sys2:fuchsia.sys2_rust_common",
+     "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust",
+     "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust_common",
+     "//sdk/fidl/fuchsia.url:fuchsia.url_rust",
+     "//sdk/fidl/fuchsia.url:fuchsia.url_rust_common",
+     "//sdk/fidl/fuchsia.version:fuchsia.version_rust",
+     "//sdk/fidl/fuchsia.version:fuchsia.version_rust_common",
      "//sdk/lib/async/rust",
      "//sdk/lib/async/rust/dispatcher",
      "//sdk/lib/async/rust/fidl",
@@ -1917,7 +2409,8 @@
      "//src/lib/fuchsia-component/runtime",
      "//src/lib/fuchsia-component/server",
      "//src/lib/fuchsia-fs",
-     "//src/lib/process_builder"
+     "//src/lib/process_builder",
+     "//src/storage/lib/vfs/rust:vfs"
     ]
    },
    {
@@ -1930,6 +2423,7 @@
     ],
     "used_by": [
      "//src/lib/diagnostics/selectors",
+     "//src/storage/lib/vfs/rust:vfs",
      "//src/sys/lib/cm_fidl_validator"
     ]
    },
@@ -1943,7 +2437,9 @@
     ],
     "used_by": [
      "//sdk/rust/zx",
-     "//src/lib/fuchsia-async"
+     "//src/lib/fuchsia-async",
+     "//src/lib/trace/rust:trace",
+     "//src/storage/lib/vfs/rust:vfs"
     ]
    },
    {
@@ -2063,6 +2559,7 @@
     "bazel_actual": "//third_party/rust_crates/vendor/paste-1.0.15:paste",
     "crate_dir": "vendor/paste-1.0.15",
     "contexts": [
+     "fuchsia",
      "host"
     ],
     "used_by": [
@@ -2070,7 +2567,8 @@
      "//src/lib/diagnostics/inspect/derive:fuchsia-inspect-derive",
      "//src/lib/diagnostics/inspect/format/rust:lib",
      "//src/lib/diagnostics/inspect/rust:fuchsia-inspect",
-     "//src/lib/diagnostics/log/rust:no_startup_handle"
+     "//src/lib/diagnostics/log/rust:no_startup_handle",
+     "//src/storage/lib/vfs/rust:vfs"
     ]
    },
    {
@@ -2087,7 +2585,9 @@
      "//src/lib/fidl/rust_next/fidl_next_protocol:fidl_next_protocol_internal",
      "//src/lib/fuchsia-component/client",
      "//src/lib/fuchsia-component/server",
-     "//src/lib/fuchsia-fs"
+     "//src/lib/fuchsia-fs",
+     "//src/lib/trace/rust:trace",
+     "//src/storage/lib/vfs/rust:vfs"
     ]
    },
    {
@@ -2142,7 +2642,8 @@
      "fuchsia"
     ],
     "used_by": [
-     "//src/lib/fuchsia-fs"
+     "//src/lib/fuchsia-fs",
+     "//src/lib/trace/rust:trace"
     ]
    },
    {
@@ -2179,7 +2680,8 @@
      "fuchsia"
     ],
     "used_by": [
-     "//src/lib/fidl/rust/fidl"
+     "//src/lib/fidl/rust/fidl",
+     "//src/storage/lib/vfs/rust:vfs"
     ]
    },
    {
@@ -2216,12 +2718,51 @@
      "fuchsia"
     ],
     "used_by": [
+     "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust_next",
+     "//sdk/fidl/fuchsia.component.decl:fuchsia.component.decl_rust_next_common",
+     "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust_next",
+     "//sdk/fidl/fuchsia.component.resolution:fuchsia.component.resolution_rust_next_common",
+     "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_next",
+     "//sdk/fidl/fuchsia.component.runner:fuchsia.component.runner_rust_next_common",
+     "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust_next",
+     "//sdk/fidl/fuchsia.component.sandbox:fuchsia.component.sandbox_rust_next_common",
+     "//sdk/fidl/fuchsia.component:fuchsia.component_rust_next",
+     "//sdk/fidl/fuchsia.component:fuchsia.component_rust_next_common",
+     "//sdk/fidl/fuchsia.data:fuchsia.data_rust_next",
+     "//sdk/fidl/fuchsia.data:fuchsia.data_rust_next_common",
+     "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust_next",
+     "//sdk/fidl/fuchsia.device.fs:fuchsia.device.fs_rust_next_common",
+     "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust_next",
+     "//sdk/fidl/fuchsia.diagnostics.types:fuchsia.diagnostics.types_rust_next_common",
+     "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust_next",
+     "//sdk/fidl/fuchsia.diagnostics:fuchsia.diagnostics_rust_next_common",
+     "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_next",
+     "//sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust_next_common",
+     "//sdk/fidl/fuchsia.io:fuchsia.io_rust_next",
+     "//sdk/fidl/fuchsia.io:fuchsia.io_rust_next_common",
+     "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust_next",
+     "//sdk/fidl/fuchsia.ldsvc:fuchsia.ldsvc_rust_next_common",
+     "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust_next",
+     "//sdk/fidl/fuchsia.logger:fuchsia.logger_rust_next_common",
+     "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust_next",
+     "//sdk/fidl/fuchsia.mem:fuchsia.mem_rust_next_common",
+     "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_next",
+     "//sdk/fidl/fuchsia.power.broker:fuchsia.power.broker_rust_next_common",
+     "//sdk/fidl/fuchsia.process:fuchsia.process_rust_next",
+     "//sdk/fidl/fuchsia.process:fuchsia.process_rust_next_common",
+     "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust_next",
+     "//sdk/fidl/fuchsia.unknown:fuchsia.unknown_rust_next_common",
+     "//sdk/fidl/fuchsia.url:fuchsia.url_rust_next",
+     "//sdk/fidl/fuchsia.url:fuchsia.url_rust_next_common",
+     "//sdk/fidl/fuchsia.version:fuchsia.version_rust_next",
+     "//sdk/fidl/fuchsia.version:fuchsia.version_rust_next_common",
      "//sdk/rust/zx",
      "//src/lib/elf_parse",
      "//src/lib/fidl/rust/fidl",
      "//src/lib/fuchsia-fs",
      "//src/lib/process_builder",
-     "//src/storage/lib/vfs/rust/name"
+     "//src/storage/lib/vfs/rust/name",
+     "//src/storage/lib/vfs/rust:vfs"
     ]
    },
    {
@@ -2295,23 +2836,12 @@
      "//src/lib/fuchsia-runtime",
      "//src/lib/process_builder",
      "//src/storage/lib/vfs/rust/name",
+     "//src/storage/lib/vfs/rust:vfs",
      "//src/sys/lib/cm_fidl_validator",
      "//src/sys/lib/cm_rust",
      "//src/sys/lib/cm_types",
      "//src/sys/lib/moniker",
      "//src/sys/lib/namespace"
-    ]
-   },
-   {
-    "alias": "tracing-mutex-0.3.2",
-    "gn_target": "tracing-mutex-v0_3_2",
-    "bazel_actual": "//third_party/rust_crates/forks/tracing-mutex-0.3.2:tracing_mutex",
-    "crate_dir": "forks/tracing-mutex-0.3.2",
-    "contexts": [
-     "fuchsia"
-    ],
-    "used_by": [
-     "//src/lib/fuchsia-sync"
     ]
    },
    {
@@ -2394,20 +2924,6 @@
     "kind": "forks",
     "name": "libc",
     "version": "0.2.189",
-    "patched": true,
-    "proc_macro": false,
-    "build_script": true,
-    "licenses": [
-     "Apache-2.0",
-     "MIT"
-    ],
-    "in_cargo_lock": false
-   },
-   {
-    "dir": "forks/tracing-mutex-0.3.2",
-    "kind": "forks",
-    "name": "tracing-mutex",
-    "version": "0.3.2",
     "patched": true,
     "proc_macro": false,
     "build_script": true,
@@ -3408,34 +3924,6 @@
     "in_cargo_lock": true
    },
    {
-    "dir": "vendor/parking_lot-0.12.5",
-    "kind": "vendor",
-    "name": "parking_lot",
-    "version": "0.12.5",
-    "patched": false,
-    "proc_macro": false,
-    "build_script": false,
-    "licenses": [
-     "Apache-2.0",
-     "MIT"
-    ],
-    "in_cargo_lock": true
-   },
-   {
-    "dir": "vendor/parking_lot_core-0.9.12",
-    "kind": "vendor",
-    "name": "parking_lot_core",
-    "version": "0.9.12",
-    "patched": false,
-    "proc_macro": false,
-    "build_script": true,
-    "licenses": [
-     "Apache-2.0",
-     "MIT"
-    ],
-    "in_cargo_lock": true
-   },
-   {
     "dir": "vendor/paste-1.0.15",
     "kind": "vendor",
     "name": "paste",
@@ -4066,7 +4554,7 @@
     "in_cargo_lock": true
    }
   ],
-  "unfiltered_select_count": 124
+  "unfiltered_select_count": 121
  },
  "fidl": [
   {
@@ -4074,18 +4562,22 @@
    "label": "//sdk/fidl/fuchsia.component",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
     "//src/lib/fuchsia-component/client",
     "//src/sys/lib/namespace",
+    "fidl:fuchsia.component",
     "fidl:fuchsia.component.runner",
     "fidl:fuchsia.component.runtime",
     "fidl:fuchsia.driver.framework",
@@ -4098,13 +4590,16 @@
    "label": "//sdk/fidl/fuchsia.component.decl",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust",
     "rust_next"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
@@ -4116,6 +4611,7 @@
     "//src/sys/lib/cm_rust",
     "//src/sys/lib/cm_types",
     "fidl:fuchsia.component",
+    "fidl:fuchsia.component.decl",
     "fidl:fuchsia.component.runtime",
     "fidl:fuchsia.component.sandbox",
     "fidl:fuchsia.driver.framework",
@@ -4128,15 +4624,19 @@
    "label": "//sdk/fidl/fuchsia.component.resolution",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
-    "fidl:fuchsia.component"
+    "fidl:fuchsia.component",
+    "fidl:fuchsia.component.resolution"
    ],
    "in_idk": true
   },
@@ -4145,19 +4645,23 @@
    "label": "//sdk/fidl/fuchsia.component.runner",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust",
     "rust_next"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
     "//sdk/lib/driver/component/rust",
     "//src/sys/lib/namespace",
+    "fidl:fuchsia.component.runner",
     "fidl:fuchsia.driver.framework",
     "fidl:fuchsia.sys2"
    ],
@@ -4167,17 +4671,20 @@
    "library": "fuchsia.component.runtime",
    "label": "//sdk/fidl/fuchsia.component.runtime",
    "flavors": [
-    "rust"
+    "rust",
+    "rust_common"
    ],
    "direct_flavors": [
     "rust"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
-    "//src/lib/fuchsia-component/runtime"
+    "//src/lib/fuchsia-component/runtime",
+    "fidl:fuchsia.component.runtime"
    ],
    "in_idk": true
   },
@@ -4186,12 +4693,15 @@
    "label": "//sdk/fidl/fuchsia.component.sandbox",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
@@ -4199,6 +4709,7 @@
     "//src/lib/fuchsia-component/escrow",
     "fidl:fuchsia.component",
     "fidl:fuchsia.component.runner",
+    "fidl:fuchsia.component.sandbox",
     "fidl:fuchsia.driver.framework",
     "fidl:fuchsia.process.lifecycle"
    ],
@@ -4209,12 +4720,15 @@
    "label": "//sdk/fidl/fuchsia.data",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
@@ -4222,6 +4736,7 @@
     "//src/sys/lib/cm_rust",
     "fidl:fuchsia.component.decl",
     "fidl:fuchsia.component.runner",
+    "fidl:fuchsia.data",
     "fidl:fuchsia.driver.framework",
     "fidl:fuchsia.sys2"
    ],
@@ -4232,17 +4747,21 @@
    "label": "//sdk/fidl/fuchsia.device.fs",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
     "//sdk/lib/driver/component/rust",
+    "fidl:fuchsia.device.fs",
     "fidl:fuchsia.driver.framework"
    ],
    "in_idk": true
@@ -4253,18 +4772,21 @@
    "flavors": [
     "rust",
     "rust_common",
-    "rust_next"
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust_common"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
     "//src/lib/diagnostics/hierarchy/rust:diagnostics-hierarchy",
     "//src/lib/diagnostics/selectors",
+    "fidl:fuchsia.diagnostics",
     "fidl:fuchsia.logger"
    ],
    "in_idk": true
@@ -4275,12 +4797,14 @@
    "flavors": [
     "rust",
     "rust_common",
-    "rust_next"
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
@@ -4291,6 +4815,7 @@
     "//src/lib/diagnostics/selectors",
     "fidl:fuchsia.component.runner",
     "fidl:fuchsia.diagnostics",
+    "fidl:fuchsia.diagnostics.types",
     "fidl:fuchsia.logger"
    ],
    "in_idk": true
@@ -4300,19 +4825,23 @@
    "label": "//sdk/fidl/fuchsia.driver.framework",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust",
     "rust_next"
    ],
    "sdk_category": "partner",
+   "contains_drivers": true,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
     "//examples/drivers/simple/rust:driver",
-    "//sdk/lib/driver/component/rust"
+    "//sdk/lib/driver/component/rust",
+    "fidl:fuchsia.driver.framework"
    ],
    "in_idk": true
   },
@@ -4328,6 +4857,7 @@
     "rust_common"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
@@ -4335,7 +4865,8 @@
     "//src/lib/diagnostics/inspect/contrib/rust:fuchsia-inspect-contrib",
     "//src/lib/diagnostics/inspect/runtime/rust:lib",
     "//src/lib/diagnostics/inspect/rust:fuchsia-inspect",
-    "//src/lib/diagnostics/selectors"
+    "//src/lib/diagnostics/selectors",
+    "fidl:fuchsia.inspect"
    ],
    "in_idk": true
   },
@@ -4344,8 +4875,10 @@
    "label": "//sdk/fidl/fuchsia.io",
    "flavors": [
     "rust",
+    "rust_common",
     "rust_flex",
-    "rust_next"
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust",
@@ -4353,6 +4886,7 @@
     "rust_next"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
@@ -4379,6 +4913,7 @@
     "fidl:fuchsia.component.sandbox",
     "fidl:fuchsia.device.fs",
     "fidl:fuchsia.driver.framework",
+    "fidl:fuchsia.io",
     "fidl:fuchsia.process",
     "fidl:fuchsia.process.lifecycle",
     "fidl:fuchsia.sys2"
@@ -4390,17 +4925,21 @@
    "label": "//sdk/fidl/fuchsia.ldsvc",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
     "//src/lib/process_builder",
+    "fidl:fuchsia.ldsvc",
     "fidl:fuchsia.process"
    ],
    "in_idk": true
@@ -4410,19 +4949,23 @@
    "label": "//sdk/fidl/fuchsia.logger",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
     "//sdk/lib/driver/component/rust",
     "//src/lib/diagnostics/log/rust:no_startup_handle",
-    "fidl:fuchsia.driver.framework"
+    "fidl:fuchsia.driver.framework",
+    "fidl:fuchsia.logger"
    ],
    "in_idk": true
   },
@@ -4432,12 +4975,14 @@
    "flavors": [
     "rust",
     "rust_common",
-    "rust_next"
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
@@ -4447,7 +4992,8 @@
     "fidl:fuchsia.component.resolution",
     "fidl:fuchsia.component.runner",
     "fidl:fuchsia.diagnostics",
-    "fidl:fuchsia.inspect"
+    "fidl:fuchsia.inspect",
+    "fidl:fuchsia.mem"
    ],
    "in_idk": true
   },
@@ -4456,15 +5002,19 @@
    "label": "//sdk/fidl/fuchsia.power.broker",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [],
    "sdk_category": "partner",
+   "contains_drivers": true,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
-    "fidl:fuchsia.driver.framework"
+    "fidl:fuchsia.driver.framework",
+    "fidl:fuchsia.power.broker"
    ],
    "in_idk": true
   },
@@ -4473,12 +5023,15 @@
    "label": "//sdk/fidl/fuchsia.process",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [
     "rust"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
@@ -4487,6 +5040,7 @@
     "//src/sys/lib/namespace",
     "fidl:fuchsia.component",
     "fidl:fuchsia.component.runner",
+    "fidl:fuchsia.process",
     "fidl:fuchsia.sys2"
    ],
    "in_idk": true
@@ -4495,17 +5049,20 @@
    "library": "fuchsia.process.lifecycle",
    "label": "//sdk/fidl/fuchsia.process.lifecycle",
    "flavors": [
-    "rust"
+    "rust",
+    "rust_common"
    ],
    "direct_flavors": [
     "rust"
    ],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
-    "//src/lib/fuchsia-component/escrow"
+    "//src/lib/fuchsia-component/escrow",
+    "fidl:fuchsia.process.lifecycle"
    ],
    "in_idk": true
   },
@@ -4513,17 +5070,20 @@
    "library": "fuchsia.sys2",
    "label": "//sdk/fidl/fuchsia.sys2",
    "flavors": [
-    "rust"
+    "rust",
+    "rust_common"
    ],
    "direct_flavors": [
     "rust"
    ],
    "sdk_category": "host_tool",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
-    "//src/sys/lib/cm_rust"
+    "//src/sys/lib/cm_rust",
+    "fidl:fuchsia.sys2"
    ],
    "in_idk": false
   },
@@ -4532,16 +5092,19 @@
    "label": "//sdk/fidl/fuchsia.unknown",
    "flavors": [
     "rust",
-    "rust_flex",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
-    "fidl:fuchsia.io"
+    "fidl:fuchsia.io",
+    "fidl:fuchsia.unknown"
    ],
    "in_idk": true
   },
@@ -4550,10 +5113,13 @@
    "label": "//sdk/fidl/fuchsia.url",
    "flavors": [
     "rust",
-    "rust_next"
+    "rust_common",
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
@@ -4562,7 +5128,8 @@
     "fidl:fuchsia.component.decl",
     "fidl:fuchsia.component.runner",
     "fidl:fuchsia.driver.framework",
-    "fidl:fuchsia.sys2"
+    "fidl:fuchsia.sys2",
+    "fidl:fuchsia.url"
    ],
    "in_idk": true
   },
@@ -4571,50 +5138,19 @@
    "label": "//sdk/fidl/fuchsia.version",
    "flavors": [
     "rust",
-    "rust_next"
-   ],
-   "direct_flavors": [],
-   "sdk_category": "partner",
-   "contexts": [
-    "fuchsia"
-   ],
-   "used_by": [
-    "fidl:fuchsia.component.resolution"
-   ],
-   "in_idk": true
-  },
-  {
-   "library": "zx",
-   "label": "//zircon/vdso/zx",
-   "flavors": [
-    "rust",
     "rust_common",
-    "rust_flex",
-    "rust_next"
+    "rust_next",
+    "rust_next_common"
    ],
    "direct_flavors": [],
    "sdk_category": "partner",
+   "contains_drivers": false,
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
-    "fidl:fuchsia.component",
-    "fidl:fuchsia.component.runner",
-    "fidl:fuchsia.component.runtime",
-    "fidl:fuchsia.component.sandbox",
-    "fidl:fuchsia.device.fs",
-    "fidl:fuchsia.diagnostics",
-    "fidl:fuchsia.diagnostics.types",
-    "fidl:fuchsia.inspect",
-    "fidl:fuchsia.io",
-    "fidl:fuchsia.ldsvc",
-    "fidl:fuchsia.logger",
-    "fidl:fuchsia.mem",
-    "fidl:fuchsia.power.broker",
-    "fidl:fuchsia.process",
-    "fidl:fuchsia.process.lifecycle",
-    "fidl:fuchsia.sys2",
-    "fidl:fuchsia.unknown"
+    "fidl:fuchsia.component.resolution",
+    "fidl:fuchsia.version"
    ],
    "in_idk": true
   }
@@ -4721,11 +5257,12 @@
   },
   {
    "label": "//zircon/system/ulib/trace-engine",
-   "gn_template": "trace_engine_library",
+   "gn_template": "zx_library",
    "contexts": [
     "fuchsia"
    ],
    "used_by": [
+    "//src/lib/trace/rust:trace",
     "//src/storage/lib/vfs/rust:vfs"
    ]
   }
@@ -5607,11 +6144,16 @@
    "condition": "fuchsia_sync_detect_lock_cycles",
    "in_target": "fuchsia-sync",
    "build_args": {
-    "fuchsia_sync_detect_lock_cycles": null
+    "fuchsia": {
+     "fuchsia_sync_detect_lock_cycles": false
+    },
+    "host": {
+     "fuchsia_sync_detect_lock_cycles": false
+    }
    },
    "outcome": {
-    "fuchsia": "unknown",
-    "host": "unknown"
+    "fuchsia": "else",
+    "host": "else"
    }
   },
   {
@@ -5631,11 +6173,16 @@
    "condition": "fuchsia_sync_detect_lock_cycles",
    "in_target": "fuchsia-sync",
    "build_args": {
-    "fuchsia_sync_detect_lock_cycles": null
+    "fuchsia": {
+     "fuchsia_sync_detect_lock_cycles": false
+    },
+    "host": {
+     "fuchsia_sync_detect_lock_cycles": false
+    }
    },
    "outcome": {
-    "fuchsia": "unknown",
-    "host": "unknown"
+    "fuchsia": "else",
+    "host": "else"
    }
   },
   {
@@ -5658,6 +6205,46 @@
    "outcome": {
     "fuchsia": "taken",
     "host": "else"
+   }
+  },
+  {
+   "file": "src/lib/trace/rust/BUILD.gn",
+   "line": 154,
+   "condition": "is_host",
+   "in_target": null,
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
+   }
+  },
+  {
+   "file": "src/storage/lib/trace/BUILD.gn",
+   "line": 19,
+   "condition": "invoker.enable_tracing",
+   "in_target": "trace",
+   "build_args": {},
+   "outcome": {
+    "fuchsia": "taken",
+    "host": "else"
+   }
+  },
+  {
+   "file": "src/storage/lib/vfs/rust/BUILD.gn",
+   "line": 43,
+   "condition": "vfs_rust_uses_log",
+   "in_target": null,
+   "build_args": {
+    "fuchsia": {
+     "vfs_rust_uses_log": false
+    },
+    "host": {
+     "vfs_rust_uses_log": true
+    }
+   },
+   "outcome": {
+    "fuchsia": "else",
+    "host": "taken"
    }
   },
   {
@@ -5881,5 +6468,6 @@
    }
   }
  ],
+ "evaluation_gaps": [],
  "import_errors": []
 }

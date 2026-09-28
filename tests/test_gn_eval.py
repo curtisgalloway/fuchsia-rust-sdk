@@ -177,35 +177,145 @@ group("g") {
     assert gn_eval.imports(text, "f/BUILD.gn") == ["//a.gni", "b.gni"]
 
 
-def test_templates_and_forwarding_are_not_run():
+def test_scope_literal_and_forward_variables_from():
+    """The reviewer's minimal case (M6a review finding 1): forwarded deps were lost."""
     text = '''\
-template("my_rule") {
-  group(target_name) {
+common = {
+  deps = [ "//a" ]
+  features = []
+  if (is_fuchsia) {
+    deps += [ "//f" ]
+  }
+}
+rustc_dylib("vfs") {
+  forward_variables_from(common, "*")
+  deps += [ "//b" ]
+}
+rustc_library("some") {
+  forward_variables_from(common, [ "features" ])
+}
+rustc_library("but") {
+  forward_variables_from(common, "*", [ "deps" ])
+}
+'''
+    r = gn_eval.evaluate(text, FUCHSIA, "f/BUILD.gn")
+    assert r.targets["vfs"].scope["deps"] == ["//a", "//f", "//b"]
+    assert r.targets["some"].scope == {"features": []}
+    assert "deps" not in r.targets["but"].scope
+    assert [c.target for c in r.conditionals] == [None]
+    assert r.gaps == []
+
+
+def test_forward_from_an_unknown_scope_is_a_gap():
+    text = '''\
+rustc_library("x") {
+  forward_variables_from(invoker, "*")
+}
+rustc_library("y") {
+  forward_variables_from(invoker, [ "deps" ])
+}
+'''
+    r = gn_eval.evaluate(text, FUCHSIA, "f/BUILD.gn")
+    assert r.targets["x"].unknown_forward is True
+    assert r.targets["y"].scope["deps"] is UNKNOWN and not r.targets["y"].unknown_forward
+    assert [(line, t) for line, t, _ in r.gaps] == [(2, "x"), (5, "y")]
+
+
+def test_foreach():
+    """The reviewer's second case: a foreach body was ignored."""
+    text = '''\
+group("g") {
+  deps = [ "//c" ]
+  foreach(d, [ "//e", "//f" ]) {
+    deps += [ d ]
+  }
+  foreach(d, unknown_list) {
+    deps += [ d ]
+  }
+}
+'''
+    r = gn_eval.evaluate(text, FUCHSIA, "f/BUILD.gn")
+    assert r.targets["g"].scope["deps"] == ["//c", "//e", "//f", UNKNOWN]
+    assert "d" not in r.targets["g"].scope
+    assert len(r.gaps) == 1 and "unknown list" in r.gaps[0][2]
+
+
+def test_same_file_templates_are_expanded():
+    # The shape of src/storage/lib/trace/BUILD.gn at the release.
+    text = '''\
+template("rust_storage_trace") {
+  rustc_library(target_name) {
+    name = invoker.name
+    if (invoker.enable_tracing) {
+      deps = [ "//src/lib/trace/rust:trace" ]
+      features = [ "tracing" ]
+    }
+  }
+}
+template("opaque") {
+  some_imported_rule(target_name + "_impl") {
     deps = invoker.deps
   }
 }
-my_rule("x") {
+rust_storage_trace("trace") {
+  name = "storage_trace"
+  enable_tracing = is_fuchsia
+}
+rust_storage_trace("off") {
+  name = "off"
+  enable_tracing = false
+}
+opaque("o") {
   deps = [ "//d" ]
-  forward_variables_from(invoker, "*")
 }
-assert(true)
 '''
     r = gn_eval.evaluate(text, FUCHSIA, "f/BUILD.gn")
-    assert r.templates == ["my_rule"]
-    assert r.targets["x"].kind == "my_rule"
-    assert r.targets["x"].scope["deps"] == ["//d"]
+    t = r.targets["trace"]
+    assert (t.kind, t.scope["name"], t.scope["deps"]) == ("rustc_library", "storage_trace",
+                                                        ["//src/lib/trace/rust:trace"])
+    assert "deps" not in r.targets["off"].scope
+    assert r.templates == ["rust_storage_trace", "opaque"]
+    assert r.template_calls == {"trace": "rust_storage_trace", "off": "rust_storage_trace", "o": "opaque"}
+    # A template that defines no target of the call's name leaves an opaque target.
+    assert r.targets["o"].kind == "opaque" and r.targets["o_impl"].scope["deps"] == ["//d"]
+    # Conditions inside the template body are attributed to the target being made.
+    assert [(c.target, c.outcome) for c in r.conditionals] == [("trace", "taken"), ("off", "else")]
+    assert gn_eval.evaluate(text, HOST, "f/BUILD.gn").targets["trace"].scope.get("deps") is None
 
 
-def test_scope_access_and_list_index_are_unknown():
+def test_scope_access_list_index_and_interpolation():
     text = '''\
-s = { a = 1 }
+s = { a = 1  b = "x" }
+s.c = "set"
+l = [ "p", "q" ]
 group("g") {
-  deps = [ s.a, x[0] ]
-  foo.bar = 1
+  deps = [ s.a, s.missing, l[1], l[5], "${s.b}:t", "$s.b", "${other.x}" ]
+  flag = defined(s.a) && !defined(s.nope)
+  label = "//$target_name"
 }
 '''
     r = gn_eval.evaluate(text, FUCHSIA, "f/BUILD.gn")
-    assert r.targets["g"].scope["deps"] == [UNKNOWN, UNKNOWN]
+    g = r.targets["g"].scope
+    # "$s.b" is $s followed by ".b" in GN; s is a scope, so the string is UNKNOWN.
+    assert g["deps"] == [1, UNKNOWN, "q", UNKNOWN, "x:t", UNKNOWN, UNKNOWN]
+    assert g["flag"] is True and g["label"] == "//g"
+    assert r.gaps == []
+
+
+def test_same_target_on_both_branches_of_an_unknown_condition_is_merged():
+    text = '''\
+if (current_cpu == "x64") {
+  rustc_library("x") {
+    deps = [ "//a" ]
+  }
+} else {
+  rustc_library("x") {
+    deps = [ "//b" ]
+  }
+}
+'''
+    r = gn_eval.evaluate(text, FUCHSIA, "f/BUILD.gn")
+    assert r.targets["x"].scope["deps"] == ["//a", "//b"]
 
 
 @pytest.mark.parametrize("text,msg", [

@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 import closure
+import gn_eval
 import regen
 
 REV = "c" * 40
@@ -161,9 +162,24 @@ rustc_macro("mac") {
     "fidl/fuchsia.foo/BUILD.gn": '''\
 fidl("fuchsia.foo") {
   sdk_category = "partner"
-  public_deps = [ "//fidl/fuchsia.bar" ]
+  public_deps = [
+    "//fidl/fuchsia.bar",
+    "//zircon/vdso/zx",
+  ]
+  contains_drivers = true
+  enable_rust_drivers = true
 }
 ''',
+    # What the FIDL binding templates add (closure.FIDL_FLAVORS), as small stubs.
+    "zircon/vdso/zx/BUILD.gn": 'fidl("zx") {\n}\n',
+    "sdk/rust/zx/BUILD.gn": 'rustc_library("zx") {\n}\n',
+    "sdk/rust/zx-status/BUILD.gn": 'rustc_library("zx-status") {\n}\n',
+    "sdk/rust/zx-types/BUILD.gn": 'rustc_library("zx-types") {\n}\n',
+    "src/lib/fidl/rust/fidl/BUILD.gn": 'rustc_library("fidl") {\n}\n',
+    "src/lib/fidl/rust/fidl_driver/BUILD.gn": 'rustc_library("fidl_driver") {\n}\n',
+    "sdk/lib/driver/runtime/rust/BUILD.gn": 'rustc_library("rust") {\n}\n',
+    "sdk/lib/driver/runtime/rust/fidl/BUILD.gn": 'rustc_library("fidl") {\n}\n',
+    "src/lib/fidl/rust_next/fidl_next/BUILD.gn": 'rustc_library("fidl_next_internal") {\n}\n',
     "fidl/fuchsia.bar/BUILD.gn": 'fidl("fuchsia.bar") {\n  sdk_category = "host_tool"\n}\n',
     "bind/fuchsia.test/BUILD.gn": 'bind_library("fuchsia.test") {\n}\n',
     "third_party/rust_crates/BUILD.gn": '''\
@@ -219,6 +235,10 @@ alias(
 
 ROOTS = ["//drv:driver"]
 
+FIDL_TEMPLATE_CRATES = ["sdk/lib/driver/runtime/rust", "sdk/lib/driver/runtime/rust/fidl", "sdk/rust/zx",
+                        "sdk/rust/zx-status", "sdk/rust/zx-types", "src/lib/fidl/rust/fidl",
+                        "src/lib/fidl/rust/fidl_driver", "src/lib/fidl/rust_next/fidl_next"]
+
 
 @pytest.fixture
 def upstream(tmp_path) -> Path:
@@ -251,7 +271,7 @@ def test_in_tree_crates_and_what_is_left_out(upstream):
     data = run(upstream)
     crates = by_path(data)
     assert sorted(crates) == ["drv", "lib/a", "lib/a/sub", "lib/dylib", "lib/hostonly", "lib/mac",
-                              "lib/maybe"]
+                              "lib/maybe", *FIDL_TEMPLATE_CRATES]
     # test_deps and test targets are not followed; a build argument's default (false)
     # keeps //third_party/rust_crates:cond out.
     assert "lib/testonly" not in crates
@@ -300,10 +320,18 @@ def test_unknown_conditions_are_followed_and_reported(upstream):
     assert conds[("lib/a/BUILD.gn", 13)]["outcome"] == {"fuchsia": "unknown", "host": "else"}
     assert conds[("lib/a/BUILD.gn", 13)]["condition"] == 'current_cpu == "arm64"'
     assert conds[("lib/a/BUILD.gn", 7)]["outcome"] == {"fuchsia": "else", "host": "taken"}
-    assert conds[("lib/a/BUILD.gn", 10)]["build_args"] == {"a_use_cond": False}
+    assert conds[("lib/a/BUILD.gn", 10)]["build_args"] == {"fuchsia": {"a_use_cond": False},
+                                                           "host": {"a_use_cond": False}}
     assert conds[("lib/mac/BUILD.gn", 3)]["in_target"] == "mac"
     # The test target's file is walked, but conditions inside unwalked targets are not listed.
     assert all(c["in_target"] != "driver_test" for c in data["conditionals"])
+
+
+def test_overlay_args_override_upstream_defaults(upstream, monkeypatch):
+    monkeypatch.setattr(closure, "OVERLAY_ARGS", {"a_use_cond": True})
+    data = run(upstream)
+    assert "cond" in {d["alias"] for d in data["crates_io"]["direct"]}
+    assert data["overlay_args"] == {"a_use_cond": True}
 
 
 def test_upper_bound_follows_every_condition(upstream):
@@ -317,13 +345,18 @@ def test_upper_bound_follows_every_condition(upstream):
 def test_fidl_and_bind_libraries(upstream, idk):
     data = run(upstream, idk)
     fidl = {f["library"]: f for f in data["fidl"]}
-    assert fidl["fuchsia.foo"]["flavors"] == ["rust", "rust_next"]
+    # Each flavor brings its common sibling (M6a review finding 2).
+    assert fidl["fuchsia.foo"]["flavors"] == ["rust", "rust_common", "rust_next", "rust_next_common"]
     assert fidl["fuchsia.foo"]["direct_flavors"] == ["rust", "rust_next"]
     assert fidl["fuchsia.foo"]["sdk_category"] == "partner"
+    assert fidl["fuchsia.foo"]["contains_drivers"] is True
     # A FIDL dependency of a FIDL library gets the same flavors, but is not direct.
-    assert fidl["fuchsia.bar"]["flavors"] == ["rust", "rust_next"]
+    assert fidl["fuchsia.bar"]["flavors"] == ["rust", "rust_common", "rust_next", "rust_next_common"]
     assert fidl["fuchsia.bar"]["direct_flavors"] == []
-    assert fidl["fuchsia.bar"]["used_by"] == ["fidl:fuchsia.foo"]
+    assert fidl["fuchsia.bar"]["contains_drivers"] is False
+    assert fidl["fuchsia.bar"]["used_by"] == ["fidl:fuchsia.bar", "fidl:fuchsia.foo"]
+    # A public_dep on //zircon/vdso/zx is the zx-types crate, not a binding.
+    assert "zx" not in fidl
     assert (fidl["fuchsia.foo"]["in_idk"], fidl["fuchsia.bar"]["in_idk"]) == (True, False)
     assert data["counts"]["fidl_libraries_not_in_idk"] == 1
     assert [(b["library"], b["in_idk"]) for b in data["bind"]] == [("fuchsia.test", True)]
@@ -337,10 +370,105 @@ def test_native_and_unresolved(upstream):
         ("//lib/missing:nope", "no BUILD.gn", ["//lib/a/sub"])]
 
 
+def test_fidl_binding_template_deps(upstream):
+    """What build/rust/fidl_rust.gni and fidl_rust_next.gni add (M6a review finding 2)."""
+    crates = by_path(run(upstream))
+    used = {p: crates[p]["targets"][0]["used_by"] for p in FIDL_TEMPLATE_CRATES}
+    foo = "//fidl/fuchsia.foo:fuchsia.foo_"
+    # contains_drivers and enable_rust_drivers: fidl_driver and the runtime, for fuchsia.foo only.
+    assert used["src/lib/fidl/rust/fidl_driver"] == [foo + "rust", foo + "rust_common"]
+    assert used["sdk/lib/driver/runtime/rust/fidl"] == [foo + "rust_next", foo + "rust_next_common"]
+    assert used["sdk/rust/zx-types"] == [foo + f for f in ("rust", "rust_common", "rust_next", "rust_next_common")]
+    assert "//fidl/fuchsia.bar:fuchsia.bar_rust_next" in used["src/lib/fidl/rust_next/fidl_next"]
+    assert "//fidl/fuchsia.bar:fuchsia.bar_rust" in used["sdk/rust/zx"]
+
+
+def test_fidl_flavor_table_covers_host_and_unknown_flavors(upstream):
+    # For the host, no zx and no driver crates.
+    (upstream / "drv/BUILD.gn").write_text('''\
+rustc_macro("driver") {
+  deps = [ "//fidl/fuchsia.foo:fuchsia.foo_rust", "//fidl/fuchsia.foo:fuchsia.foo_rust_weird" ]
+}
+''')
+    data = run(upstream)
+    crates = by_path(data)
+    assert "sdk/rust/zx" not in crates and "src/lib/fidl/rust/fidl_driver" not in crates
+    assert [g["what"] for g in data["evaluation_gaps"]] == [
+        "binding flavor 'rust_weird' is not modelled: its template deps are not followed"]
+
+
+def test_forwarded_scope_and_same_file_template_in_the_walk(upstream):
+    """The M6a review's vfs case: deps forwarded from a scope literal, a local template."""
+    (upstream / "lib/dylib/BUILD.gn").write_text('''\
+template("local_rust") {
+  rustc_library(target_name) {
+    deps = invoker.extra
+  }
+}
+common = {
+  deps = [ "//third_party/rust_crates:libc" ]
+}
+rustc_dylib("dylib") {
+  forward_variables_from(common, "*")
+  deps += [ "//lib/maybe", ":tmpl" ]
+}
+local_rust("tmpl") {
+  extra = [ "//lib/hostonly" ]
+}
+rustc_library("opaque") {
+  forward_variables_from(invoker, "*")
+}
+''')
+    (upstream / "lib/a/BUILD.gn").write_text((upstream / "lib/a/BUILD.gn").read_text().replace(
+        'public_deps = [ "//lib/dylib" ]', 'public_deps = [ "//lib/dylib", "//lib/dylib:opaque" ]'))
+    data = run(upstream)
+    crates = by_path(data)
+    assert {t["target"] for t in crates["lib/dylib"]["targets"]} == {"dylib", "tmpl", "opaque"}
+    tmpl = next(t for t in crates["lib/dylib"]["targets"] if t["target"] == "tmpl")
+    assert tmpl["same_file_template"] == "local_rust"
+    assert "fuchsia" in crates["lib/hostonly"]["targets"][0]["contexts"]
+    assert "libc" in {d["alias"] for d in data["crates_io"]["direct"]}
+    opaque = next(t for t in crates["lib/dylib"]["targets"] if t["target"] == "opaque")
+    assert opaque["unknown_deps"] == 1
+    assert data["counts"]["unknown_deps"] == 2  # opaque + lib/maybe's "$some_dir:x"
+    assert any(g["in_target"] == "opaque" and "unknown scope" in g["what"]
+               for g in data["evaluation_gaps"])
+
+
+def test_real_vfs_build_file():
+    """src/storage/lib/vfs/rust and src/storage/lib/trace at the release, unchanged."""
+    root = Path(__file__).parent / "testdata" / "gn"
+    vfs = (root / "vfs.BUILD.gn").read_text()
+    args = gn_eval.evaluate(vfs, closure.ENVS["fuchsia"], "vfs").args
+    r = gn_eval.evaluate(vfs, closure.ENVS["fuchsia"], "vfs", args)
+    t = r.targets["vfs"]
+    assert t.kind == "rustc_dylib" and t.scope["output_name"] == "vfs_rust"
+    deps = t.scope["deps"]
+    for d in ("//src/storage/lib/trace", "//third_party/rust_crates:itertools", "//src/lib/fuchsia-sync",
+              "//sdk/fidl/fuchsia.io:fuchsia.io_rust_flex", "//src/lib/fdomain/client:flex_fidl"):
+        assert d in deps
+    assert "//third_party/rust_crates:log" not in deps  # vfs_rust_uses_log = is_host
+    assert t.scope["public_deps"] == ["//zircon/system/ulib/trace-engine"]
+    cond = [c for c in r.conditionals if c.text == "vfs_rust_uses_log"]
+    assert [(c.outcome, c.target, c.args) for c in cond] == [("else", None, {"vfs_rust_uses_log": False})]
+    host = gn_eval.evaluate(vfs, closure.ENVS["host"], "vfs", gn_eval.evaluate(vfs, closure.ENVS["host"], "vfs").args)
+    assert host.targets["vfs"].kind == "rustc_library"
+    assert "//third_party/rust_crates:log" in host.targets["vfs"].scope["deps"]
+    trace = gn_eval.evaluate((root / "storage_trace.BUILD.gn").read_text(), closure.ENVS["fuchsia"], "trace")
+    assert trace.targets["trace"].kind == "rustc_library"
+    assert trace.targets["trace"].scope["deps"] == ["//src/lib/trace/rust:trace"]
+    assert trace.targets["trace"].scope["name"] == "storage_trace"
+    assert r.gaps == [] and trace.gaps == []
+
+
 def test_crates_io_direct_and_transitive(upstream):
     data = run(upstream)
     direct = {d["alias"]: d for d in data["crates_io"]["direct"]}
-    assert sorted(direct) == ["anyhow", "libc", "syn"]
+    # bitflags, futures, static_assertions come from the FIDL templates; the fake Bazel
+    # alias file lacks them, which the report counts instead of dropping.
+    assert sorted(direct) == ["anyhow", "bitflags", "futures", "libc", "static_assertions", "syn"]
+    assert direct["futures"]["crate_dir"] is None
+    assert data["counts"]["crates_io_direct_without_bazel_alias"] == 3
     assert direct["anyhow"]["gn_target"] == "anyhow-v1_0_0"
     assert direct["libc"]["crate_dir"] == "forks/libc-0.2.1"
     trans = {c["dir"]: c for c in data["crates_io"]["transitive"]}
@@ -389,7 +517,7 @@ def test_main_writes_a_deterministic_report(upstream, idk, tmp_path, capsys):
     assert out.read_bytes() == first
     data = json.loads(first)
     assert (data["name"], data["fuchsia_revision"], data["roots"]) == ("p", REV, ROOTS)
-    assert "7 in-tree crates, 3 direct crates.io aliases (4 crates transitively)" in capsys.readouterr().out
+    assert "15 in-tree crates, 6 direct crates.io aliases (4 crates transitively)" in capsys.readouterr().out
     assert str(idk) not in first.decode()  # no local paths in the report
     (upstream / "lib/maybe/BUILD.gn").write_text("x = \n")
     assert closure.main(argv, root=root, make_source=src) == 2

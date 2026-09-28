@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T22:55-07:00
+Updated: 2026-09-27T23:20-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -77,13 +77,13 @@ Outcome: complete — `regen.py vendor`/`--check`; `zx-types`, `zx-sys`, `zx-sta
 - Review: regex rewriter missed `@rules_rust` loads; now ast-based, fails closed at file:line
 - Git: depth-1 blobless fetch, then one by-ID fetch of the needed blobs (~16 s per run)
 
-### [M6 — Pilot 1 closure and its crates.io crates](M6.md)
-Entries: 2026-09-27T22:23-07:00 through 2026-09-27T22:55-07:00
-Outcome: open — split; M6a (walker + `pilot1.json`) implemented, review pending; M6b (crates build) planned
-- Brief's regex walker misses bazel2gn variable deps, relative labels, proc_macro_deps: GN is now evaluated (`gn_eval.py`)
-- Pilot 1: 66 in-tree (vfs via rustc_dylib), 45 direct crates.io (1 under a build arg), 124 transitive (5 patched), 24 FIDL
-- Conditions per toolchain context + build-arg defaults: only 2 UNKNOWN left (fuchsia-sync lock-cycle arg)
-- `zx` not cheap (needs the patched-crate mechanism): moved to M6b
+### [M6 — Pilot 1 closure measured (M6a; M6b uses M6b.md)](M6.md)
+Entries: 2026-09-27T22:23-07:00 through 2026-09-27T23:20-07:00
+Outcome: complete (M6a) — `closure.py` + `gn_eval.py`; `pilot1.json`: 69 in-tree, 44 direct / 121 crates.io (4 patched), 23 FIDL; M6b (crates build) planned
+- Brief's regex walker misses bazel2gn variable deps, relative labels, proc_macro_deps: GN is now evaluated
+- Review blocker: scope literals, forward_variables_from, foreach, same-file templates were dropped silently (lost vfs's deps); now evaluated, anything else is a recorded gap
+- Review: FIDL template deps (`_common` siblings, `fidl_driver` for contains_drivers) modelled by a table from the release's .gni files
+- Decided: `fuchsia_sync_detect_lock_cycles = false`; split rests on 121 transitive crates + the new patched-crate mechanism; `zx` → M6b
 - Dead end: `git grep` / `ls-tree -l` in a blobless clone fetch every blob (twice)
 
 ## Threads
@@ -103,5 +103,6 @@ Outcome: open — split; M6a (walker + `pilot1.json`) implemented, review pendin
   M3/M4 followed; the [M5](M5.md) review found it is the 2-clause text and M5 relabelled
   the repo (design C4 to amend).
 - **Closure size (D8):** the brief measured 67/44/34 for dw-spi with a regex walker;
-  [M6](M6.md) evaluates GN and measures pilot 1 at 66/45/24 (124 crates.io
-  transitively), which split M6 into M6a/M6b.
+  [M6](M6.md) evaluates GN and measures pilot 1 at 69/44/23 (121 crates.io
+  transitively; the first run's 66/45/24 missed forwarded deps and FIDL template deps),
+  which split M6 into M6a/M6b.

@@ -80,3 +80,12 @@ path = ["docs/closure/*.json"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Curtis Galloway"
 SPDX-License-Identifier = "Apache-2.0"
+
+# Unchanged copies of fuchsia.git BUILD.gn files at the lock's fuchsia_revision
+# (src/storage/lib/vfs/rust, src/storage/lib/trace), test inputs for scripts/gn_eval.py
+# (M6a review finding 1). Fuchsia's LICENSE is LICENSES/BSD-2-Clause.txt (C4).
+[[annotations]]
+path = ["tests/testdata/gn/*.BUILD.gn"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "The Fuchsia Authors"
+SPDX-License-Identifier = "BSD-2-Clause"

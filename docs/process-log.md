@@ -213,3 +213,15 @@ to "any git command that needs blob contents or sizes".
 Prevention: treat blob sizes like contents: `ls-tree` without `-l`, count files instead.
 Fix belongs in: agent habit
 Status: open
+
+## 2026-09-27T23:13-07:00 — instruction gap: four notebook entries written as one batch
+Chapter: [M6](notebook/M6.md)
+What happened: the entries stamped 2026-09-27T22:37-07:00 (surprise, decision, attempt,
+surprise) were written together after the first closure run, not each when it happened;
+they share one timestamp that reflects the writing, not the events (about 22:25–22:36).
+The review noticed it. Timestamps were not rewritten.
+Cost: the chapter's order is right but its timing is coarse for that stretch.
+Prevention: append an entry at each trigger (the decision to write gn_eval.py, the
+first run's result) before starting the next step, even when the steps follow quickly.
+Fix belongs in: agent habit (lab-notebook skill already says so)
+Status: open

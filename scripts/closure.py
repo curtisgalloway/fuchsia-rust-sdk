@@ -152,6 +152,13 @@ class Tree:
 # --- the walk ----------------------------------------------------------------------------
 
 
+# Build arguments whose value the overlay decides instead of taking upstream's default.
+# fuchsia_sync_detect_lock_cycles: upstream's default is `compilation_mode == "debug"`;
+# the overlay builds production code, so false (decided by the orchestrator after the
+# M6a review; M9 maps upstream's @fuchsia_build_info load to the same value).
+OVERLAY_ARGS = {"fuchsia_sync_detect_lock_cycles": False}
+
+
 class Evaluated:
     """BUILD.gn results per (path, context), with build-argument defaults from imports."""
 
@@ -190,8 +197,8 @@ class Evaluated:
             if (gni, ctx) not in self.gni:
                 raw = self.tree.get(gni)
                 try:
-                    self.gni[(gni, ctx)] = (gn_eval.evaluate(raw.decode(), ENVS[ctx], gni).args
-                                            if raw is not None else {})
+                    args = gn_eval.evaluate(raw.decode(), ENVS[ctx], gni).args if raw is not None else {}
+                    self.gni[(gni, ctx)] = {k: OVERLAY_ARGS.get(k, v) for k, v in args.items()}
                     if raw is None:
                         self.import_errors[gni] = "missing at the revision"
                 except gn_eval.GnError as e:
@@ -230,6 +237,7 @@ class Report:
     files: set[str] = field(default_factory=set)  # BUILD.gn files a walked target is in
     targets: dict[str, set[str]] = field(default_factory=dict)  # path -> walked target names
     evaluated: Evaluated | None = None
+    gaps: list[dict] = field(default_factory=list)  # what the walker could not follow
 
 
 def _strings(value) -> list[str]:
@@ -337,9 +345,12 @@ def walk(tree: Tree, roots: list[str], mode: str = "fuchsia") -> Report:
                     "crate_name": crate_name if isinstance(crate_name, str) else name.replace("-", "_"),
                     "edition": s.get("edition") if isinstance(s.get("edition"), str) else None,
                     "features": _strings(s.get("features")),
+                    "same_file_template": res.template_calls.get(name),
                     "contexts": [], "used_by": [],
-                    # Dep list entries the evaluator could not know (never followed).
-                    "unknown_deps": sum(_unknowns(s.get(v)) for v in DEP_VARS + PROC_MACRO_VARS),
+                    # Dep list entries the evaluator could not know (never followed), plus
+                    # one if variables were forwarded from an unknown scope.
+                    "unknown_deps": (sum(_unknowns(s.get(v)) for v in DEP_VARS + PROC_MACRO_VARS)
+                                     + int(target.unknown_forward)),
                 })
                 _add(rec, "contexts", ctx)
                 _add(rec, "used_by", via)
@@ -374,13 +385,68 @@ def _implicit(res: gn_eval.FileResult, name: str, kind: str) -> tuple[str, str] 
     return best
 
 
+# What the FIDL binding templates add to each binding crate, per flavor (the target
+# suffix after "<library>_"; "_internal" dropped). Transcribed from fuchsia.git at the
+# release: build/fidl/fidl.gni (which flavors exist, contains_drivers only when
+# `!is_host && enable_rust_drivers` for `rust`, `!is_host` for rust_next),
+# build/rust/fidl_rust.gni (_fidl_rust_crate, _flex_crate) and
+# build/rust/fidl_rust_next.gni (fidl_rust_next, fidl_rust_next_convert). Each entry:
+#   deps      Rust crates every binding crate of the flavor depends on
+#   fuchsia   more crates when built for Fuchsia (`if (is_fuchsia)`)
+#   drivers   more crates when the library sets contains_drivers (see driver_gate)
+#   siblings  other flavors of the same library it depends on
+#   fidl_deps the flavor its FIDL public_deps are taken in (None: not followed)
+# The `//sdk/categories:marker-*` dep every binding has is a GN bookkeeping group and
+# is left out. A FIDL public_dep on //zircon/vdso/zx becomes //sdk/rust/zx-types.
+_FIDL_RUST_DEPS = ["//sdk/rust/zx-status", "//src/lib/fidl/rust/fidl",
+                   "//third_party/rust_crates:bitflags", "//third_party/rust_crates:futures"]
+_FIDL_RUST_DRIVERS = ["//src/lib/fidl/rust/fidl_driver", "//sdk/lib/driver/runtime/rust"]
+_FIDL_NEXT_DEPS = ["//src/lib/fidl/rust_next/fidl_next:fidl_next_internal",
+                   "//third_party/rust_crates:static_assertions"]
+_FDOMAIN = ["//src/lib/fdomain/client"]
+FIDL_FLAVORS = {
+    "rust": dict(deps=_FIDL_RUST_DEPS, fuchsia=["//sdk/rust/zx"], drivers=_FIDL_RUST_DRIVERS,
+                 driver_gate="rust", siblings=["rust_common"], fidl_deps="rust"),
+    "rust_common": dict(deps=_FIDL_RUST_DEPS, fuchsia=["//sdk/rust/zx"], drivers=_FIDL_RUST_DRIVERS,
+                        driver_gate="rust", siblings=[], fidl_deps="rust_common"),
+    "rust_fdomain": dict(deps=_FIDL_RUST_DEPS + _FDOMAIN, fuchsia=["//sdk/rust/zx"],
+                         drivers=_FIDL_RUST_DRIVERS, driver_gate="rust", siblings=["rust_common"],
+                         fidl_deps="rust_fdomain"),
+    "rust_flex": dict(deps=[], fuchsia=[], drivers=[], driver_gate=None, siblings=["rust"], fidl_deps=None),
+    "rust_fdomain_flex": dict(deps=[], fuchsia=[], drivers=[], driver_gate=None,
+                              siblings=["rust_fdomain"], fidl_deps=None),
+    "rust_next": dict(deps=_FIDL_NEXT_DEPS, fuchsia=[], drivers=["//sdk/lib/driver/runtime/rust/fidl"],
+                      driver_gate="rust_next", siblings=["rust_next_common"], fidl_deps="rust_next"),
+    "rust_next_common": dict(deps=_FIDL_NEXT_DEPS, fuchsia=[], drivers=["//sdk/lib/driver/runtime/rust/fidl"],
+                             driver_gate="rust_next", siblings=[], fidl_deps="rust_next_common"),
+    "rust_fdomain_next": dict(deps=_FIDL_NEXT_DEPS + _FDOMAIN, fuchsia=[], drivers=[], driver_gate=None,
+                              siblings=["rust_next_common"], fidl_deps="rust_fdomain_next"),
+    "rust_next_convert": dict(deps=[], fuchsia=[], drivers=[], driver_gate=None,
+                              siblings=["rust_next", "rust"], fidl_deps=None),
+}
+ZX_FIDL = ("zircon/vdso/zx", "zx")
+
+
+def canonical_flavor(flavor: str) -> str:
+    return flavor[: -len("_internal")] if flavor.endswith("_internal") else flavor
+
+
+def _truthy(value) -> bool | None:
+    return value if isinstance(value, bool) else None
+
+
 def _fidl(rep: Report, res, path: str, base: str, target, flavor: str | None, ctx: str, via: str,
           lab: str) -> list:
-    """Record a FIDL library (with a binding flavor, or none for a bare fidl() dep)."""
+    """Record a FIDL library (with a binding flavor, or none for a bare fidl() dep).
+
+    Returns the frontier entries the binding crate adds: its FIDL deps (same library
+    flavor rules), sibling flavors, and the Rust crates the binding templates add.
+    """
     lib = target.scope.get("name")
     lib = lib if isinstance(lib, str) else base
     rec = rep.fidl.setdefault(lib, {"label": lab, "flavors": [], "direct_flavors": [],
-                                    "sdk_category": None, "contexts": [], "used_by": []})
+                                    "sdk_category": None, "contains_drivers": None,
+                                    "contexts": [], "used_by": []})
     cat = target.scope.get("sdk_category")
     if isinstance(cat, str):
         rec["sdk_category"] = cat
@@ -388,14 +454,47 @@ def _fidl(rep: Report, res, path: str, base: str, target, flavor: str | None, ct
     _add(rec, "used_by", via)
     if flavor is None:
         return []
+    flavor = canonical_flavor(flavor)
     _add(rec, "flavors", flavor)
     if not via.startswith("fidl:"):
         _add(rec, "direct_flavors", flavor)
+    spec = FIDL_FLAVORS.get(flavor)
+    binding = label(path, f"{base}_{flavor}")
+    if spec is None:
+        rep.gaps.append({"file": f"{path}/BUILD.gn", "line": target.line, "in_target": base,
+                         "what": f"binding flavor {flavor!r} is not modelled: its template deps are not followed"})
+        return []
     out = []
-    for var in ("public_deps", "deps"):
-        for dep in _strings(target.scope.get(var)):
+    if spec["fidl_deps"]:
+        for dep in _strings(target.scope.get("public_deps")):
             p, n, _ = parse_label(dep, path)
-            out.append((p, n, ctx, flavor, f"fidl:{lib}"))
+            if (p, n) == ZX_FIDL:
+                out.append(("sdk/rust/zx-types", "zx-types", ctx, None, binding))
+            else:
+                out.append((p, n, ctx, spec["fidl_deps"], f"fidl:{lib}"))
+    for sib in spec["siblings"]:
+        out.append((path, base, ctx, sib, f"fidl:{lib}"))
+    crates = list(spec["deps"])
+    if ctx in ("fuchsia", "any"):
+        crates += spec["fuchsia"]
+    if spec["driver_gate"] and ctx != "host":
+        def flag(name: str) -> bool | None:  # fidl() parameters default to false
+            return _truthy(target.scope[name]) if name in target.scope else False
+        gates = [flag("contains_drivers")]
+        if spec["driver_gate"] == "rust":  # fidl.gni: `!is_host && enable_rust_drivers`
+            gates.append(flag("enable_rust_drivers"))
+        if None in gates:
+            rep.gaps.append({"file": f"{path}/BUILD.gn", "line": target.line, "in_target": base,
+                             "what": "contains_drivers or enable_rust_drivers unknown: driver deps followed"})
+        drivers = all(g is not False for g in gates)
+        if drivers:
+            crates += spec["drivers"]
+            rec["contains_drivers"] = True
+        elif rec["contains_drivers"] is None:
+            rec["contains_drivers"] = False
+    for dep in crates:
+        p, n, _ = parse_label(dep, "")
+        out.append((p, n, ctx, None, binding))
     return out
 
 
@@ -414,9 +513,28 @@ def conditionals(rep: Report, mode: str) -> list[dict]:
                     "file": gn_path, "line": c.line, "condition": c.text, "in_target": c.target,
                     "build_args": {}, "outcome": {}})
                 rec["outcome"][ctx] = c.outcome
-                rec["build_args"].update(c.args)
+                if c.args:
+                    rec["build_args"][ctx] = c.args
         out += [seen[k] for k in sorted(seen, key=lambda k: (k[0], k[1] or ""))]
     return out
+
+
+def evaluation_gaps(rep: Report) -> list[dict]:
+    """What the walk could not follow in walked files (evaluator gaps, FIDL flavor gaps)."""
+    out = {}
+    for gn_path in sorted(rep.files):
+        path = gn_path[: -len("/BUILD.gn")]
+        walked = rep.targets.get(path, set())
+        for ctx in ("fuchsia", "host", "any"):
+            res = rep.evaluated.results.get((path, ctx))
+            for line, target, what in (res.gaps if res else []):
+                if target is not None and target not in walked:
+                    continue
+                out.setdefault((gn_path, line, what), {"file": gn_path, "line": line, "in_target": target,
+                                                       "what": what})
+    for g in rep.gaps:
+        out.setdefault((g["file"], g["line"], g["what"]), g)
+    return [out[k] for k in sorted(out)]
 
 
 # --- crates.io: direct aliases to crate directories, then the transitive set ----------------
@@ -541,12 +659,15 @@ def report(tree: Tree, roots: list[str], revision: str, idk: Path | None, name: 
     fidl = [{"library": k, **v, "in_idk": in_idk("fidl", k)} for k, v in sorted(rep.fidl.items())]
     bind = [{"library": k, **v, "in_idk": in_idk("bind", k)} for k, v in sorted(rep.bind.items())]
     upper_paths = {c["path"] for c in upper.crates.values()}
+    gaps = evaluation_gaps(rep)
     counts = {
         "intree_crates": len(intree),
         "intree_crates_with_upstream_bazel": sum(1 for c in intree if c["upstream_bazel"]),
         "intree_rs_lines": sum(c["rs_lines"] for c in intree),
         "crates_io_direct_aliases": len(cio["direct"]),
         "crates_io_direct_crates": len({d["crate_dir"] for d in cio["direct"] if d["crate_dir"]}),
+        # GN aliases upstream's Bazel alias file lacks: their crates are not followed.
+        "crates_io_direct_without_bazel_alias": sum(1 for d in cio["direct"] if not d["crate_dir"]),
         "crates_io_transitive": len(cio["transitive"]),
         "crates_io_transitive_patched": sum(1 for c in cio["transitive"] if c["patched"]),
         "crates_io_transitive_proc_macro": sum(1 for c in cio["transitive"] if c["proc_macro"]),
@@ -557,6 +678,8 @@ def report(tree: Tree, roots: list[str], revision: str, idk: Path | None, name: 
         "bind_libraries": len(bind),
         "native_targets": len(rep.native),
         "unresolved": len(rep.unresolved),
+        "unknown_deps": sum(c["unknown_deps"] for c in rep.crates.values()),
+        "evaluation_gaps": len(gaps),
     }
     upper_counts = {
         "intree_crates": len(upper_paths),
@@ -578,8 +701,12 @@ def report(tree: Tree, roots: list[str], revision: str, idk: Path | None, name: 
         "generated_by": "scripts/closure.py",
         "method": ("GN deps, public_deps, non_rust_deps and proc_macro_deps (not test_deps) from the "
                    "roots; conditions evaluated per toolchain (fuchsia, host), unknown ones followed both "
-                   "ways; FIDL deps followed per flavor; crates.io deps followed through upstream's "
-                   "crate_universe BUILD files, select() limited to the Fuchsia targets and linux-x64 host"),
+                   "ways; build arguments at their defaults except overlay_args; same-file templates "
+                   "expanded; FIDL deps and the binding templates' deps followed per flavor "
+                   "(closure.FIDL_FLAVORS); crates.io deps followed through upstream's crate_universe "
+                   "BUILD files, select() limited to the Fuchsia targets and linux-x64 host; anything "
+                   "not followed is listed in evaluation_gaps and counted in unknown_deps"),
+        "overlay_args": OVERLAY_ARGS,
         "counts": counts,
         "upper_bound_counts": upper_counts,
         "intree": intree,
@@ -589,6 +716,7 @@ def report(tree: Tree, roots: list[str], revision: str, idk: Path | None, name: 
         "native": [{"label": k, **v} for k, v in sorted(rep.native.items())],
         "unresolved": [{"label": k, **v} for k, v in sorted(rep.unresolved.items())],
         "conditionals": conditionals(rep, "fuchsia"),
+        "evaluation_gaps": gaps,
         "import_errors": [{"file": k, "error": v} for k, v in sorted(rep.evaluated.import_errors.items())],
     }
 
