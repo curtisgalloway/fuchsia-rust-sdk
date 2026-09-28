@@ -65,7 +65,10 @@ while IFS='=' read -r dest path; do
     continue
   fi
   checked=$((checked + 1))
-  if ! "$readelf" --file-header "$path" | grep -q "^ *Machine: .*$machine\$"; then
+  # Read the header whole before matching: `readelf | grep -q` under pipefail fails
+  # when grep exits first and readelf gets SIGPIPE (seen under parallel runs, I3).
+  header="$("$readelf" --file-header "$path")"
+  if ! grep -q "^ *Machine: .*$machine\$" <<<"$header"; then
     echo "FAIL: $dest is not for $machine" >&2
     status=1
   fi
