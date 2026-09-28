@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T07:55-07:00
+Updated: 2026-09-28T07:58-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -175,6 +175,10 @@ Outcome: complete — edu = `PCI0.bus.00_06_0` + composite spec `00_06_0` (pci +
 - Dead end: `rules_fuchsia`'s `fuchsia_driver_bind_bytecode_test` (execroot paths in a runfiles script); `rules/bind_test.bzl` replaces it
 - M10's `elf_test` flaked 36/40 under parallel runs (`readelf | grep -q`, SIGPIPE, pipefail); fixed
 - `virtio-gpu-display` (Rust) binds the same spec shape as parents `pci`/`acpi`; `static-checks` wants `device_categories`; review: land after fixes (2 minor, 2 nits, fixed)
+
+### [M11 — Pilot 1 binds on the emulator](M11.md)
+Entries: 2026-09-28T07:58-07:00 through 2026-09-28T07:58-07:00
+Outcome: open
 
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
