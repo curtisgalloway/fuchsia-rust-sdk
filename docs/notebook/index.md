@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T07:31-07:00
+Updated: 2026-09-28T07:48-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -169,8 +169,12 @@ Outcome: complete — pilot 1 packages for x64/arm64; exports only the registrat
 - Review: land after fixes; HEAD's u32 in `.bazelrc` now tested; packaged runtime libs = bundle's but for build IDs
 
 ### [I3 — Emulator bind target for pilot 1](I3.md)
-Entries: 2026-09-28T07:33-07:00 through 2026-09-28T07:33-07:00
-Outcome: open
+Entries: 2026-09-28T07:33-07:00 through 2026-09-28T07:48-07:00
+Outcome: open (complete pending review) — edu = `PCI0.bus.00_06_0` + composite spec `00_06_0` (pci + acpi); the lead's composite rule compiles with the IDK's bindc and `bindc test` matches the spec's properties
+- Pilot builds with `meta/simple_rust.bind` (x64, arm64; same bytecode bytes); driver source unchanged (keeps `fuchsia.test_rust` for its child's property)
+- Dead end: `rules_fuchsia`'s `fuchsia_driver_bind_bytecode_test` (execroot paths in a runfiles script); `rules/bind_test.bzl` replaces it
+- M10's `elf_test` flaked 36/40 under parallel runs (`readelf | grep -q`, SIGPIPE, pipefail); fixed
+- `virtio-gpu-display` (Rust) binds the same spec shape as parents `pci`/`acpi`; `static-checks` wants `device_categories`
 
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);

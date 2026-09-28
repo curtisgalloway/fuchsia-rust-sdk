@@ -506,3 +506,43 @@ Prevention: none on the agent side; keep notebook appends separate from long com
 a refused call loses less.
 Fix belongs in: tool (harness)
 Status: open
+
+## 2026-09-28T07:48-07:00 — failed command: `bindc test` swallowed the rules file into `--include`
+Chapter: [I3](notebook/I3.md)
+What happened: the first `fuchsia_driver_bind_test` script put the rules file after
+`--include <libs>`; bindc's `--include` takes every following value, so it failed "The
+test command requires an input."
+Cost: one extra build-and-test cycle (under a minute).
+Prevention: read the `<INCLUDE>...` in `bindc --help` as "multi-value" and put
+positionals first.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-28T07:48-07:00 — surprise: an upstream rule (`rules_fuchsia`'s bind test) broken under Bzlmod
+Chapter: [I3](notebook/I3.md)
+What happened: `fuchsia_driver_bind_bytecode_test` fails at run time: it passes execroot
+paths into a runfiles script.
+Cost: a small replacement rule (`rules/bind_test.bzl`).
+Prevention: none on the agent side; recorded in the backlog.
+Fix belongs in: tool (`rules_fuchsia`)
+Status: open
+
+## 2026-09-28T07:48-07:00 — surprise: a flaky test from an earlier milestone looked like a regression
+Chapter: [I3](notebook/I3.md)
+What happened: M10's `elf_test` failed on the first run after the bind change ("lib/libfdio.so
+is not for X86-64"), though it does not depend on the bind rule; the cause was a
+`| grep -q` under `pipefail` (SIGPIPE), 36/40 failures under `--runs_per_test=40`.
+Cost: about 5 minutes to reproduce and fix.
+Prevention: new shell test scripts avoid `cmd | grep -q` under `pipefail`, and a
+milestone's test runs include `--runs_per_test` once for new tests.
+Fix belongs in: project instructions (testing conventions)
+Status: open
+
+## 2026-09-28T07:48-07:00 — failed command: Edit before Read on a file written by a heredoc
+Chapter: [I3](notebook/I3.md)
+What happened: the Edit tool refused to edit `simple_rust.bind`, which had been written
+by a Bash heredoc in the same session ("File has not been read yet").
+Cost: one extra Read call.
+Prevention: write new files with the Write tool when they will be edited later.
+Fix belongs in: agent habit
+Status: open
