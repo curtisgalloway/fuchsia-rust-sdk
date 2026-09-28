@@ -56,11 +56,13 @@ uv run scripts/check_sdk_files.py        # every SDK file the configs can reach 
 (ported from [`fuchsia-cloud-dev`](https://github.com/curtisgalloway/fuchsia-cloud-dev)'s
 `dev`). Nothing in it names a release: ffx and QEMU come from the lock's IDK
 (`tools/x64/ffx`, `tools/x64/qemu_internal`; the release pins that QEMU in fuchsia.git
-`manifests/prebuilts`), and the product bundle is the one the lock's
-`product_bundles.json` lists for `sdk_version`.
+`manifests/prebuilts`), and the `core.x64` product bundle is the lock's
+`product_bundle`: its transfer manifest and a digest over every file's SHA-256, which
+`scripts/emu` checks after each download and in `setup` (a mismatch is refused).
 
 ```bash
 scripts/emu setup                          # IDK (via Bazel), core.x64 bundle, package repo; idempotent
+scripts/emu verify                         # the cached bundle matches the lock's digest
 scripts/emu start                          # boot: about 1 min under TCG
 scripts/emu check                          # the target's version must equal the lock's sdk_version
 scripts/emu run //examples/hello_rust:pkg  # build, publish, ffx component run
@@ -81,8 +83,8 @@ detects the rest.
 
 | Need | Detail |
 |---|---|
-| OS, tools | linux-x64 (C5); `python3` ≥ 3.11 and `curl` (as for the build); an `ssh` client (installed with `apt-get` when missing and running as root, otherwise setup stops and says so) |
-| Network, first setup | `storage.googleapis.com` (IDK, product bundle); while the IDK is not yet fetched also `chrome-infra-packages.appspot.com`, `github.com`, `release-assets.githubusercontent.com`, `bcr.bazel.build`; `archive.ubuntu.com` and `security.ubuntu.com` only if `ssh` must be installed. Setup probes the hosts it needs first and exits non-zero naming any it cannot reach. After setup, booting and running packages contact no outside host |
+| OS, tools | linux-x64 (C5); `python3` ≥ 3.11 and `curl` (as for the build); an `ssh` client. When it is missing and setup runs as root with `apt-get`, setup installs `openssh-client` from the host's configured apt mirrors (not probed in advance; apt's own error is shown if that fails); otherwise setup stops and says so |
+| Network, first setup | `storage.googleapis.com` (IDK, product bundle); while the IDK is not yet fetched also `chrome-infra-packages.appspot.com`, `github.com`, `release-assets.githubusercontent.com`, `bcr.bazel.build`. Setup probes the hosts it needs first and exits non-zero naming any it cannot reach. After setup, booting and running packages contact no outside host |
 | Disk | the active profile's budget (`uv run scripts/disk_report.py`); the emulator adds about 0.5 GiB (bundle 0.36 GiB, running instance), and its disk image can grow toward 10 GiB with guest writes |
 | Acceleration | optional: KVM when `/dev/kvm` opens read-write, otherwise TCG (no flag needed) |
 | Loopback | IPv4; IPv6 used when `::1` can be bound, otherwise the package server binds `127.0.0.1:8083` |

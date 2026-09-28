@@ -73,7 +73,7 @@ in the cloud.
 | M1 | Repo scaffold + `resolve_pins.py` writes `overlay.lock.json` (R1) | I1 | cloud | complete |
 | M2 | Bazel workspace + Fuchsia Rust toolchains; a Rust binary links for x64 and arm64 (I5, R2) | M1 | cloud | complete |
 | M2a | Fit the hosted disk budget (C6): trimmed IDK extraction, cache policy, disk report | M2 | cloud | complete |
-| M3 | Portable emulator harness at the lock's release; the M2 binary runs on it (R2, C6) | M2a | cloud (emulator) | in_progress (review) |
+| M3 | Portable emulator harness at the lock's release; the M2 binary runs on it (R2, C6) | M2a | cloud (emulator) | complete |
 | M4 | `rustc_*` rules with API-level cfgs (R3) | M2 | cloud | pending |
 | M5 | Vendor stage of `regen.py` + `--check`; `zx-types`, `zx-sys`, `zx` build (R6 mechanism, R2) | M4 | cloud | pending |
 | M6 | Pilot 1 closure measured (D8) + its crates.io crates build (R4) | M5 | cloud | pending |
@@ -213,427 +213,26 @@ fetching the IDK needs `python3` ≥ 3.11; `large-disk` has no budget.
 
 ---
 
-## M3 — Emulator harness at the lock's release
-
-**Design coverage:** R2 (runs on emulator), C6, design §7 "Emulator" row, W7 of the brief.
-**Dependencies:** M2a.
-**In scope:**
-- `scripts/emu` (proposed name). It fetches QEMU and the `core.x64` product bundle for
-  the lock's `sdk_version`, starts the emulator, and publishes a package. It also runs
-  a component and registers a driver.
-- The 6 container workarounds from `fuchsia-cloud-dev`'s README.
-- **Portable across environments (owner direction 2026-09-27):** a plain setup script,
-  with a Claude SessionStart hook only as a thin optional wrapper; KVM when
-  `/dev/kvm` is usable, TCG otherwise; state and cache directories configurable, not
-  tied to `~/`; root/IPv6 workarounds detected, not assumed; host requirements
-  (network hosts, disk, optional KVM) documented as the contract.
-
-**Out of scope:** driver binding (I3, M11); the VIM3.
-
-### Implementation steps
-1. Read `fuchsia-cloud-dev/dev` and decide: port the needed functions into this repo,
-   keeping its BSD notice on ported code (C4), or call it as a pinned external tool.
-   Record the decision in the M3 chapter. Porting is the default, so one repo carries
-   one lock.
-2. The product-bundle and QEMU versions derive from `overlay.lock.json`, not a second
-   pin.
-3. Package `hello_rust` as a component with `rules_fuchsia`. Its `.cml` uses
-   `LogSink` from `parent/diagnostics` (per `fuchsia-cloud-dev`).
-4. `scripts/emu start`, then `scripts/emu run //examples/hello_rust:pkg`.
-
-### Acceptance criteria
-- [ ] The emulator boots the product bundle whose version equals the lock's
-  `sdk_version`; show the `ffx target show` version.
-- [ ] `hello_rust` runs and its line appears in `ffx log`.
-- [ ] A second `scripts/emu start` with the bundle cached takes under 2 minutes.
-- [ ] Setup failure (a blocked host) exits non-zero naming the host.
-- [ ] Total disk use after setup, build and boot is within the active profile's budget
-  (hosted: ≤ 25 GB), shown by the M2a disk report.
-- [ ] With KVM unavailable (the hosted profile) the harness uses TCG without flags;
-  the KVM path is exercised at least by a unit test of the detection logic.
-
-### Testing and review
-- Verify with the commands above, recording boot time and total disk after setup.
-- Review focus: no second version pin, workarounds commented with their reason, and
-  license of ported code.
-
-### Session sizing
-Starts from `fuchsia-cloud-dev` README and `dev`, plus the lock. The main risk is disk:
-M3 reuses this repo's SDK and clang, so it should add only QEMU and the `core.x64`
-product bundle; measure it against the M2a budget. Split point: land the boot and the version check first, then add
-package run.
-
-### Evidence and findings
-Status: in_progress — implemented and verified, all six criteria met; review pending
-before the checkpoint · Evidence: [M3](evidence/M3.md) · Notebook: [M3](notebook/M3.md)
-Findings: QEMU comes from the lock's IDK (`tools/x64/qemu_internal`, the release's own
-pin), so no new lock field; the product bundle has no content pin upstream (owner
-question in the evidence); boot about 51 s under TCG; total disk 8.80 GiB of 25
-(peak about 9.6 GiB during a clean-slate IDK fetch).
-
----
-
-## M4 — `rustc_*` rules with API-level cfgs
-
-**Design coverage:** R3. **Dependencies:** M2.
-**In scope:**
-- `rules/rustc.bzl`: `rustc_library`, `rustc_proc_macro` and `rustc_binary` wrappers
-  over `rules_rust`, ported from upstream `build/bazel/rules/rust/`.
-- `--cap-lints` for vendored code.
-- API-level cfg generation from the IDK's `version_history.json`, targeting `HEAD`.
-- `tests/api_level/`, a test crate.
-
-**Out of scope:** the test wrapper (`rustc_test`, R9 → M16); the driver rule.
-
-### Implementation steps
-1. Port `rustc_api_level.bzl`. The input is `version_history.json` from
-   `@fuchsia_sdk`. Emit `--cfg=fuchsia_api_level_at_least="N"` for every supported
-   level ≤ target, and `…_less_than` for the rest, exactly as upstream does. Record
-   the upstream file and revision in a header comment.
-2. Wrappers apply cfgs, edition default, and `--cap-lints=allow` when a `vendored = True`
-   attribute (proposed) is set.
-3. Test crate: `#[cfg(fuchsia_api_level_at_least = "HEAD")] const BRANCH: &str = "head";`
-   and an `#[cfg(not(...))]` counterpart. A Bazel `rust_test` on host, or a build-time
-   `static_assert`, checks the `HEAD` branch.
-
-### Acceptance criteria
-- [ ] The test crate builds for both Fuchsia targets and takes the `HEAD` branch
-  (checked by a build assertion, not by inspection).
-- [ ] The generated cfg list for a pinned `version_history.json` matches upstream's
-  output for the same input (golden file from upstream's generator, or a hand-checked
-  golden).
-- [ ] A lint that is denied by default in first-party code is allowed under
-  `vendored = True`.
-
-### Testing and review
-- Verify with `bazel build --config=fuchsia_x64 //tests/api_level/...` (and arm64) and
-  `bazel test //tests/api_level/...`.
-- Review focus: cfg semantics against upstream (off-by-one on `less_than`), and the
-  handling of `HEAD`/`NEXT`/`PLATFORM` named levels.
-
-### Session sizing
-Small and well-bounded. It can share a session with M5's first steps only by owner
-override. Starts from upstream `build/bazel/rules/rust/`.
-
-### Evidence and findings
-Status: pending · Evidence: [M4](evidence/M4.md) · Notebook: [M4](notebook/M4.md)
-
----
-
-## M5 — Vendor stage of `regen.py`; `zx` crates build
-
-**Design coverage:** R6 (mechanism and `--check`), R2 (`zx-types`, `zx-sys`, `zx`
-build), D6, D9. **Dependencies:** M4.
-**In scope:**
-- `scripts/regen.py vendor` and `scripts/regen.py --check`. A vendor list file,
-  `vendor/crates.txt` (proposed): upstream path → how its `BUILD.bazel` is made.
-- Label rewriting for upstream `BUILD.bazel` files; `overlays/` and
-  `patches/fuchsia/` application; `LICENSE`/`METADATA` carried.
-- The first three crates: `sdk/rust/zx-types`, `sdk/rust/zx-sys` and `sdk/rust/zx`,
-  all with upstream Bazel builds.
-
-**Out of scope:**
-- the crates.io repository (M6). `zx`'s crates.io deps (`bitflags`,
-  `static_assertions`, `zerocopy`…) are either provided by the smallest possible
-  `crate_universe` subset here, or `zx` alone waits for M6 (decide by inspection,
-  record it).
-- the full `regen.py` pipeline (M14).
-
-### Implementation steps
-1. Git access: sparse, blobless fetch of `fuchsia.git` at `fuchsia_revision` into a
-   scratch directory outside the repo (brief App. B step 1).
-2. Copy each listed crate directory to `vendor/fuchsia/<upstream path>/` (D9).
-3. For crates with upstream `BUILD.bazel`, rewrite labels:
-   - `//<path>` → `//vendor/fuchsia/<path>`
-   - `//third_party/rust_crates:<x>` → the crate-universe label
-   - upstream rule loads → `//rules:rustc.bzl`
-
-   Otherwise, copy `overlays/<path>/BUILD.bazel`.
-4. Apply `patches/fuchsia/<path>/*.patch` in order. A failing patch stops the run and
-   names the patch and the file.
-5. `--check`: regenerate into scratch and diff against `vendor/`; exit non-zero on drift.
-6. pytest for label rewriting, patch failure and drift detection, using a tiny fake
-   upstream tree.
-
-### Acceptance criteria
-- [ ] `regen.py vendor` reproduces `vendor/` byte-for-byte on a second run.
-- [ ] `regen.py --check` passes on a clean tree, and fails naming the file after a
-  one-byte hand edit in `vendor/`.
-- [ ] A patch that no longer applies fails with the patch name and file (pytest).
-- [ ] `zx-types` and `zx-sys` build for both Fuchsia targets. `zx` builds too, or is
-  explicitly deferred to M6 with the reason recorded.
-- [ ] Each vendored crate carries upstream `LICENSE` (C4).
-
-### Testing and review
-- Verify with `uv run pytest`, `scripts/regen.py --check`, and both build configs on
-  `//vendor/fuchsia/sdk/rust/...`.
-- Review focus: D6 (only generated content committed), D9 layout, determinism, and no
-  network access at build time.
-
-### Session sizing
-Starts from the design §4.2 "Vendored crates", brief App. A.1 (the `zx*` rows) and
-App. B. The main uncertainty is label-rewrite coverage for upstream Bazel files. Split
-point: land the mechanism with `zx-types` alone, then add the other two.
-
-### Evidence and findings
-Status: pending · Evidence: [M5](evidence/M5.md) · Notebook: [M5](notebook/M5.md)
-
----
-
-## M6 — Pilot 1 closure and its crates.io crates
-
-**Design coverage:** D8, R4 (pilot 1 subset), R12 (closure data first produced).
-**Dependencies:** M5.
-**In scope:**
-- `scripts/closure.py`: the brief's App. B walker. Extend it to follow `rustc_dylib`
-  (for `vfs`) and to record GN conditionals it skipped.
-- Run it from `//sdk/lib/driver/component/rust`, `//sdk/lib/driver/runtime/rust` and
-  `//examples/drivers/simple/rust`.
-- `third_party/crates/`: `crate_universe` over the release's `Cargo.toml`/`Cargo.lock`,
-  restricted to the closure's direct crates.
-- The patched crates the closure needs (of `byteorder`, `memchr`, `libc`, `tokio`) as
-  local repositories from `third_party/rust_crates/` at the revision.
-
-**Out of scope:** vendoring the in-tree crates (M8/M9); pilot 2's closure (M12).
-
-### Implementation steps
-1. Port the walker from brief App. B into `scripts/closure.py` with pytest over a fake GN
-   tree. Add `rustc_dylib`, and output which conditionals were ignored.
-2. Run it for pilot 1 and write `docs/closure/pilot1.json` (proposed) with in-tree
-   crates, crates.io crates and FIDL libraries. Compare the counts with the brief's
-   67 / 44 / 34 in the evidence.
-3. Generate `third_party/crates/` with `crate_universe` in vendored mode, so the output
-   is committed (D6); build output needs only checksummed downloads.
-4. Build every crate for both Fuchsia targets, and proc-macro crates for host.
-5. If `zx` was deferred in M5, finish it here.
-
-### Acceptance criteria
-- [ ] `docs/closure/pilot1.json` exists, and the walker's pytest passes, including a
-  `rustc_dylib` case.
-- [ ] Every crates.io crate in the pilot 1 closure builds for both Fuchsia targets;
-  proc-macro crates build for host.
-- [ ] Only the closure's crates are generated, not all of `Cargo.lock` (count recorded).
-- [ ] A build with the network off, after one warm fetch, succeeds (checksummed and
-  cached; no resolution step).
-
-### Testing and review
-- Verify with `uv run pytest`, and `bazel build --config=fuchsia_x64 //third_party/crates/...`
-  (and arm64).
-- Review focus: version choice where `Cargo.lock` has two versions (per the GN alias,
-  brief A.2 note), patched-crate provenance, and walker correctness on conditionals.
-
-### Session sizing
-This is the largest unknown in milestone 1: the transitive crate count. Split point:
-the walker and closure report as one session (M6a), and `crate_universe` plus the
-builds as the next (M6b). Split before starting if the closure has more than 44 direct
-crates.
-
-### Evidence and findings
-Status: pending · Evidence: [M6](evidence/M6.md) · Notebook: [M6](notebook/M6.md)
-
----
-
-## I2 — Prebuilt FIDL generators
-
-**Design coverage:** I2 (shapes R5). **Dependencies:** none; run any time before M7.
-**Evidence to collect:**
-- The GCS listing of the release's build directory (the method from I1).
-- CIPD package search for `fidlgen` (`https://chrome-infra-packages.appspot.com/prpc/cipd.Repository/ListPrefix`
-  on `fuchsia/`).
-- Whether the IDK's `tools/` has either generator (brief F1 says no; recheck at this
-  release).
-
-**Exit:** either a pinned anonymous URL plus hash for each generator for linux-amd64,
-or "not published" recorded, which selects the build-from-source route in M7. Evidence
-goes in `docs/evidence/I2.md`.
-
----
-
-## M7 — FIDL generators as Bazel host tools
-
-**Design coverage:** R5 (tools), A4, D7. **Dependencies:** I2, M6.
-**In scope:** `tools/fidlgen_rust` and `tools/fidlgen_rust_next`, either fetched by pin
-(I2 found prebuilts, added to the lock) or built from source at the revision. If built
-from source:
-- `fidlgen_rust` (Go) uses `rules_go` and upstream's `BUILD.bazel`.
-- `fidlgen_rust_next` (Rust, askama templates) needs a hand-written
-  `overlays/tools/fidl/fidlgen_rust_next/BUILD.bazel` and host crates.
-
-**Out of scope:** the binding rule (M8).
-
-### Implementation steps
-1. If prebuilt, add the entries to `resolve_pins.py` and the lock, plus a repository
-   rule; done.
-2. Otherwise, vendor `tools/fidl/fidlgen_rust`, `tools/fidl/lib/fidlgen` and
-   `tools/fidl/fidlgen_rust_next` via `regen.py vendor`. Add `rules_go` to
-   `MODULE.bazel`, and extend `third_party/crates/` with `fidlgen_rust_next`'s host
-   crates (from its `BUILD.gn`).
-3. Run both on the IR of one small IDK library (`fuchsia.mem`), produced by the IDK's
-   `fidlc`.
-
-### Acceptance criteria
-- [ ] `bazel run //tools/fidlgen_rust -- --help` and the same for `fidlgen_rust_next`
-  succeed.
-- [ ] Each generates Rust from `fuchsia.mem` IR. The output diffs cleanly against the
-  same generator's output upstream, where a reference is available; otherwise it
-  compiles in M8.
-- [ ] Host-only crates do not leak into the Fuchsia target builds.
-
-### Testing and review
-- Review focus: C1 for any Go module downloads (checksummed via `go.sum`), and the size
-  of the host crate tree (record the count; a risk in design §8.2).
-
-### Session sizing
-The build-from-source route is two tools in two languages, and too much for one
-session. If I2 says "not published", split before starting: M7a covers
-`fidlgen_rust_next`, which is on the critical path for every pilot (F6); M7b covers
-`fidlgen_rust`.
-
-### Evidence and findings
-Status: pending · Evidence: [M7](evidence/M7.md) · Notebook: [M7](notebook/M7.md)
-
----
-
-## M8 — FIDL Rust binding rule, both flavors
-
-**Design coverage:** R5, D7, F6. **Dependencies:** M7.
-**In scope:**
-- `rules/fidl_rust.bzl`:
-  - the `rust` flavor, ported from upstream `fidl_rust_library.bzl`;
-  - the new `rust_next` flavor, whose crate naming and flags come from the GN template
-    that produces `_rust_next` targets (find it:
-    `git grep -n rust_next -- build/fidl`).
-- The FIDL runtime crates the bindings need, vendored through M5's mechanism:
-  `src/lib/fidl/rust/fidl`, `rust_next/fidl_next*`, `fidl/rust_constants`, and their
-  deps (`fuchsia-async` and so on, per `pilot1.json`).
-- Binding targets for every FIDL library in pilot 1's closure.
-
-**Out of scope:** `fdomain` flavor unless pilot 1 needs it (record if it does); pilot 2
-libraries (M12).
-
-### Implementation steps
-1. Locate the `rust_next` GN template and record its path and flags in the M8 chapter.
-2. The rule runs the IDK's `fidlc` over IDK FIDL sources and dependency IR to produce
-   JSON IR, then the generator, then a `rust_library` with the flavor's deps.
-3. Vendor the runtime crates in dependency order, building each.
-4. Declare bindings for the pilot 1 FIDL list, both flavors where the closure uses them.
-5. If a library is not in the IDK (as `fuchsia.sys2` was for the brief's closure),
-   record it. Trim the dependency with a patch, or take the FIDL source from the
-   revision, and record the choice.
-
-### Acceptance criteria
-- [ ] Bindings for every FIDL library in `pilot1.json` compile for both targets, in
-  each flavor the closure uses.
-- [ ] Crate names match what vendored crates `use` (e.g. `fidl_fuchsia_io`,
-  `fidl_next_fuchsia_io`); the evidence records the `rust_next` naming rule.
-- [ ] `regen.py --check` is clean after vendoring the runtime crates.
-
-### Testing and review
-- Review focus: flags and features parity with upstream's GN template, and the IR
-  dependency order (a library's deps compiled first).
-
-### Session sizing
-Split point: the `rust` flavor with its runtime crates (M8a), then the `rust_next`
-flavor (M8b). Split before starting if the runtime crate list in `pilot1.json` is
-longer than about 10 crates.
-
-### Evidence and findings
-Status: pending · Evidence: [M8](evidence/M8.md) · Notebook: [M8](notebook/M8.md)
-
----
-
-## M9 — Pilot 1 in-tree crates vendored
-
-**Design coverage:** R6 (pilot 1 set), D8. **Dependencies:** M8.
-**In scope:** the remaining in-tree crates in `pilot1.json`, in particular:
-- the `sdk/lib/driver/runtime/rust/*` crates (`fdf` and its parts);
-- `sdk/lib/driver/component/rust` (`fdf_component`);
-- `sdk/lib/async/rust/*`.
-
-Most have no upstream `BUILD.bazel` (brief A.1), so each gets a reviewed
-`overlays/…/BUILD.bazel`. Trims needed to avoid heavyweights go in as patches.
-
-**Out of scope:** pilot 2 crates (`mmio`, `pdev`, `fdf_metadata`).
-
-### Implementation steps
-1. For each crate without Bazel, translate `BUILD.gn` (`sources`, `deps`, `edition`,
-   `features`, `name`) into `overlays/<path>/BUILD.bazel`, then review it by hand
-   (design §4.2).
-2. Vendor bottom-up, building each crate before its dependants.
-3. Any trim (a conditional dependency the walker counted) becomes a
-   `patches/fuchsia/…` file with a comment giving the reason.
-
-### Acceptance criteria
-- [ ] `fdf`, `fdf_component` and every other in-tree crate in `pilot1.json` build for
-  both targets.
-- [ ] `regen.py --check` is clean; every change against upstream is in `overlays/` or
-  `patches/`.
-- [ ] The evidence lists each patch with its reason and each `overlays/` file.
-
-### Testing and review
-- Review focus: overlay BUILD files against their `BUILD.gn` (a missed feature flag
-  compiles but changes behavior), and patch minimality.
-
-### Session sizing
-Split point: the runtime crates (`fdf*`, `async`) then `fdf_component`. Budget follows
-the crate count in `pilot1.json`; split before starting if more than about 12 crates
-need overlays.
-
-### Evidence and findings
-Status: pending · Evidence: [M9](evidence/M9.md) · Notebook: [M9](notebook/M9.md)
-
----
-
-## M10 — `fuchsia_rust_driver` rule; pilot 1 packages
-
-**Design coverage:** R7, F3, A3. **Dependencies:** M9.
-**In scope:**
-- `rules/fuchsia_rust_driver.bzl`: a `cdylib`, linked with
-  `-Wl,--version-script=` pointing at `rules_fuchsia`'s `driver.ld`, against
-  `@fuchsia_sdk//pkg/driver_runtime_shared_lib`. It returns the providers
-  `fuchsia_driver_component` consumes (modeled on `fuchsia_cc.bzl`, with
-  `install_root = "driver/"`).
-- The restricted-symbols check and an exported-symbols test.
-- `drivers/simple_rust/`: the source copied from `examples/drivers/simple/rust` at the
-  revision, plus its checked-in `.cml`. A placeholder `.bind` builds now; I3 sets the
-  real one.
-
-**Out of scope:** binding on the emulator (M11).
-
-### Implementation steps
-1. Write the rule and the providers, and package `drivers/simple_rust:pkg`.
-2. A `sh_test`/Python test using `llvm-readelf --dyn-syms` asserts that
-   `__fuchsia_driver_registration__` is the only exported defined symbol.
-3. Wire `rules_fuchsia`'s restricted-symbols check as a build action.
-4. **`DT_NEEDED` reference (see the Design coverage gap):**
-   1. List the Rust drivers in the `core.x64` product bundle.
-   2. Extract one and compare its `DT_NEEDED` with pilot 1's.
-   3. Report differences.
-5. If A3 fails (Rust `std` imports a restricted symbol), compare with the in-tree Rust
-   driver config (the brief notes `//build/config/rust:bootfs`). Record the fix as a
-   decision.
-
-### Acceptance criteria
-- [ ] `bazel build --config=fuchsia_x64 //drivers/simple_rust:pkg` and the arm64
-  equivalent produce a driver package.
-- [ ] The exported-symbols test passes for both targets.
-- [ ] The restricted-symbols check passes for both targets.
-- [ ] `DT_NEEDED` comparison recorded; any library absent from the reference driver is
-  explained or removed. The owner confirms this reading of R7 (see gap).
-
-### Testing and review
-- Verify with `bazel test //drivers/simple_rust/...` under both configs.
-- Review focus: link flags against `driver.ld`, provider compatibility with
-  `fuchsia_driver_component`, and that no test is weakened to pass.
-- Review method: `review-swarm` if available (the review spans rule, link and
-  packaging); otherwise inherit.
-
-### Session sizing
-Starts from brief §3.3, W6, and upstream `fuchsia_cc.bzl`. The main uncertainty is A3.
-Split point: the rule plus the symbol tests first, then the `DT_NEEDED` comparison.
-
-### Evidence and findings
-Status: pending · Evidence: [M10](evidence/M10.md) · Notebook: [M10](notebook/M10.md)
+## M3 — Portable emulator harness at the lock's release
+
+**Design coverage:** R2 (runs on emulator), C6, design §7 "Emulator" row, W7.
+**Dependencies:** M2a. **Status:** complete. An independent review ran before the
+checkpoint (1 major, 4 minor findings, 2 nits, all resolved as the orchestrator and the
+owner decided). The detailed entry is in the evidence file.
+**Outcome:** `scripts/emu` (setup/verify/start/stop/check/run/driver/log/ffx/env), ported
+from `fuchsia-cloud-dev`'s `dev` (BSD notice and Fuchsia `PATENTS` kept), boots the
+lock's `core.x64` in QEMU: KVM when `/dev/kvm` is usable, else TCG (about 51 s). ffx and
+QEMU come from the lock's IDK (its `qemu_internal` is fuchsia.git's own QEMU pin); the
+bundle from the new lock field `product_bundle` (transfer manifest + a digest over every
+file's SHA-256, owner decision "yes, pin the bundle by hash"), verified after download.
+Host detected, not assumed (`scripts/emu_env.py`: state dirs, socket-path room, KVM,
+IPv6, ssh, network preflight naming blocked hosts); README "Emulator" is the host
+contract. `examples/hello_rust:pkg` runs as a component and logs. Disk: total 8.8 GiB of
+25 (clean-slate peak about 9.6 GiB). pytest 222, reuse lint, three builds pass.
+**Evidence:** [M3](evidence/M3.md) · **Notebook:** [M3](notebook/M3.md)
+**Open limitations:** `scripts/emu driver` (and workaround 6's reboot) untested until
+M11; `dev test` not ported (M16); the emulator disk image can grow toward 10 GiB;
+`resolve_pins.py` streams ~364 MB more per run.
 
 ---
 
@@ -872,6 +471,9 @@ Status: pending · Evidence: [M15](evidence/M15.md) · Notebook: [M15](notebook/
   M6's walker skipped).
 - `aml-saradc`'s own `#[cfg(test)]` tests packaged as a test component, run on the x64
   emulator.
+- `scripts/emu test`, ported from `fuchsia-cloud-dev`'s `dev test` (build, publish,
+  `ffx test run` each component, extra arguments such as `--realm` passed through);
+  M3 did not port it.
 
 ### Acceptance criteria
 - [ ] `scripts/emu test //drivers/aml_saradc:tests` passes every upstream test, with
@@ -950,13 +552,11 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   static.crates.io); committing it would catch new unpinned hosts, but M5's crates may
   add hosts.
 
-- **Product bundle not pinned by hash (found in M3; owner question).** The lock pins
-  the IDK (and so ffx and QEMU) by SHA-256, but the `core.x64` bundle is fetched by
-  URL: `transfer.json` names blobs by merkle root and files by path only, and
-  `product_bundle.json` carries no image hashes. `scripts/emu` checks the bundle's
-  `product_version`/`sdk_version` against the lock and records the SHA-256 of every
-  downloaded file next to it. Option: `resolve_pins.py` records a digest of the
-  bundle's files in a new lock field (costs a 364 MB download per resolve).
+- **Product bundle pinned by hash — decided and done in M3.** Upstream pins none of the
+  `core.x64` bundle's files by content; owner decision 2026-09-27: "yes, pin the bundle
+  by hash". The lock's `product_bundle` field (digest over every file's SHA-256) is
+  written by `resolve_pins.py` (streams ~364 MB more per resolve) and checked by
+  `scripts/emu`.
 - **Emulator disk image growth (found in M3).** The instance's `fxfs.sparse.blk` is a
   10 GiB sparse file (133 MB allocated after boot); heavy guest writes could grow the
   `emulator` bucket toward 10.5 GiB, still within the hosted 25 GiB with today's
@@ -1004,22 +604,17 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M3 in_progress** (branch `ms/M3` from `d0d2ceb`):
-  implementation, verification, evidence, notebook and plan done; the independent
-  review and the checkpoint commit `overlay: M3 — Portable emulator harness at the
-  lock's release` remain (the implementer is a subagent and stops before it).
-- Completed work and evidence: [M3 evidence](evidence/M3.md). `scripts/emu`
-  (setup/start/stop/check/run/driver/log/ffx/env) boots the lock's `core.x64` under TCG
-  in about 1 minute; `hello_rust` runs as a component and logs; blocked hosts are named;
-  disk 8.80 GiB of 25.
-- Commits: one crash-insurance commit, `wip: M3 — emulator harness, hello_rust package,
-  evidence (review pending)`; the checkpoint commit follows the review.
-- Remaining work, blockers, and decisions: review and fixes; the owner question on
-  pinning the product bundle by hash (evidence "Limitations"). Unchanged: the R7
-  reading for pilot 1 (before M10); M17 placement.
+- Current milestone and status: **M3 complete** (branch `ms/M3` from `d0d2ceb`;
+  checkpoint `overlay: M3 — Portable emulator harness at the lock's release` on top of
+  `wip` commit `c860458`).
+- Completed work and evidence: [M3 evidence](evidence/M3.md), including the review
+  findings and resolutions and the owner's bundle-pin decision.
+- Commits: `c860458` (wip) and the checkpoint. No uncommitted state. The emulator is
+  stopped; `scripts/emu setup && scripts/emu start` boots it (about 1 minute).
+- Remaining work, blockers, and decisions: none for M3. Unchanged: the R7 reading for
+  pilot 1 (before M10); M17 placement.
 - Context boundary: normal.
-- Resume action: run the M3 review, fix, fill in its Review section, commit the
-  checkpoint; then the next eligible milestone the orchestrator names (M4, I2 or I3).
+- Resume action: begin the next eligible milestone the orchestrator names (M4, I2 or
+  I3; I3 can use `scripts/emu` directly: the edu device is at `PCI0.bus.00_06_0`).
 - Read first: [M3 evidence](evidence/M3.md), [notebook index](notebook/index.md),
-  `scripts/emu.py`, `scripts/emu_env.py`, README "Emulator". The emulator is stopped;
-  `scripts/emu start` boots it.
+  README "Emulator", `scripts/emu.py`, `scripts/emu_env.py`.

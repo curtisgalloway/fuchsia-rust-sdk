@@ -4,34 +4,57 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
 import emu
+import resolve_pins
 
 V = "33.20260927.4.1"
 PB_URL = f"https://storage.googleapis.com/fuchsia/development/{V}/product_bundles.json"
 TRANSFER = "gs://fuchsia-public-artifacts-release/builds/8669503301662913825/product_bundles/core.x64/transfer.json"
 
 
-def lock(version=V, source=None):
-    return {"sdk_version": {"value": version, "source": [PB_URL] if source is None else source}}
+DIGEST = "d" * 64
 
 
-def test_the_committed_lock_is_readable():
+def lock(version=V, **bundle):
+    return {"sdk_version": {"value": version, "source": [PB_URL]},
+            "product_bundle": {"product": "core.x64", "url": TRANSFER, "files": 2, "value": DIGEST,
+                               "source": [PB_URL], **bundle}}
+
+
+def test_the_committed_lock_names_a_bundle():
     real = emu.read_lock()
-    assert emu.product_bundles_url(real).endswith(f"/{emu.lock_version(real)}/product_bundles.json")
+    pin = emu.bundle_pin(real, "core.x64")
+    assert pin.url.endswith("/core.x64/transfer.json") and pin.files > 0
 
 
-def test_product_bundles_url_comes_from_the_lock():
-    assert emu.product_bundles_url(lock()) == PB_URL
+def test_bundle_pin_from_the_lock():
+    assert emu.bundle_pin(lock(), "core.x64") == emu.BundlePin(TRANSFER, DIGEST, 2)
 
 
-def test_product_bundles_url_must_be_the_locks_source():
-    with pytest.raises(emu.EmuError, match="does not list"):
-        emu.product_bundles_url(lock(source=["https://example.com/x"]))
+def test_bundle_pin_missing_field():
+    bare = lock()
+    del bare["product_bundle"]
+    with pytest.raises(emu.EmuError, match="no product_bundle field"):
+        emu.bundle_pin(bare, "core.x64")
+
+
+@pytest.mark.parametrize("bad,match", [
+    ({"product": "core.vim3"}, "not core.x64"),
+    ({"url": "https://evil/transfer.json"}, "url"),
+    ({"url": "gs://bucket/other.json"}, "url"),
+    ({"value": "abc"}, "not a SHA-256"),
+    ({"files": 0}, "files"),
+    ({"files": "2"}, "files"),
+])
+def test_bundle_pin_rejects_malformed(bad, match):
+    with pytest.raises(emu.EmuError, match=match):
+        emu.bundle_pin(lock(**bad), "core.x64")
 
 
 def test_lock_version_rejects_junk():
@@ -39,36 +62,64 @@ def test_lock_version_rejects_junk():
         emu.lock_version(lock(version="../../etc"))
 
 
-BUNDLES = [
-    {"name": "core.vim3", "product_version": V, "transfer_manifest_url": TRANSFER.replace("core.x64", "core.vim3")},
-    {"name": "core.x64", "product_version": V, "transfer_manifest_url": TRANSFER},
-]
+def make_bundle(root: Path) -> emu.BundlePin:
+    (root / "blobs" / "1").mkdir(parents=True)
+    (root / "blobs" / "1" / "a").write_bytes(b"blob")
+    (root / "product_bundle.json").write_bytes(b"{}")
+    sha = {"blobs/1/a": hashlib.sha256(b"blob").hexdigest(),
+           "product_bundle.json": hashlib.sha256(b"{}").hexdigest()}
+    return emu.BundlePin(TRANSFER, resolve_pins.bundle_digest(sha), 2)
 
 
-def test_transfer_manifest_url():
-    assert emu.transfer_manifest_url(BUNDLES, "core.x64", V) == TRANSFER
+def test_verify_bundle_matches(tmp_path):
+    emu.verify_bundle(tmp_path, make_bundle(tmp_path))
 
 
-def test_transfer_manifest_url_missing_product():
-    with pytest.raises(emu.EmuError, match="0 entries named core.x64"):
-        emu.transfer_manifest_url(BUNDLES[:1], "core.x64", V)
+def test_verify_bundle_changed_file(tmp_path):
+    pin = make_bundle(tmp_path)
+    (tmp_path / "product_bundle.json").write_bytes(b"{ }")
+    with pytest.raises(emu.EmuError, match="does not match the lock"):
+        emu.verify_bundle(tmp_path, pin)
 
 
-def test_transfer_manifest_url_duplicate_product():
-    with pytest.raises(emu.EmuError, match="2 entries"):
-        emu.transfer_manifest_url(BUNDLES + BUNDLES[1:], "core.x64", V)
+def test_verify_bundle_extra_or_missing_file(tmp_path):
+    pin = make_bundle(tmp_path)
+    (tmp_path / "extra").write_bytes(b"")
+    with pytest.raises(emu.EmuError, match="3 files"):
+        emu.verify_bundle(tmp_path, pin)
+    (tmp_path / "extra").unlink()
+    (tmp_path / "blobs" / "1" / "a").unlink()
+    with pytest.raises(emu.EmuError, match="1 files"):
+        emu.verify_bundle(tmp_path, pin)
 
 
-def test_transfer_manifest_url_wrong_version():
-    bad = [{**BUNDLES[1], "product_version": "33.20260919.6.1"}]
-    with pytest.raises(emu.EmuError, match="the lock has"):
-        emu.transfer_manifest_url(bad, "core.x64", V)
+def test_verify_bundle_wrong_lock_digest(tmp_path):
+    pin = make_bundle(tmp_path)
+    with pytest.raises(emu.EmuError, match="does not match"):
+        emu.verify_bundle(tmp_path, emu.BundlePin(pin.url, "0" * 64, pin.files))
 
 
-@pytest.mark.parametrize("url", ["https://evil/transfer.json", "gs://bucket/other.json", ""])
-def test_transfer_manifest_url_shape(url):
-    with pytest.raises(emu.EmuError, match="unexpected transfer manifest"):
-        emu.transfer_manifest_url([{**BUNDLES[1], "transfer_manifest_url": url}], "core.x64", V)
+@pytest.mark.parametrize("listing,state", [
+    ("[]", None),
+    ("", None),
+    ('[{"name":"fuchsia-emu","state":"running"}]', "running"),
+    ('[{"name":"fuchsia-emu","state":"staged"}]', "staged"),
+    ('[{"name":"other","state":"running"}]', None),
+])
+def test_instance_state(listing, state):
+    # Seen live: a running instance is "running"; after QEMU is killed it is "staged".
+    assert emu.instance_state(listing, "fuchsia-emu") == state
+
+
+def test_instance_state_only_running_counts():
+    assert emu.instance_state('[{"name":"fuchsia-emu","state":"staged"}]', "fuchsia-emu") != "running"
+
+
+@pytest.mark.parametrize("listing", ["[staged]  fuchsia-emu", '{"name":"fuchsia-emu"}',
+                                     '[{"name":"fuchsia-emu"},{"name":"fuchsia-emu"}]'])
+def test_instance_state_malformed(listing):
+    with pytest.raises(emu.EmuError):
+        emu.instance_state(listing, "fuchsia-emu")
 
 
 def write_bundle(tmp_path: Path, **fields) -> Path:
@@ -123,5 +174,5 @@ def test_find_version_absent():
 def test_help_lists_commands(capsys):
     assert emu.main(["help"]) == 0
     out = capsys.readouterr().out
-    for cmd in ("setup", "start", "check", "run", "driver", "env"):
+    for cmd in ("setup", "verify", "start", "check", "run", "driver", "env"):
         assert f"scripts/emu {cmd}" in out

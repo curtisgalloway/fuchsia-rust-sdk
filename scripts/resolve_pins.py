@@ -28,12 +28,23 @@ Git sources read "<repo> <revision>:<path>", a revspec for `git cat-file -p`.
   rules_fuchsia         CIPD instance of fuchsia/development/rules_fuchsia at the
                         integration revision
   cargo_lock_sha256     SHA-256 of third_party/rust_crates/Cargo.lock at the revision
+  product_bundle        the core.x64 product bundle the emulator boots (scripts/emu):
+                        "url" is its transfer manifest (from product_bundles.json),
+                        "files" the number of files, and "value" the bundle digest:
+                        SHA-256 over the UTF-8 lines "<path>\t<sha256>\n", one per file,
+                        sorted by path, where <path> is the file's path inside the
+                        downloaded bundle directory (blobs/1/<merkle>, product_bundle.json,
+                        system_a/fuchsia.zbi, ...) and <sha256> the hex SHA-256 of its
+                        bytes as served (see bundle_digest). Upstream pins none of these
+                        files by content hash, so resolving streams every file (~364 MB
+                        for 33.20260927.4.1) without storing it.
 """
 
 from __future__ import annotations
 
 import argparse
 import base64
+import concurrent.futures
 import hashlib
 import http.client
 import json
@@ -70,6 +81,9 @@ RUST_FIELDS = ("rust_host", "rust_target", "rust_host_std")
 RULES_FUCHSIA_PACKAGE = "fuchsia/development/rules_fuchsia"
 TOOLCHAIN_MANIFEST = "manifests/toolchain"
 CARGO_LOCK = "third_party/rust_crates/Cargo.lock"
+EMULATOR_PRODUCT = "core.x64"
+# Files are hashed in parallel; each request streams one file.
+BUNDLE_WORKERS = 8
 
 DEFAULT_OUT = Path(__file__).resolve().parent.parent / "overlay.lock.json"
 
@@ -453,6 +467,113 @@ def resolve_bazel_sdk(up: Upstream, version: str, integration: str) -> dict:
     }
 
 
+def bundle_digest(sha256_by_path: dict[str, str]) -> str:
+    """The product_bundle lock value: SHA-256 over sorted "<path>\t<sha256>\n" lines.
+
+    scripts/emu computes the same over the downloaded bundle directory and refuses a
+    mismatch, so this function is the one definition both sides use.
+    """
+    lines = "".join(f"{path}\t{sha256_by_path[path]}\n" for path in sorted(sha256_by_path))
+    return hashlib.sha256(lines.encode()).hexdigest()
+
+
+def gs_to_https(url: str) -> str:
+    if not url.startswith("gs://"):
+        raise ValueError(f"not a gs:// URL: {url!r}")
+    return f"{GCS}/{url[len('gs://'):]}"
+
+
+_BUNDLE_PART = re.compile(r"[A-Za-z0-9._,+=@-]+")
+
+
+def _bundle_path(field: str, path: str, what: str) -> str:
+    parts = path.split("/")
+    if not path or any(p in ("", ".", "..") or not _BUNDLE_PART.fullmatch(p) for p in parts):
+        raise ResolveError(field, f"{what}: unsafe path {path!r}")
+    return path
+
+
+def parse_transfer_manifest(field: str, raw: bytes, url: str) -> dict[str, str]:
+    """Map each file's path inside the downloaded bundle to its HTTPS URL.
+
+    A transfer manifest (version 1) lists entries of type "blobs" or "files", each with
+    a "local" directory ("product_bundle" or below it: the bundle directory), a "remote"
+    object prefix in the manifest's own bucket, and the file names.
+    """
+    data = _json(field, raw, url)
+    if data.get("version") not in ("1", 1):  # served as the string "1"
+        raise ResolveError(field, f"{url}: transfer manifest version {data.get('version')!r}, expected 1")
+    bucket = url.split("/")[3]
+    files: dict[str, str] = {}
+    entries = data.get("entries")
+    if not isinstance(entries, list) or not entries:
+        raise ResolveError(field, f"{url}: no entries")
+    for entry in entries:
+        entry = _obj(field, entry, f"{url} entry")
+        if entry.get("type") not in ("blobs", "files"):
+            raise ResolveError(field, f"{url}: entry type {entry.get('type')!r}")
+        local = entry.get("local")
+        if not isinstance(local, str) or not (local == "product_bundle" or local.startswith("product_bundle/")):
+            raise ResolveError(field, f"{url}: entry local {local!r} is outside product_bundle")
+        prefix = local[len("product_bundle"):].lstrip("/")
+        if prefix:
+            _bundle_path(field, prefix, f"{url} local")
+        remote = entry.get("remote")
+        if not isinstance(remote, str):
+            raise ResolveError(field, f"{url}: entry remote {remote!r}")
+        _bundle_path(field, remote, f"{url} remote")
+        names = entry.get("entries")
+        if not isinstance(names, list) or not names:
+            raise ResolveError(field, f"{url}: {entry['type']} entry has no files")
+        for item in names:
+            name = _obj(field, item, f"{url} file").get("name")
+            if not isinstance(name, str):
+                raise ResolveError(field, f"{url}: file name {name!r}")
+            _bundle_path(field, name, f"{url} file")
+            path = f"{prefix}/{name}" if prefix else name
+            if path in files:
+                raise ResolveError(field, f"{url}: {path} listed twice")
+            files[path] = f"{GCS}/{bucket}/{remote}/{name}"
+    return files
+
+
+def resolve_product_bundle(up: Upstream, version: str, product: str = EMULATOR_PRODUCT) -> dict:
+    """The emulator's product bundle: transfer manifest and a digest over every file."""
+    field = "product_bundle"
+    pb_url = f"{GCS}/fuchsia/development/{version}/product_bundles.json"
+    try:
+        bundles = _json(field, up.get(pb_url), pb_url, list)
+    except FetchError as e:
+        raise ResolveError(field, str(e)) from None
+    matches = [b for b in bundles if isinstance(b, dict) and b.get("name") == product]
+    if len(matches) != 1:
+        raise ResolveError(field, f"{pb_url}: {len(matches)} entries named {product}")
+    gs_url = matches[0].get("transfer_manifest_url", "")
+    if not isinstance(gs_url, str) or not re.fullmatch(r"gs://[a-z0-9._-]+/\S+/transfer\.json", gs_url):
+        raise ResolveError(field, f"{pb_url}: {product} transfer manifest URL {gs_url!r}")
+    manifest_url = gs_to_https(gs_url)
+    try:
+        files = parse_transfer_manifest(field, up.get(manifest_url), manifest_url)
+    except FetchError as e:
+        raise ResolveError(field, str(e)) from None
+    with concurrent.futures.ThreadPoolExecutor(BUNDLE_WORKERS) as pool:
+        futures = {path: pool.submit(up.digest, url) for path, url in files.items()}
+        sha: dict[str, str] = {}
+        for path, future in futures.items():
+            try:
+                sha[path] = future.result().sha256
+            except FetchError as e:
+                pool.shutdown(cancel_futures=True)  # do not fetch the rest
+                raise ResolveError(field, f"{path}: {e}") from None
+    return {"product_bundle": {
+        "product": product,
+        "url": gs_url,
+        "files": len(sha),
+        "value": bundle_digest(sha),
+        "source": [pb_url, manifest_url],
+    }}
+
+
 def resolve(up: Upstream, version: str) -> dict:
     """Resolve every field, or raise ResolveError naming the first that fails."""
     if not _VERSION.fullmatch(version):
@@ -468,6 +589,7 @@ def resolve(up: Upstream, version: str) -> dict:
         "source": [git_source(CARGO_LOCK, revision)],
     }
     lock.update(resolve_bazel_sdk(up, version, lock["integration_revision"]["value"]))
+    lock.update(resolve_product_bundle(up, version))
     return lock
 
 

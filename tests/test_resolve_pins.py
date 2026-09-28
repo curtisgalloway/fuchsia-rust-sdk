@@ -72,6 +72,35 @@ IDK_URL = f"{GCS}/fuchsia/development/{V}/sdk/linux-amd64/core.tar.gz"
 IDK_META_URL = f"{GCS}/storage/v1/b/fuchsia/o/development%2F{V}%2Fsdk%2Flinux-amd64%2Fcore.tar.gz"
 
 
+PB_BUCKET = f"{GCS}/fuchsia-public-artifacts-release"
+TRANSFER_GS = f"gs://fuchsia-public-artifacts-release/builds/{BUILDS[1]}/product_bundles/core.x64/transfer.json"
+TRANSFER_URL = f"{PB_BUCKET}/builds/{BUILDS[1]}/product_bundles/core.x64/transfer.json"
+BLOB_A, BLOB_B = "a" * 64, "b" * 64
+# Bundle path -> (URL, bytes), as the transfer manifest below lays them out.
+BUNDLE_FILES = {
+    f"blobs/1/{BLOB_A}": (f"{PB_BUCKET}/blobs/1/{BLOB_A}", b"blob a"),
+    f"blobs/1/{BLOB_B}": (f"{PB_BUCKET}/blobs/1/{BLOB_B}", b"blob b"),
+    "product_bundle.json": (f"{PB_BUCKET}/builds/{BUILDS[1]}/product_bundles/core.x64/product_bundle.json", b"{}"),
+    "system_a/fuchsia.zbi": (f"{PB_BUCKET}/builds/{BUILDS[1]}/product_bundles/core.x64/system_a/fuchsia.zbi", b"zbi"),
+}
+
+
+def transfer_manifest() -> dict:
+    return {"version": "1", "entries": [
+        {"type": "blobs", "local": "product_bundle/blobs/1", "remote": "blobs/1",
+         "entries": [{"name": BLOB_A}, {"name": BLOB_B}]},
+        {"type": "files", "local": "product_bundle",
+         "remote": f"builds/{BUILDS[1]}/product_bundles/core.x64",
+         "entries": [{"name": "product_bundle.json"}, {"name": "system_a/fuchsia.zbi"}]},
+    ]}
+
+
+def expected_bundle_digest() -> str:
+    # The definition, written out independently of rp.bundle_digest.
+    lines = "".join(f"{p}\t{hashlib.sha256(b).hexdigest()}\n" for p, (_, b) in sorted(BUNDLE_FILES.items()))
+    return hashlib.sha256(lines.encode()).hexdigest()
+
+
 def sm_url(build: str) -> str:
     return f"{GCS}/fuchsia-public-artifacts-release/builds/{build}/source_manifest.json"
 
@@ -94,6 +123,7 @@ class Stub:
                 for b, n in zip(BUILDS, ["core.vim3", "core.x64", "minimal.arm64"])
             ],
             **{sm_url(b): source_manifest() for b in BUILDS},
+            TRANSFER_URL: transfer_manifest(),
             IDK_META_URL: {"size": str(len(IDK_BYTES)),
                            "md5Hash": base64.b64encode(hashlib.md5(IDK_BYTES).digest()).decode()},
         }
@@ -111,7 +141,8 @@ class Stub:
             ("fuchsia/sdk/core/linux-amd64", IDK_CIPD_ID): [
                 {"key": "git_revision", "value": INTEG}, {"key": "version", "value": V}],
         }
-        self.digests: dict[str, object] = {IDK_URL: IDK_BYTES}
+        self.digests: dict[str, object] = {IDK_URL: IDK_BYTES,
+                                           **{url: data for url, data in BUNDLE_FILES.values()}}
         self.git: dict[str, object] = {"manifests/toolchain": TOOLCHAIN_XML,
                                        "third_party/rust_crates/Cargo.lock": CARGO_LOCK}
         self.git_error: str | None = None
@@ -177,7 +208,8 @@ def test_happy_path_writes_every_field_with_a_source(tmp_path):
     assert run(Stub(), out) == 0
     lock = json.loads(out.read_text())
     assert sorted(lock) == ["bazel_sdk", "cargo_lock_sha256", "clang", "fuchsia_revision", "integration_revision",
-                            "rules_fuchsia", "rust_host", "rust_host_std", "rust_target", "sdk_version"]
+                            "product_bundle", "rules_fuchsia", "rust_host", "rust_host_std", "rust_target",
+                            "sdk_version"]
     for field, entry in lock.items():
         assert entry["value"], field
         assert entry["source"] and all(isinstance(s, str) and s for s in entry["source"]), field
@@ -212,6 +244,13 @@ def test_happy_path_writes_every_field_with_a_source(tmp_path):
         "package": "fuchsia/development/rules_fuchsia",
         "value": RULES_ID,
         "source": [f"https://chrome-infra-packages.appspot.com/p/fuchsia/development/rules_fuchsia/+/git_revision:{INTEG}"],
+    }
+    assert lock["product_bundle"] == {
+        "product": "core.x64",
+        "url": TRANSFER_GS,
+        "files": 4,
+        "value": expected_bundle_digest(),
+        "source": [PB_URL, TRANSFER_URL],
     }
     assert lock["cargo_lock_sha256"] == {
         "value": hashlib.sha256(CARGO_LOCK).hexdigest(),
@@ -390,6 +429,34 @@ FAILURES = {
         ("rules_fuchsia", lambda s: s.cipd.pop(("fuchsia/development/rules_fuchsia", f"git_revision:{INTEG}"))),
     "rules_fuchsia version tag names another instance":
         ("rules_fuchsia", lambda s: s.cipd.__setitem__(("fuchsia/development/rules_fuchsia", f"version:{V}"), "e" * 64)),
+    "no core.x64 bundle":
+        ("product_bundle", lambda s: s.gets[PB_URL].pop(1)),
+    "core.x64 transfer URL is not gs://":
+        ("product_bundle", lambda s: s.gets[PB_URL][1].__setitem__(
+            "transfer_manifest_url", f"https://example.invalid/builds/{BUILDS[1]}/transfer.json")),
+    "transfer manifest 404":
+        ("product_bundle", lambda s: s.gets.pop(TRANSFER_URL)),
+    "transfer manifest not JSON":
+        ("product_bundle", lambda s: s.gets.__setitem__(TRANSFER_URL, b"<html>")),
+    "transfer manifest version 2":
+        ("product_bundle", lambda s: s.gets[TRANSFER_URL].__setitem__("version", "2")),
+    "transfer manifest has no entries":
+        ("product_bundle", lambda s: s.gets[TRANSFER_URL].__setitem__("entries", [])),
+    "transfer entry of unknown type":
+        ("product_bundle", lambda s: s.gets[TRANSFER_URL]["entries"][0].__setitem__("type", "links")),
+    "transfer entry local outside the bundle":
+        ("product_bundle", lambda s: s.gets[TRANSFER_URL]["entries"][1].__setitem__("local", "elsewhere")),
+    "transfer file name escapes the bundle":
+        ("product_bundle", lambda s: s.gets[TRANSFER_URL]["entries"][1]["entries"].append({"name": "../x"})),
+    "transfer file name is absolute":
+        ("product_bundle", lambda s: s.gets[TRANSFER_URL]["entries"][1]["entries"].append({"name": "/etc/x"})),
+    "transfer file listed twice":
+        ("product_bundle", lambda s: s.gets[TRANSFER_URL]["entries"][0]["entries"].append({"name": BLOB_A})),
+    "bundle blob 404":
+        ("product_bundle", lambda s: s.digests.pop(BUNDLE_FILES[f"blobs/1/{BLOB_B}"][0])),
+    "bundle file download fails mid-stream":
+        ("product_bundle", lambda s: s.digests.__setitem__(BUNDLE_FILES["system_a/fuchsia.zbi"][0],
+                                                          rp.FetchError("GET x: IncompleteRead: 1 bytes read"))),
     "rules_fuchsia version lookup fails other than 404":
         ("rules_fuchsia", lambda s: s.cipd.__setitem__(("fuchsia/development/rules_fuchsia", f"version:{V}"), 500)),
 }
@@ -618,3 +685,26 @@ def test_parse_toolchain_manifest_reads_every_pin():
 def test_cipd_xssi_prefix_is_stripped():
     stub = Stub()
     assert rp.cipd_resolve(stub, "rust_host", "fuchsia/third_party/rust/host/linux-amd64", RUST_PIN) == HOST_ID
+
+
+def test_bundle_digest_definition():
+    # SHA-256 over sorted "<path>\t<sha256>\n" lines; order of the input does not matter.
+    files = {"b": "2" * 64, "a/x": "1" * 64}
+    lines = f"a/x\t{'1' * 64}\nb\t{'2' * 64}\n"
+    assert rp.bundle_digest(files) == hashlib.sha256(lines.encode()).hexdigest()
+    assert rp.bundle_digest(dict(reversed(list(files.items())))) == rp.bundle_digest(files)
+    assert rp.bundle_digest({**files, "c": "3" * 64}) != rp.bundle_digest(files)
+
+
+def test_parse_transfer_manifest_maps_bundle_paths_to_urls():
+    files = rp.parse_transfer_manifest("product_bundle", json.dumps(transfer_manifest()).encode(), TRANSFER_URL)
+    assert files == {path: url for path, (url, _) in BUNDLE_FILES.items()}
+
+
+def test_product_bundle_changes_when_a_file_changes(tmp_path):
+    a, b = tmp_path / "a.json", tmp_path / "b.json"
+    assert run(Stub(), a) == 0
+    stub = Stub()
+    stub.digests[BUNDLE_FILES["system_a/fuchsia.zbi"][0]] = b"another zbi"
+    assert run(stub, b) == 0
+    assert json.loads(a.read_text())["product_bundle"]["value"] != json.loads(b.read_text())["product_bundle"]["value"]

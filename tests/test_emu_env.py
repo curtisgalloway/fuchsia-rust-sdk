@@ -191,28 +191,27 @@ def names(hosts):
 
 
 def test_hosts_needed_nothing_to_fetch():
-    assert ee.hosts_needed(need_bazel=False, need_product_bundle=False, need_apt=False) == []
+    assert ee.hosts_needed(need_bazel=False, need_product_bundle=False) == []
 
 
 def test_hosts_needed_product_bundle_only():
-    assert names(ee.hosts_needed(need_bazel=False, need_product_bundle=True, need_apt=False)) == {
+    assert names(ee.hosts_needed(need_bazel=False, need_product_bundle=True)) == {
         "storage.googleapis.com"}
 
 
 def test_hosts_needed_bazel_includes_gcs():
-    got = names(ee.hosts_needed(need_bazel=True, need_product_bundle=False, need_apt=False))
-    assert {"storage.googleapis.com", "chrome-infra-packages.appspot.com", "github.com",
-            "bcr.bazel.build"} <= got
-    assert "archive.ubuntu.com" not in got
+    got = names(ee.hosts_needed(need_bazel=True, need_product_bundle=False))
+    assert got == {"storage.googleapis.com", "chrome-infra-packages.appspot.com", "github.com",
+                   "release-assets.githubusercontent.com", "bcr.bazel.build"}
 
 
-def test_hosts_needed_apt():
-    got = names(ee.hosts_needed(need_bazel=False, need_product_bundle=False, need_apt=True))
-    assert got == {"archive.ubuntu.com", "security.ubuntu.com"}
+def test_no_host_is_distribution_specific():
+    # apt's mirrors depend on the host's configuration; the preflight does not guess them.
+    assert all(h.probe.startswith("https://") and "ubuntu" not in h.name for h in ee.HOSTS)
 
 
 def test_preflight_names_the_blocked_host():
-    hosts = ee.hosts_needed(need_bazel=True, need_product_bundle=True, need_apt=False)
+    hosts = ee.hosts_needed(need_bazel=True, need_product_bundle=True)
     blocked = ee.preflight(hosts, fetch=lambda url: "403" if "github.com/" in url else None)
     assert [h.name for h, _ in blocked] == ["github.com"]
     msg = ee.describe_blocked(blocked)

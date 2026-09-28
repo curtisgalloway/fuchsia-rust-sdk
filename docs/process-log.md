@@ -151,3 +151,15 @@ Cost: one rerun of a 4-minute sequence (the clean slate was still intact).
 Prevention: number step logs, or dry-run a sequence helper on a trivial command first.
 Fix belongs in: agent habit (no project change)
 Status: open
+
+## 2026-09-27T21:07-07:00 — failed command: `pgrep -f` matched its own shell again
+Chapter: [M3](notebook/M3.md)
+What happened: `kill -9 $(pgrep -f 'bin/qemu-system-x86_64')` in a chained command also
+matched the bash running it, so the shell died (exit 1) after killing QEMU; the rest of
+the chain (list, stop) did not run. Same cause as the `pkill -f` entry earlier today,
+whose prevention I did not apply.
+Cost: one rerun of the remaining steps.
+Prevention: the `[q]emu` bracket trick or a saved PID, every time; a helper script for
+"kill the emulator's QEMU" would make it habitual.
+Fix belongs in: agent habit (no project change)
+Status: open

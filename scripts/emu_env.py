@@ -18,8 +18,9 @@ detected or configured, never assumed:
 - **IPv6** (`ipv6_loopback`): without it, the package server binds `127.0.0.1` (ffx's
   default `[::]` fails).
 - **ssh** (`ssh_plan`): ffx reaches the target over ssh. When `ssh` is missing and the
-  harness runs as root with `apt-get`, it installs `openssh-client`; otherwise it stops
-  and says what to install.
+  harness runs as root with `apt-get`, it installs `openssh-client` (from whatever
+  mirrors the host's apt uses; apt's own error is reported if that fails); otherwise it
+  stops and says what to install.
 - **Network** (`HOSTS`, `preflight`): the hosts setup may contact, each with a probe URL;
   a blocked host fails setup with its name before any download starts.
 
@@ -205,11 +206,12 @@ class Host:
     name: str
     probe: str  # an HTTPS URL whose response (any HTTP status) proves the host is reachable
     purpose: str
-    when: str  # "bazel" (fetching the SDK), "product_bundle", or "apt" (installing ssh)
+    when: str  # "bazel" (fetching the SDK) or "product_bundle"
 
 
 # The host contract (README "Emulator"). Bazel's hosts are needed only when the IDK is
-# not yet in Bazel's output base; the apt hosts only when ssh must be installed.
+# not yet in Bazel's output base. apt's mirrors are not probed: they depend on the
+# host's apt configuration, and the ssh install reports apt's own error.
 HOSTS: tuple[Host, ...] = (
     Host("storage.googleapis.com", "https://storage.googleapis.com/fuchsia/development/LATEST_LINUX",
          "the IDK (Bazel) and the product bundle (ffx)", "product_bundle"),
@@ -219,13 +221,11 @@ HOSTS: tuple[Host, ...] = (
     Host("release-assets.githubusercontent.com", "https://release-assets.githubusercontent.com/",
          "where github.com serves release downloads", "bazel"),
     Host("bcr.bazel.build", "https://bcr.bazel.build/", "Bazel Central Registry", "bazel"),
-    Host("archive.ubuntu.com", "http://archive.ubuntu.com/ubuntu/", "apt: openssh-client", "apt"),
-    Host("security.ubuntu.com", "http://security.ubuntu.com/ubuntu/", "apt: openssh-client", "apt"),
 )
 
 
-def hosts_needed(*, need_bazel: bool, need_product_bundle: bool, need_apt: bool) -> list[Host]:
-    wanted = {"bazel": need_bazel, "product_bundle": need_product_bundle or need_bazel, "apt": need_apt}
+def hosts_needed(*, need_bazel: bool, need_product_bundle: bool) -> list[Host]:
+    wanted = {"bazel": need_bazel, "product_bundle": need_product_bundle or need_bazel}
     return [h for h in HOSTS if wanted[h.when]]
 
 
@@ -235,9 +235,9 @@ def probe(url: str, timeout: float = 20) -> str | None:
     Uses urllib, which honours HTTPS_PROXY/HTTP_PROXY/NO_PROXY and SSL_CERT_FILE like the
     tools setup runs. For HTTPS any HTTP status counts as reachable: a TLS session was
     established, and some hosts answer HEAD with 4xx. A proxy that refuses the host
-    (CONNECT 403) is a failure. Plain HTTP (the apt hosts) goes through a proxy without
-    a tunnel, so there an error status may come from the proxy itself: the probe URLs
-    answer 200, and anything from 400 up counts as blocked.
+    (CONNECT 403) is a failure. Plain HTTP goes through a proxy without a tunnel, so
+    there an error status may come from the proxy itself: from 400 up counts as
+    blocked. (Every host in HOSTS is HTTPS; tests use plain HTTP.)
     """
     request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": f"{APP}-emu/1"})
     try:

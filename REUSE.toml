@@ -25,3 +25,11 @@ path = ["patches/rules_rust/*.patch"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["2026 The Fuchsia Authors", "2018 The Bazel Authors"]
 SPDX-License-Identifier = "Apache-2.0 AND BSD-3-Clause"
+
+# Fuchsia's patent grant, copied unchanged from fuchsia-cloud-dev (as fuchsia.git ships it),
+# for the code scripts/emu.py ports from there (C4).
+[[annotations]]
+path = ["third_party/fuchsia/PATENTS"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 The Fuchsia Authors"
+SPDX-License-Identifier = "BSD-3-Clause"

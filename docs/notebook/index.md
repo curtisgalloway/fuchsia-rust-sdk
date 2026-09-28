@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T20:47-07:00
+Updated: 2026-09-27T21:11-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -51,13 +51,13 @@ Outcome: complete — hosted profile: trimmed IDK 3.6 GB, Bazel caches 7.7 GiB o
 - Dead end: Python `tarfile` `r|gz` (>10 min); `r:gz` takes 48 s. Only `idk_trim.py` + `idk_extract.py` feed `@fuchsia_idk` (profile edits don't refetch)
 
 ### [M3 — Portable emulator harness at the lock's release](M3.md)
-Entries: 2026-09-27T20:27-07:00 through 2026-09-27T20:47-07:00
-Outcome: open — implemented and verified (boot 51 s TCG, hello_rust logs, total 8.8 of 25 GiB); review pending
+Entries: 2026-09-27T20:27-07:00 through 2026-09-27T21:11-07:00
+Outcome: complete — `scripts/emu` boots the lock's core.x64 (TCG ~51 s), hello_rust logs, bundle pinned by digest; total 8.8 of 25 GiB
 - QEMU is in the lock's IDK (`tools/x64/qemu_internal`) = fuchsia.git's jiri.lock pin: no `qemu` lock field
-- Product bundle has no content pin upstream (blobs merkle-named, images by path); harness checks versions, records SHA-256s
-- ffx sockets live in `<isolate>/data/emu/instances/<name>/`; build-info product reads "minimal" for core.x64
-- Rust packaging needs `@fuchsia_sdk//pkg/fdio:dist` explicitly; `bazel info --config=…` can't resolve `@rules_fuchsia`
-- Plain-HTTP probes via a CONNECT-only proxy get the proxy's status; `ffx repository server list` shows stale entries
+- Bundle: no upstream content pin; owner said pin it → `product_bundle` = SHA-256 over sorted "path\tsha256" lines (835 files)
+- ffx: sockets in `<isolate>/data/emu/instances/<name>/`; a killed QEMU leaves a "staged" instance (only "running" counts)
+- Build-info product "minimal" on core.x64 is normal (reviewer); Rust packaging needs `@fuchsia_sdk//pkg/fdio:dist`
+- Dead end: probing plain-HTTP apt mirrors through a CONNECT-only proxy; apt hosts left out of the preflight
 
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
