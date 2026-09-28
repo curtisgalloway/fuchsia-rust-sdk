@@ -73,7 +73,7 @@ in the cloud.
 | M1 | Repo scaffold + `resolve_pins.py` writes `overlay.lock.json` (R1) | I1 | cloud | complete |
 | M2 | Bazel workspace + Fuchsia Rust toolchains; a Rust binary links for x64 and arm64 (I5, R2) | M1 | cloud | complete |
 | M2a | Fit the hosted disk budget (C6): trimmed IDK extraction, cache policy, disk report | M2 | cloud | complete |
-| M3 | Portable emulator harness at the lock's release; the M2 binary runs on it (R2, C6) | M2a | cloud (emulator) | pending |
+| M3 | Portable emulator harness at the lock's release; the M2 binary runs on it (R2, C6) | M2a | cloud (emulator) | in_progress (review) |
 | M4 | `rustc_*` rules with API-level cfgs (R3) | M2 | cloud | pending |
 | M5 | Vendor stage of `regen.py` + `--check`; `zx-types`, `zx-sys`, `zx` build (R6 mechanism, R2) | M4 | cloud | pending |
 | M6 | Pilot 1 closure measured (D8) + its crates.io crates build (R4) | M5 | cloud | pending |
@@ -264,7 +264,12 @@ product bundle; measure it against the M2a budget. Split point: land the boot an
 package run.
 
 ### Evidence and findings
-Status: pending · Evidence: [M3](evidence/M3.md) · Notebook: [M3](notebook/M3.md)
+Status: in_progress — implemented and verified, all six criteria met; review pending
+before the checkpoint · Evidence: [M3](evidence/M3.md) · Notebook: [M3](notebook/M3.md)
+Findings: QEMU comes from the lock's IDK (`tools/x64/qemu_internal`, the release's own
+pin), so no new lock field; the product bundle has no content pin upstream (owner
+question in the evidence); boot about 51 s under TCG; total disk 8.80 GiB of 25
+(peak about 9.6 GiB during a clean-slate IDK fetch).
 
 ---
 
@@ -925,7 +930,7 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 | Risk | Affects | Mitigation |
 |---|---|---|
-| Cloud disk: about 30 GB free. `fuchsia-cloud-dev`'s cache is about 15 GB; this repo adds the Rust toolchain, crates and bindings | M3 onward | Record disk at M2 and M3. Share one Bazel output base. Drop `rules_python`-only deps. If still tight, emulator milestones may need a lab machine or a larger environment. **Measured at M2:** Bazel caches about 20 GB (extracted IDK 13 GB, of which `obj/` 8.3 GB; repository cache 3.8 GB); 9 GB free afterwards. **Response:** constraint C6 and milestone M2a (owner direction 2026-09-27). **After M2a:** Bazel caches 7.7 GiB, total 8.2 GiB of the hosted 25 (peak about 10.8 GiB during a fresh IDK fetch); about 17 GiB left for M3 |
+| Cloud disk: about 30 GB free. `fuchsia-cloud-dev`'s cache is about 15 GB; this repo adds the Rust toolchain, crates and bindings | M3 onward | Record disk at M2 and M3. Share one Bazel output base. Drop `rules_python`-only deps. If still tight, emulator milestones may need a lab machine or a larger environment. **Measured at M2:** Bazel caches about 20 GB (extracted IDK 13 GB, of which `obj/` 8.3 GB; repository cache 3.8 GB); 9 GB free afterwards. **Response:** constraint C6 and milestone M2a (owner direction 2026-09-27). **After M2a:** Bazel caches 7.7 GiB, total 8.2 GiB of the hosted 25 (peak about 10.8 GiB during a fresh IDK fetch); about 17 GiB left for M3. **After M3:** the emulator adds 0.5 GiB (bundle 0.36 GiB); total 8.8 GiB, peak about 9.6 GiB during a clean-slate fetch |
 | TCG emulation is slow | M11, M16 | Budget from `fuchsia-cloud-dev`'s measurements (about 1 min boot, about 2 min driver reload) |
 | I1 finds no anonymous mapping | everything | Stop and escalate at I1; do not guess a revision |
 | Closure larger than the plan's split thresholds | M6, M8, M9, M12 | Split thresholds are stated per milestone; split before starting |
@@ -945,6 +950,19 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   static.crates.io); committing it would catch new unpinned hosts, but M5's crates may
   add hosts.
 
+- **Product bundle not pinned by hash (found in M3; owner question).** The lock pins
+  the IDK (and so ffx and QEMU) by SHA-256, but the `core.x64` bundle is fetched by
+  URL: `transfer.json` names blobs by merkle root and files by path only, and
+  `product_bundle.json` carries no image hashes. `scripts/emu` checks the bundle's
+  `product_version`/`sdk_version` against the lock and records the SHA-256 of every
+  downloaded file next to it. Option: `resolve_pins.py` records a digest of the
+  bundle's files in a new lock field (costs a 364 MB download per resolve).
+- **Emulator disk image growth (found in M3).** The instance's `fxfs.sparse.blk` is a
+  10 GiB sparse file (133 MB allocated after boot); heavy guest writes could grow the
+  `emulator` bucket toward 10.5 GiB, still within the hosted 25 GiB with today's
+  caches. Watch it in M11/M16 evidence.
+- **`scripts/emu driver` is untested (M3).** Ported from `dev` (including the reboot
+  before re-registering), but there is no driver package before M10; M11 exercises it.
 - **`fuchsia-cloud-dev` overlap.** `fuchsia-cloud-dev` already solves emulator bring-up
   in cloud containers. After M3, consider whether its `dev` tool and this repo's
   harness should share code. Not needed for milestone 1.
@@ -960,6 +978,8 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
     instead of the `fuchsia-bazel-rules` CIPD package.
   - Offer this overlay as a Bazel module there for Rust, after G1.
   - Add QEMU devices beyond `edu` for driver work (one `-device` argument each).
+  - Take QEMU from the IDK's `tools/x64/qemu_internal` (the release's own pin, found in
+    M3) instead of a separate `manifests/qemu.ensure`.
   - Unverified: a `core.arm64` product bundle under TCG for arm64 at run time;
     in-container product assembly for replacing shipped drivers (disk may not allow).
   - Environment profiles (C6): its README limits become the hosted profile's limits;
@@ -984,18 +1004,22 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M2a complete** (branch `ms/M2a` from `aaf53b7`;
-  checkpoint `overlay: M2a — Fit the hosted disk budget` on top of `wip: M2a — …`
-  commits `695841e` and `56dd031`).
-- Completed work and evidence: [M2a evidence](evidence/M2a.md), including the review
-  findings and resolutions. Profiles, trimmed IDK extraction, post-fetch cache prune,
-  disk report and SDK-file check; all three `//...` builds from a clean output base;
-  7.69 GiB of 12 for the Bazel caches, 8.21 of 25 in total.
-- Commits: `695841e`, `56dd031` (wip) and the checkpoint. No uncommitted state.
-- Remaining work, blockers, and decisions: none for M2a. Unchanged: the R7 reading for
-  pilot 1 (before M10 closes); M17 placement.
+- Current milestone and status: **M3 in_progress** (branch `ms/M3` from `d0d2ceb`):
+  implementation, verification, evidence, notebook and plan done; the independent
+  review and the checkpoint commit `overlay: M3 — Portable emulator harness at the
+  lock's release` remain (the implementer is a subagent and stops before it).
+- Completed work and evidence: [M3 evidence](evidence/M3.md). `scripts/emu`
+  (setup/start/stop/check/run/driver/log/ffx/env) boots the lock's `core.x64` under TCG
+  in about 1 minute; `hello_rust` runs as a component and logs; blocked hosts are named;
+  disk 8.80 GiB of 25.
+- Commits: one crash-insurance commit, `wip: M3 — emulator harness, hello_rust package,
+  evidence (review pending)`; the checkpoint commit follows the review.
+- Remaining work, blockers, and decisions: review and fixes; the owner question on
+  pinning the product bundle by hash (evidence "Limitations"). Unchanged: the R7
+  reading for pilot 1 (before M10); M17 placement.
 - Context boundary: normal.
-- Resume action: begin the next eligible milestone the orchestrator names (M3 or M4).
-- Read first: [M2a evidence](evidence/M2a.md) ("For M3" before M3),
-  [notebook index](notebook/index.md), `scripts/idk_trim.py`,
-  `scripts/overlay_profile.py`, `scripts/disk_report.py`, `toolchain/repositories.bzl`.
+- Resume action: run the M3 review, fix, fill in its Review section, commit the
+  checkpoint; then the next eligible milestone the orchestrator names (M4, I2 or I3).
+- Read first: [M3 evidence](evidence/M3.md), [notebook index](notebook/index.md),
+  `scripts/emu.py`, `scripts/emu_env.py`, README "Emulator". The emulator is stopped;
+  `scripts/emu start` boots it.

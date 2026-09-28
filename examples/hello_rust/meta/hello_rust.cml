@@ -1,0 +1,23 @@
+// SPDX-FileCopyrightText: 2026 Curtis Galloway
+// SPDX-License-Identifier: Apache-2.0
+{
+    program: {
+        runner: "elf",
+        binary: "bin/hello_rust",
+
+        // println! goes to stdout; the ELF runner forwards it to the system log.
+        forward_stdout_to: "log",
+        forward_stderr_to: "log",
+    },
+
+    // `ffx component run` puts components in core's ffx-laboratory collection, where
+    // core offers fuchsia.logger.LogSink only inside the `diagnostics` dictionary; the
+    // SDK's syslog/client.shard.cml uses it directly from parent, and the component
+    // then starts but cannot log (fuchsia-cloud-dev README, "Logging from ./dev run").
+    use: [
+        {
+            protocol: "fuchsia.logger.LogSink",
+            from: "parent/diagnostics",
+        },
+    ],
+}

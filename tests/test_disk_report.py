@@ -68,9 +68,18 @@ def test_bucket_paths_uv_cache_dir_and_worktree_git(tmp_path):
 
 
 def test_bucket_paths_without_emulator_or_scratch():
-    paths = dr.bucket_paths({}, {"XDG_CACHE_HOME": "/x"}, [])
-    assert paths["emulator"] == [] and paths["scratch"] == []
+    paths = dr.bucket_paths({}, {"XDG_CACHE_HOME": "/x", "HOME": "/h"}, [])
+    assert paths["scratch"] == []
     assert paths["bazel_install"] == [Path("/x/fuchsia-rust-sdk/bazel")]
+    # The emulator bucket defaults to scripts/emu's own default directory.
+    assert paths["emulator"] == [Path("/h/.local/state/fuchsia-rust-sdk/emulator")]
+
+
+def test_bucket_paths_emulator_follows_the_harness_settings():
+    env = {"HOME": "/h", "OVERLAY_STATE_DIR": "/state"}
+    assert dr.bucket_paths({}, env, [])["emulator"] == [Path("/state/emulator")]
+    env["OVERLAY_FFX_ISOLATE_DIR"] = "/ffx"
+    assert dr.bucket_paths({}, env, [])["emulator"] == [Path("/state/emulator"), Path("/ffx")]
 
 
 def sizes(**kw: int) -> dict[str, int]:

@@ -13,7 +13,9 @@ else, which may change without refetching the IDK:
   against; see ``idk_extract.py``);
 - ``cache_idk_archive``: keep the 3 GB IDK tarball in Bazel's repository cache
   (``scripts/bazel`` and ``disk_report.py --prune`` remove it otherwise);
-- ``budgets``: disk budgets in bytes for groups of disk-report buckets (None: no limit).
+- ``budgets``: disk budgets in bytes for groups of disk-report buckets (None: no limit);
+- ``emulator_accel``: ``auto`` (KVM when ``/dev/kvm`` is usable, else TCG), ``kvm`` or
+  ``tcg`` for ``scripts/emu``; ``$OVERLAY_EMU_ACCEL`` overrides it (see ``emu_env.py``).
 
 Run ``uv run scripts/overlay_profile.py [--json]`` to see the active profile.
 """
@@ -44,6 +46,8 @@ class Profile:
     # Group name -> budget in bytes, or None for no limit. Groups are defined in
     # disk_report.GROUPS.
     budgets: Mapping[str, int | None] = field(default_factory=dict)
+    # How scripts/emu accelerates QEMU: auto, kvm or tcg (emu_env.choose_accel).
+    emulator_accel: str = "auto"
 
 
 PROFILES: dict[str, Profile] = {
@@ -59,6 +63,9 @@ PROFILES: dict[str, Profile] = {
             # C6: total <= 25 GB (5 GB headroom). The Bazel caches get 12 of them (M2a),
             # leaving the rest for the emulator (M3), the checkout and scratch.
             budgets={"total": 25 * GIB, "bazel": 12 * GIB},
+            # The hosted container has no /dev/kvm; auto detects that and uses TCG, and
+            # would use KVM if a hosted environment ever offered it.
+            emulator_accel="auto",
         ),
         Profile(
             name="large-disk",
@@ -66,6 +73,7 @@ PROFILES: dict[str, Profile] = {
             trim_idk=idk_trim.TRIM_BY_PROFILE["large-disk"],
             cache_idk_archive=True,
             budgets={"total": None, "bazel": None},
+            emulator_accel="auto",
         ),
     )
 }

@@ -10,8 +10,10 @@ Buckets (a bucket with no directory on this machine counts as 0):
 - `output_base`: this checkout's Bazel output base (`bazel info output_base`);
 - `repository_cache`: Bazel's download cache (`bazel info repository_cache`);
 - `bazel_install`: Bazel's install bases and the `scripts/bazel` binary cache;
-- `emulator`: emulator state and product bundles, from `$OVERLAY_EMULATOR_DIR`
-  (set up in M3);
+- `emulator`: `scripts/emu`'s state: product bundles, the package repository, the ffx
+  isolate directory and the running emulator's disk images (`$OVERLAY_EMULATOR_DIR`,
+  default `<state dir>/emulator`, see `emu_env.py`), plus `$OVERLAY_FFX_ISOLATE_DIR`
+  when that is set elsewhere;
 - `scratch`: directories given with `--scratch` or `$OVERLAY_SCRATCH` (`:`-separated);
 - `uv_cache`: uv's cache (`$UV_CACHE_DIR`, else `<cache home>/uv`), which runs the
   scripts and their tests;
@@ -43,6 +45,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+import emu_env
 import overlay_profile
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -116,12 +119,14 @@ def bucket_paths(
         checkout.append(git_common_dir)
     install = [Path(info["install_base"]).parent] if info.get("install_base") else []
     scratch_dirs = list(scratch) + [d for d in env.get("OVERLAY_SCRATCH", "").split(":") if d]
-    emulator = env.get("OVERLAY_EMULATOR_DIR")
+    emulator = [emu_env.emulator_dir(env)]
+    if env.get("OVERLAY_FFX_ISOLATE_DIR"):
+        emulator.append(Path(env["OVERLAY_FFX_ISOLATE_DIR"]))
     return {
         "output_base": [Path(info["output_base"])] if info.get("output_base") else [],
         "repository_cache": [Path(info["repository_cache"])] if info.get("repository_cache") else [],
         "bazel_install": install + [Path(cache_home) / "fuchsia-rust-sdk" / "bazel"],
-        "emulator": [Path(emulator)] if emulator else [],
+        "emulator": emulator,
         "scratch": [Path(d) for d in scratch_dirs],
         "uv_cache": [Path(uv_cache)],
         "checkout": checkout,

@@ -130,3 +130,24 @@ Prevention: before running a new extraction over a multi-GB archive, time it on 
 bounded slice (e.g. 20 s of iteration) and extrapolate.
 Fix belongs in: agent habit (no project change)
 Status: open
+
+## 2026-09-27T20:34-07:00 — failed command: `pkill -f` killed its own shell, dropping a chained notebook append
+Chapter: [M3](notebook/M3.md)
+What happened: `pkill -f blockproxy.py` in the same bash command as a notebook
+append matched that bash process too (its command line contains the pattern), so the
+shell died with exit 144 before the append ran.
+Cost: one redone notebook entry (written a few minutes after the event, noted in it).
+Prevention: stop background helpers by PID (`$!` saved to a file), or `pkill -f` with a
+pattern the calling command line cannot contain (e.g. `[b]lockproxy`).
+Fix belongs in: agent habit (no project change)
+Status: open
+
+## 2026-09-27T20:46-07:00 — failed command: step-log names built from the command line
+Chapter: [M3](notebook/M3.md)
+What happened: a helper named each step's log `$R/$1-$2.log`; for `scripts/emu setup` that
+is `$R/scripts/emu-setup.log`, in a directory that did not exist, so the redirect failed,
+the step "exited 1 in 0 s" and the sequence stopped (after the clean slate was made).
+Cost: one rerun of a 4-minute sequence (the clean slate was still intact).
+Prevention: number step logs, or dry-run a sequence helper on a trivial command first.
+Fix belongs in: agent habit (no project change)
+Status: open

@@ -1,6 +1,13 @@
 # SPDX-FileCopyrightText: 2026 Curtis Galloway
 # SPDX-License-Identifier: Apache-2.0
 
+load(
+    "@rules_fuchsia//fuchsia:defs.bzl",
+    "fuchsia_component",
+    "fuchsia_component_manifest",
+    "fuchsia_package",
+    "fuchsia_wrap_rust_binary",
+)
 load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 # Builds for Fuchsia with --config=fuchsia_x64 or --config=fuchsia_arm64.
@@ -10,4 +17,38 @@ rust_binary(
     edition = "2024",
     target_compatible_with = ["@platforms//os:fuchsia"],
     deps = ["@fuchsia_sdk//pkg/fdio"],
+)
+
+# The binary with the runtime libraries it needs (libfdio, the sysroot's libc), as
+# rules_fuchsia packages it.
+fuchsia_wrap_rust_binary(
+    name = "bin",
+    bin_name = "hello_rust",
+    native_binary = ":hello_rust",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+)
+
+fuchsia_component_manifest(
+    name = "manifest",
+    src = "meta/hello_rust.cml",
+    component_name = "hello_rust",
+)
+
+# rules_fuchsia packages the runtime libraries a Rust binary's runfiles carry, but
+# @fuchsia_sdk//pkg/fdio puts libfdio.so in none, so its `dist` is listed here.
+fuchsia_component(
+    name = "component",
+    manifest = ":manifest",
+    deps = [
+        ":bin",
+        "@fuchsia_sdk//pkg/fdio:dist",
+    ],
+)
+
+# Runs on the emulator with `scripts/emu run //examples/hello_rust:pkg` (M3).
+fuchsia_package(
+    name = "pkg",
+    package_name = "hello_rust",
+    components = [":component"],
+    visibility = ["//visibility:public"],
 )
