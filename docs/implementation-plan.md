@@ -86,7 +86,7 @@ in the cloud.
 | M8b | `rust_next` flavor for the 17 libraries without `contains_drivers` (R5) | M8a | cloud | complete |
 | M9a | Pilot 1's driver runtime vendored (11 overlays); FIDL driver transport on (R6, R5) | M8b | cloud | complete |
 | M9b | 28 upstream-Bazel in-tree crates + 7 overlays (incl. `fuchsia-component`) (R6) | M9a | cloud | complete |
-| M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | in_progress (review pending) |
+| M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | complete |
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | pending |
 | I3 | Emulator bind target for pilot 1 confirmed at this release | M3 | cloud (emulator) | pending |
 | M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | pending |
@@ -525,8 +525,10 @@ it (replacing M9b's two log labels). `gn_crosscheck.py --all`: 68 directories, 7
 agree. The pilot driver's `src/lib.rs` compiles against `fdf_component` (scratch; GN's
 driver template allows unused crate deps, which M10's rule must too).
 **Design coverage:** R6 (pilot 1 set), D8. **Dependencies:** M9b.
-**Status:** in_progress: implementation and checks done; the review (orchestrator's
-reviewer subagent) precedes the checkpoint. The detailed entry is in the evidence file.
+**Status:** complete. An independent reviewer subagent (launched by the orchestrator)
+reviewed before the checkpoint: land after fixes (4 minor, 4 nits; all resolved: a
+stronger `REMOVED_DEPS` test, the two M10 obligations in M10's entry). The detailed entry
+is in the evidence file.
 **Evidence:** [M9c](evidence/M9c.md) · **Notebook:** [M9c](notebook/M9c.md)
 **Open limitations:** unit tests of the six not built (M16); the driver manifest's
 `inspect/client.shard.cml` and `syslog/client.shard.cml` includes are M10's check.
@@ -561,12 +563,25 @@ reviewer subagent) precedes the checkpoint. The detailed entry is in the evidenc
 5. If A3 fails (Rust `std` imports a restricted symbol), compare with the in-tree Rust
    driver config (the brief notes `//build/config/rust:bootfs`). Record the fix as a
    decision.
+6. (From M9c.) `fuchsia_rust_driver` allows unused crate dependencies by default, as GN's
+   `set_defaults("fuchsia_rust_driver")` adds
+   `//build/config/rust/lints:allow_unused_crate_dependencies`
+   (`build/drivers/fuchsia_driver.gni:243–249`): the pilot's GN deps `anyhow`, `fdf`, `zx`
+   are unused by its source.
+7. (From M9b/M9c.) The driver's `.cml` includes `syslog/client.shard.cml` and
+   `inspect/client.shard.cml`: the manifest checks GN's `expect_includes` make
+   (`//sdk/lib/syslog:client_includes`, `//sdk/lib/inspect:client_includes`) are dropped
+   by the overlay, so M10 checks the manifest instead.
 
 ### Acceptance criteria
 - [ ] `bazel build --config=fuchsia_x64 //drivers/simple_rust:pkg` and the arm64
   equivalent produce a driver package.
 - [ ] The exported-symbols test passes for both targets.
 - [ ] The restricted-symbols check passes for both targets.
+- [ ] `fuchsia_rust_driver` applies the unused-crate-dependencies allowance by default
+  (GN's `set_defaults`), and pilot 1 compiles with its GN deps unchanged.
+- [ ] The driver's `.cml` includes both `syslog/client.shard.cml` and
+  `inspect/client.shard.cml` (checked by a test or build action).
 - [ ] `DT_NEEDED` comparison recorded; any library absent from the reference driver is
   explained or removed. The owner confirms this reading of R7 (see gap).
 
@@ -1180,17 +1195,16 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M9c in_progress (review pending).** Branch `ms/M9c` from
-  `1ef1833`; `wip` commits `8c4e20e` (implementation) and a second `wip: M9c` commit
-  (evidence, plan, index). Implementation and all project checks are done.
-- Completed work and evidence: [M9c evidence](evidence/M9c.md) (all but Review).
-- Uncommitted state: none after the second `wip` commit.
-- Remaining work, blockers, and decisions: the orchestrator's review; fixes; fill in the
-  evidence's Review; checkpoint commit `overlay: M9c — Pilot 1's last overlays;
-  fdf_component`. Unchanged: the R7 reading for pilot 1 (before M10), M17 placement.
+- Current milestone and status: **M9c complete.** Branch `ms/M9c` from `1ef1833`; `wip`
+  commits `8c4e20e`, `f991868`, then the checkpoint commit `overlay: M9c — Pilot 1's last
+  overlays; fdf_component`, after the reviewer subagent's review and fixes.
+- Completed work and evidence: [M9c evidence](evidence/M9c.md), including the review.
+- Uncommitted state: none.
+- Remaining work, blockers, and decisions: unchanged: the R7 reading for pilot 1 (before
+  M10), M17 placement.
 - Context boundary: normal.
 - Resume action: after M9c's checkpoint, begin **M10** (I3 can run beside it).
-- Read first for M10: the M10 entry, [M9c evidence](evidence/M9c.md) ("Findings for later
-  milestones"), the backlog items on visibility, `DT_NEEDED`/`vfs`, runtime shared
-  libraries, the two manifest shards, unused crate deps and the bind library bindings,
+- Read first for M10: the M10 entry (steps 6–7 come from M9b/M9c), [M9c evidence](evidence/M9c.md)
+  ("Findings for later milestones"), the backlog items on visibility, `DT_NEEDED`/`vfs`,
+  runtime shared libraries, the two manifest shards and the bind library bindings,
   [notebook index](notebook/index.md).

@@ -152,3 +152,42 @@ moved to the evidence, two backlog items for M10, next session), index row added
 `wip` commit, then stop for the orchestrator's review before the checkpoint commit.
 Stamps: several entries share a stamp because they were written in one command at that
 minute (12:40 ×3, 12:50 ×2, 12:56 ×2), not batched from different times.
+
+## 2026-09-28T13:11+00:00 — direction: review verdict "land after fixes"
+The orchestrator's reviewer subagent (fresh context) reviewed `8c4e20e`, `f991868`. Decisions:
+strengthen the `REMOVED_DEPS` test (the named overlay must not contain the label, or the
+named patch must remove it); put the two M10 obligations (driver rule allows unused crate
+deps; driver `.cml` includes both shards) into the M10 entry's steps/criteria; final reuse
+count in the evidence; process-log note that the index row was added at the checkpoint, not
+at opening. Nits: reconcile notebook vs process log on the `git grep`; cquery command and
+excerpt in the evidence; soften the `compile_data`/M16 note; note UTC stamps in the index.
+
+## 2026-09-28T13:12+00:00 — correction of the 12:59 entry: the `git grep` ran for 2 minutes before it was stopped
+"was stopped at once" is inaccurate: the command ran until the tool's 120 s timeout moved it
+to the background, and I stopped it then (the process log's 12:59 entry says so). The clone
+was still 5.4 MB afterwards, so no blobs had been fetched.
+
+## 2026-09-28T13:12+00:00 — correction of the index timing: the M9c index row was added at the 13:03 checkpoint
+The lab-notebook skill adds a chapter's index row when the chapter opens (12:37); it was added
+only at the checkpoint. Process-log entry appended.
+
+## 2026-09-28T13:12+00:00 — correction of the 13:12 index-timing entry
+The checkpoint (and the index row) is stamped 13:02, not 13:03; the row was missing for 25
+minutes (12:37–13:02).
+
+## 2026-09-28T13:13+00:00 — correction of the 12:40 `compile_data` decision's last clause
+"keeps M16's test build from needing a change" is speculative: whether M16's unit-test
+target uses the library's `compile_data` depends on how M16 builds tests. The reason for
+the translation is only that it is GN's field (reviewer nit).
+
+## 2026-09-28T13:15+00:00 — attempt: review fixes done; checks on the final tree
+Fixes: stronger `REMOVED_DEPS` test (negative: the label added to the inspect overlay fails
+it); M10 steps 6–7 + two criteria; cquery excerpt (both configs 70/70); index UTC note;
+evidence Review filled. Final tree: pytest 448; reuse 1715/1715; `regen.py --check` clean;
+`gn_crosscheck.py --all` 68 / 70 agree; x64, arm64, host builds 492 targets each under
+`--lockfile_mode=error`; `bazel test //...` 55 + 24 skipped; lock unchanged; disk Bazel
+11.46 of 15 GiB, total 12.37 of 25; plan headings equal the base's 34.
+
+## 2026-09-28T13:15+00:00 — checkpoint (closing)
+State: complete. Six overlays, no patches; pilot 1's in-tree set is vendored but for the
+driver (M10). Next: M10 (steps 6–7 carry this milestone's two obligations).

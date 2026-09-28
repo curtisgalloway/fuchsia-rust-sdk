@@ -458,3 +458,27 @@ Prevention: on a blobless clone use `ls-tree` to locate files and `cat-file` for
 blobs; set `HOME` per git command (`HOME=… git …`) rather than exporting/unsetting it.
 Fix belongs in: agent habit (the `regen.py` git source's docstring could say it)
 Status: open
+
+## 2026-09-28T13:12+00:00 — instruction gap: M9c's index row added at the checkpoint, not at opening
+Chapter: [M9c](notebook/M9c.md)
+What happened: the lab-notebook skill says "Add a row when a chapter opens"; the M9c row
+was first written at the 13:03 checkpoint, so for 26 minutes the index had no M9c row
+(reviewer finding, M9c review). Stamps were not affected.
+Cost: a reviewer finding; a session resuming mid-milestone would not have found the chapter
+from the index.
+Prevention: write the index row (outcome "open") in the same command as the opening entry.
+Fix belongs in: agent habit (lab-notebook skill already says so)
+Status: open
+
+## 2026-09-28T13:12+00:00 — failed command: `git grep` over the blobless fuchsia.git clone (clarification)
+Chapter: [M9c](notebook/M9c.md)
+The 12:59 entry's "hit the 2-minute tool timeout. Stopped at once" means: stopped as soon
+as the timeout moved it to the background (after about 2 minutes), not immediately after
+starting. The notebook's 12:59 entry said "stopped at once"; a correction is appended there.
+Status: open (same as the 12:59 entry)
+
+## 2026-09-28T13:12+00:00 — instruction gap: M9c's index row added at the checkpoint, not at opening (correction)
+Chapter: [M9c](notebook/M9c.md)
+The 13:12 entry's "13:03 checkpoint" and "26 minutes" should read 13:02 and 25 minutes
+(12:37–13:02).
+Status: open (same as the 13:12 entry)

@@ -5,9 +5,12 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T13:02+00:00
+Updated: 2026-09-28T13:15+00:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
+
+Stamps from M9c on are UTC (`+00:00`): the container clock is UTC. Earlier chapters use
+`-07:00`.
 
 ## Chapters
 
@@ -147,13 +150,13 @@ Outcome: complete — 35 crates (28 upstream + 17 patches; 7 overlays) build for
 - My overlays' first build failed: GN "no visibility" needs explicit public; proc macros go in `proc_macro_deps`
 
 ### [M9c — Pilot 1's last overlays; `fdf_component`](M9c.md)
-Entries: 2026-09-28T12:37+00:00 through 2026-09-28T13:02+00:00
-Outcome: open (review pending) — 6 overlays, no patches; all 68 in-tree crates but the driver build for x64/arm64; `gn_crosscheck.py --all` 68 dirs / 70 targets agree
+Entries: 2026-09-28T12:37+00:00 through 2026-09-28T13:15+00:00
+Outcome: complete — 6 overlays, no patches; all 68 in-tree crates but the driver build for x64/arm64; `gn_crosscheck.py --all` 68 dirs / 70 targets agree
 - `inspect/runtime/rust`: crate is GN `:lib`; group `rust` → alias without `sdk/lib/inspect:client_includes` (REMOVED_DEPS)
 - GN shorthand `//src/lib/diagnostics/inspect/rust` is upstream Bazel's `:fuchsia-inspect` (first build failed)
 - `fdf_component` reaches all 70 closure targets: the Fuchsia checks name it instead of the two log labels
 - Pilot driver source compiles against it (scratch); GN's Rust driver template allows unused crate deps (M10)
-- Blobless clone: `git grep` fetches every blob (stopped); use `ls-tree` + `cat-file`
+- Review: stronger REMOVED_DEPS test; M10 entry carries the unused-crate allowance and both manifest shards
 
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);

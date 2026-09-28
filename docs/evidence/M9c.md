@@ -9,10 +9,10 @@ Design: [design](../design.md), revision "2026-09-27, draft 1", amended 2026-09-
 unchanged in M9c.
 Notebook: [M9c chapter](../notebook/M9c.md)
 Starting revision and pre-existing changes: `1ef1833` (origin/main: I1, M1–M9b), branch
-`ms/M9c`; working tree clean; plan 34 `## ` headings. `wip` commit `8c4e20e` (overlays,
-`vendor/`, `crates.txt`, `gn_crosscheck.py`, tests, notebook); a second `wip` commit
-carries this evidence, the plan and the index; the checkpoint commit
-`overlay: M9c — Pilot 1's last overlays; fdf_component` follows the review.
+`ms/M9c`; working tree clean; plan 34 `## ` headings. `wip` commits `8c4e20e` (overlays,
+`vendor/`, `crates.txt`, `gn_crosscheck.py`, tests, notebook) and `f991868` (evidence,
+plan, index); the checkpoint commit `overlay: M9c — Pilot 1's last overlays;
+fdf_component` follows the review and carries its fixes.
 
 **Relied on:** the orchestrator's verified state at `1ef1833` (pytest 444, reuse
 compliant, `regen.py --check` clean, `gn_crosscheck.py --all` 62 directories / 64 targets
@@ -70,7 +70,8 @@ explicitly in the x64/arm64 check commands.
   Pilot 1's `simple_rust_driver.cml` already includes the inspect shard (M10 checks the
   manifest). `group("unchecked_includes")` is not translated (unused by the closure).
 - **`elf_parse`'s GN `inputs` → `compile_data`** (three `test-utils/*.bin`, used by
-  `include_bytes!` in the `#[cfg(test)]` module only).
+  `include_bytes!` in the `#[cfg(test)]` module only): the direct translation of GN's
+  field; they are in the library's `Rustc` action inputs (confirmed by the reviewer).
 - **The Fuchsia build checks name `fdf_component` instead of the two log targets.**
   `fdf_component` reaches all 70 in-tree closure targets (cquery below), including
   `log/rust:no_startup_handle` and `log/encoding/rust:rust`, which M9b named only because
@@ -87,9 +88,9 @@ explicitly in the x64/arm64 check commands.
 | `third_party/crates/` | unchanged (every crates.io crate the overlays name is already in the closure's 121) |
 | `scripts/gn_crosscheck.py` | `REMOVED_DEPS` += `//sdk/lib/inspect:client_includes` with its reason |
 | `tests/test_pilot1_crates.py` | 12 tests (was 9): the M9c set listed as overlays and without upstream `BUILD.bazel`; every closure crate but the driver listed (68); the M9c overlays verbatim, Fuchsia-only, with GN's target/crate names, edition and features; the `inspect_runtime` alias (to `:lib`, public, no `sdk/lib/inspect` label); no M9c patch |
-| `tests/test_gn_crosscheck.py` | +1: each `REMOVED_DEPS` reason names an existing `overlays/` or `patches/` directory |
+| `tests/test_gn_crosscheck.py` | +1: each `REMOVED_DEPS` reason names an `overlays/` or `patches/` directory that removes the label (a named patch has a `-` line with the mapped label and no `+` line; a named overlay's `BUILD.bazel` does not name it; nor does the generated file) — strengthened after review finding 1 |
 | `tests/vendor/BUILD.bazel`, `src/pilot1_crates.rs` | 6 cap-lints tests (`fdf_component`, `inspect_runtime` through its alias, `elf_parse`, `process_builder`, `namespace`, `fuchsia_component_config`); `:pilot1_crates` also `pub use fdf_component` (a crate outside `//vendor/fuchsia` using it, as M10's driver will) |
-| `docs/implementation-plan.md` | check commands, status, M9c summary, backlog, next session |
+| `docs/implementation-plan.md` | check commands, status, M9c summary, backlog, next session; M10 steps 6–7 and two criteria (review finding 2) |
 
 ### The overlays
 
@@ -158,10 +159,24 @@ INFO: 7 processes: 642 action cache hit, 1 internal, 6 linux-sandbox.
 INFO: Build completed successfully, 7 total actions        (x64)
 ```
 
-Reachability (cquery, `fuchsia_x64`): `deps(//vendor/fuchsia/sdk/lib/driver/component/rust:rust)`
-contains every one of the 70 in-tree closure targets of the 68 directories (pilot driver
-excluded), so naming `fdf_component` in the Fuchsia build checks builds all of them, and an
-incompatible one fails loudly. The Fuchsia build checks (below) pass with it.
+Reachability: `deps(fdf_component)` contains every one of the 70 in-tree closure targets
+of the 68 directories (pilot driver excluded) under both Fuchsia configs, so naming
+`fdf_component` in the Fuchsia build checks builds all of them, and an incompatible one
+fails loudly. The closure labels are `//vendor/fuchsia/<path>:<GN target>` from
+`pilot1.json` (`zx-libc` → `rust`, as `gn_crosscheck.py`'s `BAZEL_NAMES`):
+
+```
+$ scripts/bazel cquery --lockfile_mode=error --config=fuchsia_x64 \
+    'deps(//vendor/fuchsia/sdk/lib/driver/component/rust:rust) intersect //vendor/fuchsia/...' \
+    --output=label | sed 's/ (.*//' | sort -u > deps.txt   # then: closure labels in deps.txt
+fuchsia_x64 70 closure labels; 70 in deps(fdf_component)
+fuchsia_arm64 70 closure labels; 70 in deps(fdf_component)
+$ grep -E 'log/(rust:no_startup_handle|encoding/rust:rust)$' deps.txt    # arm64
+//vendor/fuchsia/src/lib/diagnostics/log/encoding/rust:rust
+//vendor/fuchsia/src/lib/diagnostics/log/rust:no_startup_handle
+```
+
+The Fuchsia build checks (below) pass with it.
 
 **`fdf_component` provides what the pilot driver uses** (review focus). In a throwaway
 package (`vendor/fuchsia/examples/m9c_scratch`, inside upstream's `examples` visibility;
@@ -202,7 +217,7 @@ The overlay table above; no patches.
 | Check | Result |
 |---|---|
 | `uv run pytest` | 448 passed (444 + 3 in `test_pilot1_crates.py` + 1 in `test_gn_crosscheck.py`) |
-| `uv run reuse lint` | compliant (1714 / 1714) |
+| `uv run reuse lint` | compliant (1715 / 1715) |
 | `uv run scripts/gn_crosscheck.py --all` | 68 crate directories, 70 targets: all agree with `BUILD.gn` |
 | `scripts/bazel build --lockfile_mode=error --config=fuchsia_x64 //... //third_party/crates:aliases //tests/fidl:fuchsia_bindings //vendor/fuchsia/sdk/lib/driver/component/rust:rust` | success, 492 targets (479 + 7 in the six packages + 6 cap-lints tests) |
 | same, `--config=fuchsia_arm64` | success, 492 targets |
@@ -222,8 +237,9 @@ anonymous blobless fetch in the run's scratch.
 
 ### Disk (C6)
 
-`uv run scripts/disk_report.py`: Bazel 11.36 → **11.47 of 15 GiB**, total 12.28 →
-**12.39 of 25 GiB** (ok), 17.29 GiB free. M9c added 0.11 GiB.
+`uv run scripts/disk_report.py`: Bazel 11.36 → **11.46 of 15 GiB**, total 12.28 →
+**12.37 of 25 GiB** (ok), 17.30 GiB free (final tree, after the review fixes). M9c added
+about 0.1 GiB.
 
 ## Findings for later milestones (also in the plan backlog)
 
@@ -236,8 +252,9 @@ anonymous blobless fetch in the run's scratch.
   (`fuchsia.test_rust`) is still missing (existing item). A driver package outside
   `//vendor/fuchsia` sees `fdf_component` (public; `//tests/vendor:pilot1_crates` uses it)
   but not `fidl` (existing visibility item).
-- **M16:** unit tests of the six are not built (`test_deps` in comments; `elf_parse`'s test
-  data is in `compile_data`).
+- **M16:** unit tests of the six are not built (`test_deps` in comments). `elf_parse`'s test
+  data is already in `compile_data`; whether M16's test target picks it up from there
+  depends on how M16 builds unit tests.
 
 ## Limitations and open items
 
@@ -246,4 +263,35 @@ anonymous blobless fetch in the run's scratch.
 
 ## Review
 
-Pending: the orchestrator's reviewer subagent reviews before the checkpoint commit.
+**Method:** a reviewer subagent with fresh context, launched by the orchestrator (the
+plan's review method), before the checkpoint commit. It reviewed `ms/M9c` at `8c4e20e` and
+`f991868` against the design, the M9c entry, this evidence and the diff from `1ef1833`,
+without modifying anything (`MODULE.bazel.lock` unchanged). It verified the 68/69 count
+against `pilot1.json`; both Fuchsia builds (492 targets) and `bazel test`;
+`gn_crosscheck.py --all` (68 directories / 70 targets agree); that `deps(fdf_component)`
+covers all 70 closure labels, both log targets included, in both configs; the six
+overlays against `BUILD.gn` by hand; `compile_data` in the `Rustc` action inputs; GN's
+`set_defaults("fuchsia_rust_driver")` setting `allow_unused_crate_dependencies`
+(`build/drivers/fuchsia_driver.gni:243–249`); and that the items the driver uses exist in
+`fdf_component`. **Verdict:** land after fixes. Findings, with the orchestrator's
+decisions and their resolutions:
+
+| # | Severity | Finding | Decision / resolution |
+|---|---|---|---|
+| 1 | minor | The `REMOVED_DEPS` test only checked that the named directory exists | Fix: `test_each_removed_dep_is_removed_by_the_overlay_or_patch_it_names` asserts a named patch removes the mapped label (a `-` line, no `+` line), a named overlay does not name it, and the generated `vendor/fuchsia/…/BUILD.bazel` does not either. Negative: adding the quoted label to the inspect overlay makes it fail; restored, it passes |
+| 2 | minor | The two M10 obligations were only in the backlog | Fix: the M10 entry gains steps 6–7 and two criteria: `fuchsia_rust_driver` allows unused crate dependencies as GN's `set_defaults` does, with pilot 1's GN deps unchanged; the driver `.cml` includes `syslog/client.shard.cml` and `inspect/client.shard.cml`. Only the entry text changed; headings identical to the base |
+| 3 | minor | Evidence reuse count not the final one | 1715 / 1715 on the final tree (this file is the 1715th) |
+| 4 | minor (record) | The index row was added at the checkpoint, not when the chapter opened | Process-log `instruction gap` entry appended (13:12, with a same-minute correction: row missing 12:37–13:02) |
+| n1 | nit | Notebook ("stopped at once") and process log ("hit the 2-minute tool timeout") disagree on the `git grep` | Appended corrections in both: it ran until the 120 s timeout moved it to the background and was stopped then; no blobs fetched |
+| n2 | nit | The cquery reachability claim had no command or output | Command and excerpt under criterion 1, re-run for both configs (70 / 70 each) |
+| n3 | nit | The `compile_data` "keeps M16 from needing a change" note is speculative | Softened here; notebook correction appended |
+| n4 | nit | Stamps changed to UTC without a note in the index | Note under the index's staleness rule: stamps from M9c on are `+00:00` |
+
+**After the fixes** (final tree): pytest 448; reuse compliant (1715 / 1715);
+`regen.py --check` clean; `gn_crosscheck.py --all`: 68 crate directories, 70 targets: all
+agree; the three builds with explicit targets (Fuchsia ones with
+`//vendor/fuchsia/sdk/lib/driver/component/rust:rust`) under `--lockfile_mode=error`,
+492 targets each; `bazel test //...` 55 passed + 24 skipped; `MODULE.bazel.lock`
+unchanged; disk Bazel 11.46 of 15 GiB, total 12.37 of 25 GiB; plan `## ` headings equal
+the base's 34. The fixes are tests, plan text and documentation, so no second review
+round was requested.

@@ -154,11 +154,24 @@ def test_main_needs_paths_or_all():
     assert gc.main(["src/not/listed"]) == 2
 
 
-def test_each_removed_dep_names_the_overlay_or_patch_that_removes_it():
+def test_each_removed_dep_is_removed_by_the_overlay_or_patch_it_names():
     """A GN dep the overlay drops on purpose points at the file that drops it (M9b's
-    syslog patch, M9c's inspect/runtime overlay), so the reason can be checked."""
+    syslog patch, M9c's inspect/runtime overlay), and that file does drop it: a named
+    patch has a removed line with the mapped label and no added one; a named overlay's
+    BUILD.bazel does not name the label; neither does the generated vendored file."""
     root = Path(gc.ROOT)
     for label, reason in gc.REMOVED_DEPS.items():
+        mapped = f'"//{regen.VENDOR_OUT}/{label[2:]}"'
         where = [w.rstrip(",;()") for w in reason.split() if w.startswith(("overlays/", "patches/"))]
         assert where, label
-        assert all((root / w).is_dir() for w in where), (label, where)
+        for w in where:
+            d = root / w
+            assert d.is_dir(), (label, w)
+            rel = d.relative_to(root / (regen.OVERLAYS if w.startswith("overlays/") else regen.PATCHES))
+            if w.startswith("patches/"):
+                lines = [ln for p in sorted(d.glob("*.patch")) for ln in p.read_text().splitlines()]
+                assert any(ln.startswith("-") and mapped in ln for ln in lines), (label, w)
+                assert not any(ln.startswith("+") and mapped in ln for ln in lines), (label, w)
+            else:
+                assert mapped not in (d / "BUILD.bazel").read_text(), (label, w)
+            assert mapped not in (root / regen.VENDOR_OUT / rel / "BUILD.bazel").read_text(), (label, w)
