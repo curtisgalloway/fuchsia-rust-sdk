@@ -607,6 +607,17 @@ def test_git_source_reads_files_and_modes(git_upstream, tmp_path):
     assert all(f.startswith("sdk/rust/a/") for f in files)
 
 
+def test_existing_reports_files_only(git_upstream, tmp_path):
+    """Source.existing (used by closure.py, M6): files present at the revision."""
+    src, rev = git_upstream
+    want = ["LICENSE", "sdk/rust/a/src/lib.rs", "sdk/rust/a", "sdk/rust/nope.rs", "sdk/rust/a/nested/src/lib.rs"]
+    expected = {"LICENSE", "sdk/rust/a/src/lib.rs", "sdk/rust/a/nested/src/lib.rs"}
+    git = regen.GitSource(src.as_uri(), rev, tmp_path / "work")
+    assert git.existing(want) == expected
+    assert git.read(sorted(expected))["LICENSE"] == b"Fuchsia license text\n"
+    assert regen.DirSource(src, rev).existing(want) == expected
+
+
 def test_git_source_unknown_revision_fails(git_upstream, tmp_path):
     src, _ = git_upstream
     with pytest.raises(regen.RegenError, match="fetch"):

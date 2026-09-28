@@ -133,6 +133,10 @@ class Source(Protocol):
         """The contents of each repo-relative file. Raises RegenError if one is missing."""
         ...
 
+    def existing(self, paths: list[str]) -> set[str]:
+        """The subset of `paths` that are files at the revision (closure.py, M6)."""
+        ...
+
 
 class DirSource:
     """A plain directory laid out like fuchsia.git (tests, or a local checkout)."""
@@ -163,6 +167,9 @@ class DirSource:
                 raise RegenError(f"{p}: no such file at {self.revision}")
             out[p] = f.read_bytes()
         return out
+
+    def existing(self, paths: list[str]) -> set[str]:
+        return {p for p in paths if (self.root / p).is_file() and not (self.root / p).is_symlink()}
 
 
 class GitSource:
@@ -220,6 +227,19 @@ class GitSource:
                 raise RegenError(f"{path}: not a file at {self.revision}")
             self._entries[path] = (0o755 if mode == "100755" else 0o644, oid)
         return self._entries[path][1]
+
+    def existing(self, paths: list[str]) -> set[str]:
+        want = [p for p in paths if p not in self._entries]
+        for i in range(0, len(want), 500):
+            raw = self._git("ls-tree", "-z", "--full-tree", self.revision, "--", *want[i:i + 500])
+            for rec in raw.split(b"\0"):
+                if not rec:
+                    continue
+                meta, name = rec.split(b"\t", 1)
+                mode, kind, oid = meta.decode().split()
+                if kind == "blob" and mode in ("100644", "100755"):
+                    self._entries[name.decode()] = (0o755 if mode == "100755" else 0o644, oid)
+        return {p for p in paths if p in self._entries}
 
     def read(self, paths: list[str]) -> dict[str, bytes]:
         oids = {p: self._oid(p) for p in paths}

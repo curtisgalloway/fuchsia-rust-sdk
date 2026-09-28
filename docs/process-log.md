@@ -191,3 +191,37 @@ and design against the base, and line counts of every doc file, and sends any
 unexplained drop back to the implementer (applied from M4's landing on).
 Fix belongs in: orchestrate-milestones skill (step 4 "Finished: verify before landing").
 Status: open
+
+## 2026-09-27T22:38-07:00 — failed command: `git grep` in a blobless clone
+Chapter: [M6](notebook/M6.md)
+What happened: to find a build argument's default I ran `git grep … <rev> -- '*.gni'` in
+a `--filter=blob:none` clone. git grep needs every matching blob, so the partial clone
+started fetching them one by one; the command hit the 2-minute timeout and was stopped.
+Cost: about 2 minutes, one stopped background task (no harm: the clone stayed 5 MB).
+Prevention: in a blobless clone, find paths with `ls-tree` and read single blobs with
+`cat-file`; never `git grep`/`git log -p` there.
+Fix belongs in: agent habit; could be a note in the M5/M6 regen.py docstring ("GitSource
+is blobless")
+Status: open
+
+## 2026-09-27T22:42-07:00 — failed command: `git ls-tree -l` in a blobless clone
+Chapter: [M6](notebook/M6.md)
+What happened: four minutes after the `git grep` entry, `ls-tree -r -l` (sizes) in the
+same blobless clone again started fetching every blob and timed out; stopped.
+Cost: about 2 minutes. The prevention in the previous entry was written but not applied
+to "any git command that needs blob contents or sizes".
+Prevention: treat blob sizes like contents: `ls-tree` without `-l`, count files instead.
+Fix belongs in: agent habit
+Status: open
+
+## 2026-09-27T23:13-07:00 — instruction gap: four notebook entries written as one batch
+Chapter: [M6](notebook/M6.md)
+What happened: the entries stamped 2026-09-27T22:37-07:00 (surprise, decision, attempt,
+surprise) were written together after the first closure run, not each when it happened;
+they share one timestamp that reflects the writing, not the events (about 22:25–22:36).
+The review noticed it. Timestamps were not rewritten.
+Cost: the chapter's order is right but its timing is coarse for that stretch.
+Prevention: append an entry at each trigger (the decision to write gn_eval.py, the
+first run's result) before starting the next step, even when the steps follow quickly.
+Fix belongs in: agent habit (lab-notebook skill already says so)
+Status: open
