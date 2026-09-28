@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 # Rust drivers out of tree (the overlay) — Design
 
 Revision: 2026-09-27, draft 1 — approved by the owner 2026-09-27, including D6;
-amended 2026-09-27 per owner direction and M2–M6b findings (C4, C6, A2, R1, R2, R4, §4.1, §4.2 toolchain, Rust rules and third-party crates)
+amended 2026-09-27 per owner direction and M2–M7 findings (C4, C6, A2, A4, R1, R2, R4, §4.1, §4.2 toolchain, Rust rules and third-party crates)
 
 Source brief: [`brief.md`](brief.md), copied from `curtisgalloway/fuchsia-ci` at `b061204`
 (`docs/drivers/rust-driver-oot-plan.md`) (the
@@ -156,17 +156,21 @@ Facts found for this design (local tree at `b5274053`, 2026-09-27):
 - **A3.** The pinned toolchain's Rust `std` for `*-unknown-fuchsia` imports no
   symbols on `rules_fuchsia`'s driver restricted-symbols list, or upstream has a
   known config that avoids them. Checked when the driver rule is written.
-- **A4.** `fidlgen_rust` (Go) and `fidlgen_rust_next` (Rust) build from source
-  at the release revision without a `fuchsia.git` build environment. I2 checks
-  for a prebuilt route first.
+- **A4 (resolved in I2/M7).** `fidlgen_rust` (Go) builds from vendored source at the
+  release revision with `rules_go` and the Go SDK fuchsia.git pins
+  (`manifests/toolchain`), without a `fuchsia.git` build environment.
+  `fidlgen_rust_next` is published for the release in the public debug-symbol store
+  and is fetched by pin (building it from source stays the fallback). See
+  [I2 evidence](evidence/I2.md) and [M7 evidence](evidence/M7.md).
 
 ## 3. Requirements and acceptance criteria
 
 - **R1. Pinned release lock.** Given an SDK version, a script produces
   `overlay.lock.json` with: the release revision, the CIPD instance IDs of the
-  toolchain packages (Rust host, Rust Fuchsia target std, Rust host std, clang), the
+  toolchain packages (Rust host, Rust Fuchsia target std, Rust host std, clang, Go), the
   `rules_fuchsia`/Bazel SDK version, the emulator product bundle (`core.x64`) pinned
-  by a digest over its files' SHA-256s (owner decision 2026-09-27, added in M3), and
+  by a digest over its files' SHA-256s (owner decision 2026-09-27, added in M3), the
+  prebuilt `fidlgen_rust_next` by SHA-256 and ELF build ID (added in M7), and
   the SHA-256 of the release's
   `third_party/rust_crates/Cargo.lock`. *Check:* running it twice gives
   byte-identical output; each field names the upstream artifact it came from.
