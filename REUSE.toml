@@ -89,3 +89,43 @@ path = ["tests/testdata/gn/*.BUILD.gn"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "The Fuchsia Authors"
 SPDX-License-Identifier = "BSD-2-Clause"
+
+# Patched crates.io crates copied from fuchsia.git third_party/rust_crates/<kind>/<dir>/ at
+# the lock's fuchsia_revision by scripts/regen.py (design R4, D6, C4; milestone M6b), byte
+# for byte except their BUILD.bazel (third_party/crates/BUILD.<kind>.<dir>.bazel, covered
+# above). Each keeps its own license files (LICENSE-*, COPYING, UNLICENSE); the license
+# expression and copyright are the crate's own (Cargo.toml `license`, LICENSE-MIT).
+# README.fuchsia/OWNERS are Fuchsia's metadata files beside them.
+[[annotations]]
+path = ["third_party/crates/src/forks/libc-0.2.189/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "The Rust Project Developers"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+# Fuchsia's fork keeps only signatures and trait definitions (README.fuchsia).
+[[annotations]]
+path = ["third_party/crates/src/forks/zeroize/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["2018-2021 The RustCrypto Project Developers", "The Fuchsia Authors"]
+SPDX-License-Identifier = "Apache-2.0 OR MIT"
+
+[[annotations]]
+path = ["third_party/crates/src/ask2patch/byteorder/**", "third_party/crates/src/ask2patch/memchr/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2015 Andrew Gallant"
+SPDX-License-Identifier = "Unlicense OR MIT"
+
+# Fuchsia's own files inside the patched crates (the last matching annotation wins, so
+# these are not attributed to the crates' authors): its third-party metadata
+# (README.fuchsia, OWNERS) and the files Fuchsia's zeroize fork adds, which carry
+# Fuchsia's BSD-style header ("found in the LICENSE file": LICENSES/BSD-2-Clause.txt).
+[[annotations]]
+path = [
+    "third_party/crates/src/**/README.fuchsia",
+    "third_party/crates/src/**/OWNERS",
+    "third_party/crates/src/forks/zeroize/src/barrier.rs",
+    "third_party/crates/src/forks/zeroize/src/stack.rs",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "The Fuchsia Authors"
+SPDX-License-Identifier = "BSD-2-Clause"

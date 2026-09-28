@@ -8,6 +8,7 @@
 load("//tests/api_level:cap_lints_test.bzl", "cap_lints_test")
 
 _VENDORED = [
+    "//vendor/fuchsia/sdk/rust/zx",
     "//vendor/fuchsia/sdk/rust/zx-status",
     "//vendor/fuchsia/sdk/rust/zx-status-ext",
     "//vendor/fuchsia/sdk/rust/zx-sys",

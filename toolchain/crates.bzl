@@ -4,12 +4,15 @@
 """The @rust_crates repository: crates.io crates for vendored code (extension `crates`).
 
 scripts/regen.py writes third_party/crates/ (never edit it by hand): crates.json lists
-each crate's static.crates.io URL and the SHA-256 that the release's Cargo.lock gives it,
-and BUILD.<crate>-<version>.bazel is upstream's crate_universe-generated BUILD file for it,
-with labels rewritten. This rule lays them out as upstream's third_party/rust_crates does:
+each crates.io crate's static.crates.io URL and the SHA-256 that the release's Cargo.lock
+gives it, and each patched crate's files, which regen.py copied from fuchsia.git to
+src/<kind>/<dir>/ (milestone M6b; D6). BUILD.<crate>-<version>.bazel and
+BUILD.<kind>.<dir>.bazel are upstream's crate_universe-generated BUILD files, with labels
+rewritten. This rule lays them out as upstream's third_party/rust_crates does:
 
-    @rust_crates//vendor:<alias>                 the aliases vendored BUILD files use
-    @rust_crates//vendor/<crate>-<version>:...   one package per crate
+    @rust_crates//vendor:<alias>                 the aliases the overlay uses
+    @rust_crates//vendor/<crate>-<version>:...   one package per crates.io crate
+    @rust_crates//<forks|ask2patch>/<dir>:...    one package per patched crate
 
 Every download is checked against its SHA-256 (C1, C3); nothing is resolved.
 """
@@ -19,14 +22,24 @@ _CRATES = Label("//third_party/crates:crates.json")
 def _rust_crates_repository_impl(rctx):
     # rctx.read() of a label makes the repository depend on the file's content.
     spec = json.decode(rctx.read(_CRATES))
+    crates_dir = rctx.path(_CRATES).dirname
     for crate in spec["crates"]:
-        rctx.download_and_extract(
-            url = crate["url"],
-            sha256 = crate["sha256"],
-            type = "tar.gz",
-            strip_prefix = crate["strip_prefix"],
-            output = crate["path"],
-        )
+        if "files" in crate:
+            # A patched crate (forks/, ask2patch/): committed under third_party/crates/src/.
+            # Link each file; watching it re-runs this rule when it changes.
+            src = crates_dir.get_child("src").get_child(crate["path"])
+            for f in crate["files"]:
+                target = src.get_child(f)
+                rctx.watch(target)
+                rctx.symlink(target, crate["path"] + "/" + f)
+        else:
+            rctx.download_and_extract(
+                url = crate["url"],
+                sha256 = crate["sha256"],
+                type = "tar.gz",
+                strip_prefix = crate["strip_prefix"],
+                output = crate["path"],
+            )
         build = rctx.read(_CRATES.same_package_label(crate["build_file"]))
         rctx.file(crate["path"] + "/BUILD.bazel", build)
     if spec.get("vendor_build_file"):

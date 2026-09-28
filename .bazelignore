@@ -4,3 +4,6 @@
 # overlays/<path>/BUILD.bazel are inputs to scripts/regen.py, copied to
 # vendor/fuchsia/<path>/; they are not packages where they are.
 overlays
+# third_party/crates/src/ holds patched crates.io crates that toolchain/crates.bzl links
+# into @rust_crates; they are not packages of the main repository.
+third_party/crates/src

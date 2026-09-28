@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T23:34-07:00
+Updated: 2026-09-28T00:29-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -86,6 +86,15 @@ Outcome: complete (M6a) — `closure.py` + `gn_eval.py`; `pilot1.json`: 69 in-tr
 - Decided: `fuchsia_sync_detect_lock_cycles = false`; split rests on 121 transitive crates + the new patched-crate mechanism; `zx` → M6b
 - Dead end: `git grep` / `ls-tree -l` in a blobless clone fetch every blob (twice)
 
+### [M6b — Pilot 1's crates.io crates build](M6b.md)
+Entries: 2026-09-27T23:37-07:00 through 2026-09-28T00:29-07:00
+Outcome: complete — 121 crates generated (4 patched, committed under third_party/crates/src), zx builds, network-off builds pass; review fixes applied
+- Patched crates: crate_universe BUILD files like vendor's; symlinked per file into @rust_crates (rctx.symlink + watch)
+- Proc macros as top-level Fuchsia targets link as Fuchsia .so (-lfdio): build list keeps them host-only
+- Not every crate compiles for Fuchsia: crate_universe features are per platform (synstructure/syn visit)
+- 15 build scripts spawn only $RUSTC; pass with sandbox network off; no overrides
+- Review: criterion 1 read as "built in the configuration it is used in; all for host" (orchestrator decision); crate groups named explicitly in the build checks
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
@@ -93,6 +102,7 @@ Outcome: complete (M6a) — `closure.py` + `gn_eval.py`; `pilot1.json`: 69 in-tr
   [M4](M4.md) adds 0.06 GiB (total 8.82 GiB).
   [M5](M5.md) adds 0.17 GiB (`@rust_crates` and builds; total 8.99 GiB).
   [M6](M6.md) adds nothing (no Bazel input changed; total 8.99 GiB).
+  [M6b](M6b.md) adds 1.3 GiB (121 crates built for x64, arm64, host and exec; total 10.30 GiB).
 - **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
   Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
   [M4](M4.md) derives the Rust cfgs from that file and asserts the HEAD branch at build time.
@@ -106,3 +116,4 @@ Outcome: complete (M6a) — `closure.py` + `gn_eval.py`; `pilot1.json`: 69 in-tr
   [M6](M6.md) evaluates GN and measures pilot 1 at 69/44/23 (121 crates.io
   transitively; the first run's 66/45/24 missed forwarded deps and FIDL template deps),
   which split M6 into M6a/M6b.
+  [M6b](M6b.md) generates exactly those 121 crates from 44 roots and builds them.
