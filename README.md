@@ -37,7 +37,8 @@ Bazel's output base plus repository cache). Under it:
 - `scripts/bazel` removes the 3 GB IDK tarball from Bazel's repository cache after
   each command that can fetch (so a refetch downloads it again).
 
-A cold build then uses about 7.7 GiB (measured in [M2a](docs/evidence/M2a.md)). An
+A cold build then leaves about 7.7 GiB in Bazel's caches, with a peak of about
+10.8 GiB while the IDK is fetched (measured in [M2a](docs/evidence/M2a.md)). An
 environment with more disk declares `large-disk`, which skips both, with
 `OVERLAY_PROFILE=large-disk` or a file `~/.config/fuchsia-rust-sdk/profile` (under
 `$XDG_CONFIG_HOME` if set) holding the name; changing it refetches the IDK. Fetching

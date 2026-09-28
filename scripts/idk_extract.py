@@ -10,16 +10,17 @@ core.tar.gz:
 
 1. The SHA-256 of the whole archive must equal the lock's value (design C3). Nothing is
    written before this check passes.
-2. Under a profile with ``trim_idk`` (the hosted default, design C6), members the
-   overlay never builds against are not extracted (see ``drop_reason``). Under a
-   profile without it, everything is extracted.
+2. Under a profile that trims (the hosted default, design C6; ``idk_trim.py``), members
+   the overlay never builds against are not extracted (``idk_trim.drop_reason``). Under
+   a profile that does not, everything is extracted.
 3. ``.overlay-idk-trim.json`` in the destination records the profile and what was kept
    and dropped, per group, in files and bytes.
 
 What the trim keeps is tied to the build: ``.bazelrc`` targets API level HEAD, whose
 prebuilts the generated @fuchsia_sdk takes from ``arch/<cpu>/`` (``obj/<cpu>-api-<N>/``
 holds the other levels), for the ``fuchsia_x64`` and ``fuchsia_arm64`` configs, on a
-linux-amd64 build host (C5). ``tests/test_idk_extract.py`` checks these constants
+linux-amd64 build host (C5); the constants are in ``idk_trim.py``.
+``tests/test_idk_extract.py`` checks them
 against ``.bazelrc``; ``scripts/check_sdk_files.py`` checks that every file the built
 configurations can reach in @fuchsia_sdk exists after the trim.
 """
@@ -35,21 +36,9 @@ import tarfile
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 
-import overlay_profile
-
-# Fuchsia target CPUs the overlay builds for (.bazelrc configs fuchsia_x64/fuchsia_arm64,
-# design D4). Other target CPUs (riscv64) are dropped.
-KEEP_TARGET_CPUS = ("x64", "arm64")
-# API levels the configs target (.bazelrc --default/--override_fuchsia_api_level). HEAD
-# prebuilts live in arch/<cpu>/; obj/<cpu>-api-<level>/ holds every other level.
-KEEP_API_LEVELS = ("HEAD",)
-# The build host's CPU in IDK naming (design C5: linux-amd64). tools/<cpu>/ for any other
-# known CPU holds host tools for other build hosts.
-HOST_CPU = "x64"
-KNOWN_CPUS = ("x64", "arm64", "riscv64")
+import idk_trim
 
 REPORT_NAME = ".overlay-idk-trim.json"
-_OBJ_DIR = re.compile(r"(?P<cpu>[a-z0-9_]+)-api-(?P<level>[A-Za-z0-9_]+)")
 _CHUNK = 1 << 20
 
 
@@ -75,35 +64,6 @@ def verify(path: Path, expected: str) -> None:
             f"{path.name}: SHA-256 {actual}, expected {expected} (overlay.lock.json "
             "bazel_sdk.value); nothing was extracted"
         )
-
-
-def drop_reason(name: str) -> str | None:
-    """The trim group a member belongs to, or None to keep it.
-
-    Only three kinds of path are dropped; anything with another layout is kept, so a new
-    IDK layout errs toward using more disk, never toward a missing file.
-    """
-    parts = PurePosixPath(name).parts
-    # Atom metadata (`*-meta.json`, `meta.json`) is always kept: rules_fuchsia reads every
-    # part's metadata from meta/manifest.json when it generates @fuchsia_sdk, including
-    # parts for dropped CPUs (tools/arm64/cmc-meta.json, …). The files are small.
-    if len(parts) < 3 or parts[-1].endswith("meta.json"):
-        return None
-    top, sub = parts[0], parts[1]
-    if top == "obj":
-        m = _OBJ_DIR.fullmatch(sub)
-        if m and (m["cpu"] not in KEEP_TARGET_CPUS or m["level"] not in KEEP_API_LEVELS):
-            return f"obj/{sub}"
-    elif top == "arch":
-        # The generated SDK's root BUILD file globs arch/<cpu>/sysroot/{include,lib}/**
-        # for every target CPU in the IDK, and an empty glob fails the whole package. The
-        # sysroot of a dropped CPU is therefore kept (riscv64: 26 MB of 597 MB).
-        if sub not in KEEP_TARGET_CPUS and parts[2] != "sysroot":
-            return f"arch/{sub}"
-    elif top == "tools":
-        if sub in KNOWN_CPUS and sub != HOST_CPU:
-            return f"tools/{sub}"
-    return None
 
 
 def _member_name(member: tarfile.TarInfo) -> str:
@@ -164,20 +124,20 @@ def check_metadata(dest: Path) -> None:
 
 
 def run(archive: Path, sha256: str, profile_name: str, dest: Path) -> dict:
-    profile = overlay_profile.PROFILES.get(profile_name)
-    if profile is None:
+    trim = idk_trim.TRIM_BY_PROFILE.get(profile_name)
+    if trim is None:
         raise ExtractError(f"unknown profile {profile_name!r}")
     verify(archive, sha256)
-    counts = extract(archive, dest, drop_reason if profile.trim_idk else None)
+    counts = extract(archive, dest, idk_trim.drop_reason if trim else None)
     check_metadata(dest)
     report = {
         "archive_sha256": sha256,
-        "profile": profile.name,
-        "trimmed": profile.trim_idk,
+        "profile": profile_name,
+        "trimmed": trim,
         "keep": {
-            "target_cpus": list(KEEP_TARGET_CPUS),
-            "api_levels": list(KEEP_API_LEVELS),
-            "host_cpu": HOST_CPU,
+            "target_cpus": list(idk_trim.KEEP_TARGET_CPUS),
+            "api_levels": list(idk_trim.KEEP_API_LEVELS),
+            "host_cpu": idk_trim.HOST_CPU,
         },
         **counts,
     }
@@ -189,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--archive", type=Path, required=True)
     parser.add_argument("--sha256", required=True)
-    parser.add_argument("--profile", required=True, choices=sorted(overlay_profile.PROFILES))
+    parser.add_argument("--profile", required=True, choices=sorted(idk_trim.TRIM_BY_PROFILE))
     parser.add_argument("--dest", type=Path, required=True)
     args = parser.parse_args(argv)
     try:

@@ -44,9 +44,11 @@ cipd_repository = repository_rule(
     },
 )
 
-# The environment profile (design C6) is resolved by scripts/overlay_profile.py, which
-# reads these variables and this file under the config directory. The rule reads them
-# through rctx.getenv/rctx.watch so that Bazel refetches the IDK when the profile changes.
+# The environment profile (design C6) is resolved by scripts/idk_trim.py, which reads
+# these variables and this file under the config directory. The rule reads them through
+# rctx.getenv/rctx.watch so that Bazel refetches the IDK when the profile changes. It
+# watches only idk_trim.py and idk_extract.py of the profile code: editing
+# scripts/overlay_profile.py (budgets and other fields) does not refetch the IDK.
 _PROFILE_ENV = ["OVERLAY_PROFILE", "XDG_CONFIG_HOME", "HOME"]
 _PROFILE_FILE = "fuchsia-rust-sdk/profile"
 _ARCHIVE = "_overlay_idk.tar.gz"
@@ -74,7 +76,7 @@ def _profile(rctx, python):
     if config_dir:
         # Watched whether or not it exists, so creating the file refetches too.
         rctx.watch(config_dir + "/" + _PROFILE_FILE)
-    script = rctx.path(Label("//:scripts/overlay_profile.py"))
+    script = rctx.path(Label("//:scripts/idk_trim.py"))
     rctx.watch(script)
     return json.decode(_run_script(rctx, python, script, ["--json"], env))
 
@@ -90,7 +92,8 @@ def _idk_repository_impl(rctx):
 
     # idk_extract.py checks the SHA-256 again (it is also a standalone tool), then
     # extracts, trimmed under a profile with trim_idk, and writes .overlay-idk-trim.json.
-    # It imports overlay_profile.py, which _profile() already watches.
+    # It imports idk_trim.py, which _profile() already watches. The archive is deleted
+    # as soon as it returns (the repository cache still holds a copy until the prune).
     script = rctx.path(Label("//:scripts/idk_extract.py"))
     rctx.watch(script)
     out = _run_script(rctx, python, script, [
@@ -99,7 +102,7 @@ def _idk_repository_impl(rctx):
         "--sha256",
         rctx.attr.sha256,
         "--profile",
-        profile["name"],
+        profile["profile"],
         "--dest",
         ".",
     ], {})
@@ -107,7 +110,7 @@ def _idk_repository_impl(rctx):
     rctx.delete(_ARCHIVE)
 
     # @fuchsia_sdk is generated from this tree by rules_fuchsia; nothing builds here.
-    rctx.file("BUILD.bazel", "# The release's IDK (%s profile). @fuchsia_sdk is generated from it.\n" % profile["name"])
+    rctx.file("BUILD.bazel", "# The release's IDK (%s profile). @fuchsia_sdk is generated from it.\n" % profile["profile"])
 
 idk_repository = repository_rule(
     implementation = _idk_repository_impl,

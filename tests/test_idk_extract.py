@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 import idk_extract as ie
+import idk_trim as it
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -91,12 +92,12 @@ def idk(tmp_path):
 
 
 def test_drop_reason_groups():
-    assert ie.drop_reason("obj/x64-api-27/lib/libfdio.so") == "obj/x64-api-27"
-    assert ie.drop_reason("obj/arm64-api-NEXT/lib/libfdio.so") == "obj/arm64-api-NEXT"
-    assert ie.drop_reason("arch/riscv64/lib/libfdio.so") == "arch/riscv64"
-    assert ie.drop_reason("arch/riscv64/debug/libfdio.so") == "arch/riscv64"
-    assert ie.drop_reason("tools/arm64/ffx") == "tools/arm64"
-    assert ie.drop_reason("tools/riscv64/ffx") == "tools/riscv64"
+    assert it.drop_reason("obj/x64-api-27/lib/libfdio.so") == "obj/x64-api-27"
+    assert it.drop_reason("obj/arm64-api-NEXT/lib/libfdio.so") == "obj/arm64-api-NEXT"
+    assert it.drop_reason("arch/riscv64/lib/libfdio.so") == "arch/riscv64"
+    assert it.drop_reason("arch/riscv64/debug/libfdio.so") == "arch/riscv64"
+    assert it.drop_reason("tools/arm64/ffx") == "tools/arm64"
+    assert it.drop_reason("tools/riscv64/ffx") == "tools/riscv64"
 
 
 def test_drop_reason_keeps_what_the_build_uses():
@@ -112,21 +113,21 @@ def test_drop_reason_keeps_what_the_build_uses():
         "tools/arm64/ffx-meta.json",
         "obj/x64-api-27/meta.json",
     ):
-        assert ie.drop_reason(name) is None, name
+        assert it.drop_reason(name) is None, name
 
 
 def test_drop_reason_keeps_unknown_layouts():
     # A layout the trim does not recognize is kept (more disk, never a missing file).
-    assert ie.drop_reason("obj/something-else/lib.so") is None
-    assert ie.drop_reason("obj/README") is None
-    assert ie.drop_reason("tools/mips/ffx") is None
+    assert it.drop_reason("obj/something-else/lib.so") is None
+    assert it.drop_reason("obj/README") is None
+    assert it.drop_reason("tools/mips/ffx") is None
 
 
 def test_obj_kept_for_a_configured_level(monkeypatch):
-    monkeypatch.setattr(ie, "KEEP_API_LEVELS", ("HEAD", "27"))
-    assert ie.drop_reason("obj/x64-api-27/lib/libfdio.so") is None
-    assert ie.drop_reason("obj/riscv64-api-27/lib/libfdio.so") == "obj/riscv64-api-27"
-    assert ie.drop_reason("obj/x64-api-28/lib/libfdio.so") == "obj/x64-api-28"
+    monkeypatch.setattr(it, "KEEP_API_LEVELS", ("HEAD", "27"))
+    assert it.drop_reason("obj/x64-api-27/lib/libfdio.so") is None
+    assert it.drop_reason("obj/riscv64-api-27/lib/libfdio.so") == "obj/riscv64-api-27"
+    assert it.drop_reason("obj/x64-api-28/lib/libfdio.so") == "obj/x64-api-28"
 
 
 def test_hosted_extracts_trimmed(idk):
@@ -226,6 +227,24 @@ def test_constants_match_bazelrc():
     """The trim keeps exactly the API levels and CPUs the .bazelrc configs build."""
     rc = (ROOT / ".bazelrc").read_text()
     levels = set(re.findall(r"--(?:default|override)_fuchsia_api_level=(\S+)", rc))
-    assert levels == set(ie.KEEP_API_LEVELS)
+    assert levels == set(it.KEEP_API_LEVELS)
     cpus = set(re.findall(r"^build:fuchsia_(\w+) --platforms=\S+:fuchsia_\1$", rc, re.M))
-    assert cpus == set(ie.KEEP_TARGET_CPUS)
+    assert cpus == set(it.KEEP_TARGET_CPUS)
+
+
+@pytest.mark.parametrize("target", ["../../../../outside", "/etc/passwd"])
+def test_symlink_escaping_dest_rejected(tmp_path, target):
+    """Pins the tarfile "data" filter: a link out of the destination is refused.
+    (From arch/x64/lib/, "../../outside" would still be inside; four levels leave it.)"""
+    archive = tmp_path / "core.tar.gz"
+    with tarfile.open(archive, "w:gz") as tar:
+        info = tarfile.TarInfo("arch/x64/lib/evil")
+        info.type = tarfile.SYMTYPE
+        info.linkname = target
+        tar.addfile(info)
+    sha = hashlib.sha256(archive.read_bytes()).hexdigest()
+    dest = tmp_path / "out"
+    dest.mkdir()
+    with pytest.raises(tarfile.FilterError):
+        ie.run(archive, sha, "large-disk", dest)
+    assert not any(p.is_symlink() for p in dest.rglob("*"))

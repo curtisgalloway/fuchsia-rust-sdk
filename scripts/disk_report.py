@@ -13,8 +13,10 @@ Buckets (a bucket with no directory on this machine counts as 0):
 - `emulator`: emulator state and product bundles, from `$OVERLAY_EMULATOR_DIR`
   (set up in M3);
 - `scratch`: directories given with `--scratch` or `$OVERLAY_SCRATCH` (`:`-separated);
-- `checkout`: this repository (including `.git`; the `bazel-*` symlinks are not
-  followed).
+- `uv_cache`: uv's cache (`$UV_CACHE_DIR`, else `<cache home>/uv`), which runs the
+  scripts and their tests;
+- `checkout`: this repository, including `.git`, and the main clone's shared `.git`
+  when this checkout is a git worktree (the `bazel-*` symlinks are not followed).
 
 Groups, which the profile budgets (overlay_profile.PROFILES): `bazel` =
 `output_base` + `repository_cache`; `total` = every bucket. Sizes are allocated blocks
@@ -33,6 +35,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -47,7 +50,15 @@ BAZEL = ROOT / "scripts" / "bazel"
 LOCK = ROOT / "overlay.lock.json"
 GIB = overlay_profile.GIB
 
-BUCKETS = ("output_base", "repository_cache", "bazel_install", "emulator", "scratch", "checkout")
+BUCKETS = (
+    "output_base",
+    "repository_cache",
+    "bazel_install",
+    "emulator",
+    "scratch",
+    "uv_cache",
+    "checkout",
+)
 GROUPS: dict[str, tuple[str, ...]] = {
     "bazel": ("output_base", "repository_cache"),
     "total": BUCKETS,
@@ -89,11 +100,20 @@ def tree_size(paths: Iterable[Path], seen: set[tuple[int, int]]) -> int:
 
 
 def bucket_paths(
-    info: Mapping[str, str], env: Mapping[str, str], scratch: list[str]
+    info: Mapping[str, str],
+    env: Mapping[str, str],
+    scratch: list[str],
+    git_common_dir: Path | None = None,
 ) -> dict[str, list[Path]]:
     """Directories per bucket. `info` holds `bazel info` keys (output_base,
-    repository_cache, install_base)."""
+    repository_cache, install_base). `git_common_dir` is the repository's shared `.git`
+    (`git rev-parse --git-common-dir`); when this checkout is a worktree it lies outside
+    the checkout and is counted with it."""
     cache_home = env.get("XDG_CACHE_HOME") or str(Path(env.get("HOME", "/")) / ".cache")
+    uv_cache = env.get("UV_CACHE_DIR") or str(Path(cache_home) / "uv")
+    checkout = [ROOT]
+    if git_common_dir is not None and not git_common_dir.resolve().is_relative_to(ROOT):
+        checkout.append(git_common_dir)
     install = [Path(info["install_base"]).parent] if info.get("install_base") else []
     scratch_dirs = list(scratch) + [d for d in env.get("OVERLAY_SCRATCH", "").split(":") if d]
     emulator = env.get("OVERLAY_EMULATOR_DIR")
@@ -103,7 +123,8 @@ def bucket_paths(
         "bazel_install": install + [Path(cache_home) / "fuchsia-rust-sdk" / "bazel"],
         "emulator": [Path(emulator)] if emulator else [],
         "scratch": [Path(d) for d in scratch_dirs],
-        "checkout": [ROOT],
+        "uv_cache": [Path(uv_cache)],
+        "checkout": checkout,
     }
 
 
@@ -126,11 +147,25 @@ def idk_cache_entry(repository_cache: Path, sha256: str) -> Path:
     return repository_cache / "content_addressable" / "sha256" / sha256
 
 
+class PruneError(Exception):
+    pass
+
+
 def prune(repository_cache: Path, sha256: str, profile: overlay_profile.Profile) -> str:
-    """Applies the profile's IDK cache policy to an existing repository cache."""
+    """Applies the profile's IDK cache policy to an existing repository cache.
+
+    Refuses a `sha256` that is not 64 lowercase hex digits (it comes from the lock, which
+    may be malformed: "" would name every cached download) and any entry that resolves
+    outside the cache's `content_addressable/sha256/` directory.
+    """
     if profile.cache_idk_archive:
         return f"prune: skipped; the {profile.name} profile keeps the IDK archive cached"
+    if not re.fullmatch(r"[0-9a-f]{64}", sha256):
+        raise PruneError(f"lock bazel_sdk.value {sha256!r} is not 64 lowercase hex digits")
     entry = idk_cache_entry(repository_cache, sha256)
+    parent = (repository_cache / "content_addressable" / "sha256").resolve()
+    if entry.resolve().parent != parent:
+        raise PruneError(f"{entry} resolves outside {parent}")
     if not entry.exists():
         return "prune: the IDK archive is not in the repository cache"
     shutil.rmtree(entry)
@@ -139,6 +174,14 @@ def prune(repository_cache: Path, sha256: str, profile: overlay_profile.Profile)
 
 def _gib(n: int | None) -> str:
     return "none" if n is None else f"{n / GIB:.2f} GiB"
+
+
+def git_common_dir() -> Path | None:
+    proc = subprocess.run(
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    )
+    return Path(proc.stdout.strip()) if proc.returncode == 0 and proc.stdout.strip() else None
 
 
 def bazel_info() -> dict[str, str]:
@@ -195,16 +238,24 @@ def main(argv: list[str] | None = None) -> int:
         print(f"disk_report: {e}", file=sys.stderr)
         return 1
     if args.prune_cache:
-        sha256 = json.loads(LOCK.read_text())["bazel_sdk"]["value"]
-        msg = prune(Path(args.prune_cache), sha256, profile)
+        try:
+            sha256 = json.loads(LOCK.read_text())["bazel_sdk"]["value"]
+            msg = prune(Path(args.prune_cache), sha256, profile)
+        except (PruneError, KeyError, TypeError, ValueError) as e:
+            print(f"scripts/bazel: repository-cache policy not applied: {e}", file=sys.stderr)
+            return 1
         if "removed" in msg:
             print(f"scripts/bazel: {profile.name} profile: {msg}", file=sys.stderr)
         return 0
     info = bazel_info()
     if args.prune:
-        sha256 = json.loads(LOCK.read_text())["bazel_sdk"]["value"]
-        print(prune(Path(info["repository_cache"]), sha256, profile), file=sys.stderr)
-    paths = bucket_paths(info, os.environ, args.scratch)
+        try:
+            sha256 = json.loads(LOCK.read_text())["bazel_sdk"]["value"]
+            print(prune(Path(info["repository_cache"]), sha256, profile), file=sys.stderr)
+        except (PruneError, KeyError, TypeError, ValueError) as e:
+            print(f"disk_report: prune refused: {e}", file=sys.stderr)
+            return 1
+    paths = bucket_paths(info, os.environ, args.scratch, git_common_dir())
     sizes = measure(paths)
     groups = evaluate(sizes, profile)
     if args.json:

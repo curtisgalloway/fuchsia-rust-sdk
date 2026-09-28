@@ -9,9 +9,9 @@ Design: [design](../design.md), revision "2026-09-27, draft 1", amended 2026-09-
 C3, C5; §4.2 "Toolchain")
 Notebook: [M2a chapter](../notebook/M2a.md)
 Starting revision and pre-existing changes: `aaf53b7` (origin/main: I1, M1, M2 and the
-design/plan amendment), branch `ms/M2a`; working tree clean. Crash-insurance commit:
-`695841e` (`wip: M2a — …`); the checkpoint commit
-`overlay: M2a — Fit the hosted disk budget` follows it.
+design/plan amendment), branch `ms/M2a`; working tree clean. Crash-insurance commits:
+`695841e` and `56dd031` (`wip: M2a — …`, reviewed); the checkpoint commit
+`overlay: M2a — Fit the hosted disk budget` follows them and carries the review fixes.
 
 ## Milestone definition (moved from the plan)
 
@@ -65,19 +65,20 @@ hosted profile: total ≤ 25 GB; M2a's target: output base + repository cache �
 
 | File | Purpose |
 |---|---|
-| `scripts/overlay_profile.py` | profiles (`hosted` default, `large-disk`), resolution (`$OVERLAY_PROFILE`, then `$XDG_CONFIG_HOME/fuchsia-rust-sdk/profile` or `~/.config/…`, then default), budgets; `--json` for the repository rule |
+| `scripts/idk_trim.py` | the IDK trim spec, the only profile code `@fuchsia_idk` depends on: profile-name resolution (`$OVERLAY_PROFILE`, then `$XDG_CONFIG_HOME/fuchsia-rust-sdk/profile` or `~/.config/…`, then `hosted`), profile → trim on/off, `drop_reason`; `--json` for the repository rule |
+| `scripts/overlay_profile.py` | the profiles' other fields (`cache_idk_archive`, budgets, description); editing it does not refetch the IDK |
 | `scripts/idk_extract.py` | SHA-256 of the whole archive, then extraction (trimmed under `trim_idk`), part-metadata check, `.overlay-idk-trim.json` report |
-| `toolchain/repositories.bzl` | `idk_repository`: resolves the profile (reads the variables with `rctx.getenv`, watches the profile file and both scripts), `rctx.download` with `sha256`, runs `idk_extract.py`, deletes the tarball |
+| `toolchain/repositories.bzl` | `idk_repository`: resolves the profile with `idk_trim.py --json` (reads the variables with `rctx.getenv`; watches the profile file, `idk_trim.py` and `idk_extract.py`), `rctx.download` with `sha256`, runs `idk_extract.py`, deletes the tarball |
 | `scripts/bazel` | after `build`/`test`/`run`/`fetch`/`query`/`cquery`/`aquery`/…: `disk_report.py --prune-cache <repository_cache>` (skip with `OVERLAY_NO_PRUNE=1`) |
-| `scripts/disk_report.py` | buckets `output_base`, `repository_cache`, `bazel_install`, `emulator` (`$OVERLAY_EMULATOR_DIR`, for M3), `scratch`, `checkout`; groups `bazel` and `total` against the profile's budgets; exit 1 when over; `--prune`, `--prune-cache`, `--json` |
-| `scripts/check_sdk_files.py` | per config, every source file reachable from `//...` and the SDK's targets exists, and no unexpected target fails analysis |
-| `tests/test_overlay_profile.py`, `tests/test_idk_extract.py`, `tests/test_disk_report.py` | 43 new tests (75 → 118) |
+| `scripts/disk_report.py` | buckets `output_base`, `repository_cache`, `bazel_install`, `emulator` (`$OVERLAY_EMULATOR_DIR`, for M3), `scratch`, `uv_cache`, `checkout` (with a worktree's shared `.git`); groups `bazel` and `total` against the profile's budgets; exit 1 when over; `--prune`, `--prune-cache`, `--json` |
+| `scripts/check_sdk_files.py` | per config, every source file reachable from `//...` and the SDK's targets exists; every cquery error, skipped target and exit status is explained by `EXPECTED_ERRORS` (target and reason) |
+| `tests/test_overlay_profile.py`, `tests/test_idk_extract.py`, `tests/test_disk_report.py` | 60 new tests (75 → 135) |
 | `README.md` | "Disk and environment profiles" |
 | `docs/implementation-plan.md` | two project checks (SDK files present, disk budget) |
 
 ## Decisions (each has a notebook entry)
 
-- **What the hosted trim drops** (`idk_extract.drop_reason`): `obj/<cpu>-api-<level>/`
+- **What the hosted trim drops** (`idk_trim.drop_reason`): `obj/<cpu>-api-<level>/`
   unless the CPU is x64/arm64 and the level is in `KEEP_API_LEVELS` (only `HEAD`, whose
   prebuilts the generated SDK takes from `arch/<cpu>/`, so all of `obj/`); `arch/riscv64/`
   except its `sysroot/`; and `tools/arm64/` (host tools for arm64 build hosts; C5 says
@@ -103,9 +104,16 @@ hosted profile: total ≤ 25 GB; M2a's target: output base + repository cache �
   to the environment, not the checkout), then `hosted`. Unknown names fail; there is no
   auto-detection (the owner's rule is "hosted unless declared"). Budgets are GiB:
   `hosted` total 25, `bazel` 12; `large-disk` none.
-- **Profile changes refetch the IDK.** The repository rule reads the profile inputs
-  through `rctx.getenv` and `rctx.watch`. The extension still returns
+- **Profile changes refetch the IDK; profile *code* changes mostly do not** (review
+  finding 3). The repository rule reads the profile inputs through `rctx.getenv` and
+  `rctx.watch`, and of the profile code watches only `idk_trim.py` (name resolution,
+  profile → trim, `drop_reason`) and `idk_extract.py`. Budgets and future fields (M3's
+  KVM) live in `overlay_profile.py`, which neither imports (a pytest checks). Adding a
+  profile name does touch `idk_trim.py` and so refetches. The extension still returns
   `reproducible = True`; `MODULE.bazel.lock` did not change.
+- **Prune refuses bad input** (review finding 1): the lock hash must be 64 lowercase hex
+  digits and the entry must resolve inside `content_addressable/sha256/`; otherwise
+  nothing is deleted and `scripts/bazel` warns.
 
 ## Verification
 
@@ -114,8 +122,8 @@ All commands from the repo root.
 ### Disk, before and after
 
 "Before" is the M2 state this milestone started from (opening entry); "after" is
-`disk_report.py` after the final clean-state build (below). `du -h` and the report
-both use 1024-based units.
+`disk_report.py` after the final clean-state build, which ran after the review fixes
+(below). `du -h` and the report both use 1024-based units.
 
 | Item | Before (M2) | After (M2a, hosted) |
 |---|---|---|
@@ -126,8 +134,10 @@ both use 1024-based units.
 | Repository cache | 3.8 GB (IDK tarball 3.0 GB) | 0.94 GiB (no IDK tarball) |
 | **Output base + repository cache** (budget 12 GiB) | **~20 GB** | **7.69 GiB** |
 | Bazel install base + `scripts/bazel` cache | 193 MB + 62 MB | 0.25 GiB |
-| Checkout; scratch | — | 0.02 GiB; 4 MB |
-| **Total** (budget 25 GiB) | ~20 GB | **7.96 GiB** |
+| uv cache | (not counted) | 0.26 GiB |
+| Checkout (with the main clone's `.git`); scratch | — | 0.01 GiB; 4 MB |
+| **Total** (budget 25 GiB) | ~20 GB | **8.21 GiB** |
+| Peak during a fresh IDK fetch (`df`, 1 s samples, above an empty-cache baseline) | not measured | 10.81 GiB (7.57 GiB after the build) |
 | Free on `/` | 9.2 GB | 21.2 GiB |
 
 The extraction report of the final build (`.overlay-idk-trim.json` in `@fuchsia_idk`,
@@ -147,11 +157,12 @@ repository_cache      0.94 GiB  <user cache>/bazel/_bazel_root/cache/repos/v1
 bazel_install         0.25 GiB  <user cache>/bazel/_bazel_root/install, <user cache>/fuchsia-rust-sdk/bazel
 emulator              0.00 GiB  (none)
 scratch               0.00 GiB  <scratch dir>
-checkout              0.02 GiB  <checkout>
+uv_cache              0.26 GiB  <user cache>/uv
+checkout              0.01 GiB  <checkout>, <main clone>/.git
 
 group                     used      budget  status
 bazel                 7.69 GiB   12.00 GiB  ok
-total                 7.96 GiB   25.00 GiB  ok
+total                 8.21 GiB   25.00 GiB  ok
 
 free on the checkout's filesystem: 21.17 GiB
 ```
@@ -180,27 +191,35 @@ free on the checkout's filesystem: 21.17 GiB
    `MODULE.bazel.lock` unchanged. After the x64 build `scripts/bazel` printed
    `hosted profile: prune: removed the IDK archive from the repository cache (…/sha256/043104ba…)`.
    Rebuilt the same way after the tamper test (116 s / 1 s / 1 s) and after the
-   profile test (107 s / 1 s / 0 s).
+   profile test (107 s / 1 s / 0 s). **After the review fixes**, expunged and cleared
+   the repository cache again: 167 s / 2 s / 1 s, all exit 0, lock unchanged, one prune.
 3. **≤ 12 GB, shown by the disk report:** `bazel` group 7.69 GiB of 12 (report above).
 4. **Large-disk skips trim and cache clearing (unit tests):**
    `test_large_disk_skips_trim_and_keeps_caches` (profile flags),
    `test_large_disk_extracts_everything` (every member extracted, `dropped` empty),
    `test_prune_large_disk_is_skipped` (cache entry kept),
    `test_env_var_selects_profile`, `test_file_under_home_config`,
-   `test_xdg_config_home_wins_over_home`, `test_cli_json_is_what_the_repository_rule_reads`.
+   `test_xdg_config_home_wins_over_home`, `test_trim_spec_cli_is_what_the_repository_rule_reads`,
+   `test_profiles_and_trim_spec_agree`.
    Live, that the repository rule sees the profile: `OVERLAY_PROFILE=bogus scripts/bazel
    build …` re-ran the `fuchsia_idk` fetch and failed with `overlay_profile:
-   $OVERLAY_PROFILE: unknown profile 'bogus' (known: hosted, large-disk)`.
-5. **`uv run pytest`:** 118 passed. **`uv run reuse lint`:** compliant (REUSE 3.3).
+   $OVERLAY_PROFILE: unknown profile 'bogus' (known: hosted, large-disk)` (before the
+   review restructuring; the same check now lives in `idk_trim.py`).
+   Live, that general profile edits do not refetch (after the fixes): changing the
+   hosted `bazel` budget and appending a comment to `overlay_profile.py`, then
+   `scripts/bazel build --lockfile_mode=error --config=fuchsia_x64 //...`: 2 s; the
+   `@+lock_repos+fuchsia_idk.marker` and `.overlay-idk-trim.json` mtimes unchanged, no IDK
+   fetch in the log. Reverted.
+5. **`uv run pytest`:** 135 passed. **`uv run reuse lint`:** compliant (REUSE 3.3).
 
 ### The trim hides no file the build can reach
 
-`uv run scripts/check_sdk_files.py` (exit 0), on the final build:
+`uv run scripts/check_sdk_files.py` (exit 0), on the final build after the review fixes:
 
 ```
-fuchsia_x64: 8532 source files reachable (3749 in @fuchsia_sdk), 0 missing, 14 targets not analyzable
-fuchsia_arm64: 8555 source files reachable (3749 in @fuchsia_sdk), 0 missing, 14 targets not analyzable
-host: 90 source files reachable (0 in @fuchsia_sdk), 0 missing, 0 targets not analyzable
+fuchsia_x64: 8532 source files reachable (3749 in @fuchsia_sdk), 0 missing, 14 targets skipped, 0 unexplained errors
+fuchsia_arm64: 8555 source files reachable (3749 in @fuchsia_sdk), 0 missing, 14 targets skipped, 0 unexplained errors
+host: 90 source files reachable (0 in @fuchsia_sdk), 0 missing, 0 targets skipped, 0 unexplained errors
 ```
 
 Scope per Fuchsia config: `//...` plus every `@fuchsia_sdk` target except those reaching
@@ -213,13 +232,21 @@ use yet, not only what `//...` builds today.
   moving `arch/x64/lib/libfdio.so` out of the extracted IDK gave `0 missing` but 37
   unexpected analysis failures (`pkg/fdio:fdio`, `//examples/hello_rust`, …), exit 1.
   In the SDK's root package, a label to a file that does not exist is `no such target`.
-  The check therefore fails on any analysis failure outside
-  `EXPECTED_ANALYSIS_ERRORS`. Of its 14 entries, 13 fail on the untrimmed IDK too: a
-  reference cquery at the start of the milestone listed exactly those 13 (11 prebuilt
-  packages, which exist only for numbered API levels; `:fuchsia_platform_sdk`,
-  `:fuchsia_toolchain_version_sdk`; `rtc_conformance_test`). The 14th,
-  `pkg/vulkan_layers/riscv64:vulkan_layers`, is the trim's: its inputs are
-  `arch/riscv64/dist/VkLayer_*.so`.
+  The check therefore judges all of cquery's diagnostics against `EXPECTED_ERRORS`
+  (after review finding 2 and the nit): every `ERROR:` line (loading or analysis) must
+  match an expected reason, every skipped target (`errors encountered while analyzing
+  target`, `Skipping '…'`) must be named by an expected entry, an expected target must
+  be skipped for its own reason, and the exit status must be 0 or 1. Labels are
+  compared in apparent form (`@fuchsia_sdk//…`, from `bazel mod dump_repo_mapping ''`),
+  not the canonical `@@+fuchsia_repos+fuchsia_sdk`. The 14 skipped targets: 13 fail on
+  the untrimmed IDK too (the reference cquery at the start listed exactly those: 10
+  prebuilt packages with variants only for numbered API levels;
+  `:fuchsia_platform_sdk` and `:fuchsia_toolchain_version_sdk`, from the loading error
+  `no such package '@fuchsia_sdk//fuchsia/constraints'`; `rtc_conformance_test`, no
+  Python toolchain). The 14th, `pkg/vulkan_layers/riscv64:vulkan_layers`, is the
+  trim's: `no such target '@fuchsia_sdk//:arch/riscv64/dist/VkLayer_*.so'`. Unit tests
+  cover an unexpected failure, an expected target failing for another reason, a loading
+  error, and exit statuses 1 (with no error) and 2.
 - **Selects:** under a config, cquery resolves every `variant_select` to the HEAD arm
   (`arch/<cpu>/…`); `obj/…` appears only in non-HEAD arms. Another API level would need
   `KEEP_API_LEVELS` changed, which a pytest ties to `.bazelrc`.
@@ -237,29 +264,77 @@ use yet, not only what `//...` builds today.
   `scripts/bazel` (Decisions). Commands run with a bare `bazel` do not prune;
   `disk_report.py --prune` does it by hand.
 - **Name:** `scripts/disk_report.py` (the plan proposed `scripts/disk_report`), matching
-  `resolve_pins.py`. One more script than planned: `scripts/check_sdk_files.py`.
+  `resolve_pins.py`. Two more scripts than planned: `scripts/check_sdk_files.py`, and
+  (after review finding 3) `scripts/idk_trim.py`.
 - **Fetching the IDK now needs `python3` ≥ 3.11** on `PATH`.
 
 ## For M3
 
 - Add the emulator's state directory as `$OVERLAY_EMULATOR_DIR` (or change
   `disk_report.bucket_paths`); the `emulator` bucket already counts toward `total`.
-- The hosted headroom after M2a: 25 − 7.96 ≈ 17 GiB for the emulator, product bundle
+- The hosted headroom after M2a: 25 − 8.21 ≈ 17 GiB for the emulator, product bundle
   and scratch (plan Risks estimated about 15 GB for `fuchsia-cloud-dev`'s cache).
-- `ffx` is `@fuchsia_idk//tools/x64/ffx` (kept); `fuchsia-cloud-dev`'s `dev` runs
+  Measure the peak during M3's first fresh fetch too: the IDK fetch alone peaks at about
+  10.8 GiB (below).
+- `ffx` is `@fuchsia_idk//tools/x64/ffx` (kept; the reviewer ran `ffx sdk version`
+  against the trimmed IDK: `33.20260927.4.1`); `fuchsia-cloud-dev`'s `dev` runs
   `<sdk>/tools/x64/ffx` directly, which the trim does not affect. `tools/x64/` is kept
   whole.
-- Add a KVM field to the profile when M3 needs it (M3's acceptance asks for KVM
-  detection; the profile is where a declared environment would say so).
+- A KVM field (M3's acceptance asks for KVM detection) belongs in
+  `scripts/overlay_profile.py`, not `idk_trim.py`: fields there do not refetch the IDK.
 
 ## Review
 
-(Pending: the orchestrator runs the review before the checkpoint commit.)
+**Method:** a reviewer subagent with fresh context, launched by the orchestrator, per
+the plan's conventions. It read the design, the milestone entry, this evidence and the
+diff of `695841e` and `56dd031` against `aaf53b7`, and modified nothing. It ran
+**before the checkpoint commit.** The orchestrator relayed its findings with a decision
+for each; this list is the artifact.
+
+**What the reviewer re-verified independently:** all five acceptance criteria
+(`disk_report.py`: bazel 7.71/12, total 7.98/25 GiB, and `du` agrees). It resolved every
+path in every part's metadata against the trimmed IDK: 5,963 missing, all under
+`obj/*-api-*`, `tools/arm64` or `arch/riscv64`; `tools/x64` (including `bindc`, `cmc`,
+`configc`, `fidlc`, `ffx`, `qemu_internal`, `zbi`) and `version_history.json` are kept.
+It ran `ffx sdk version` against the trimmed IDK (`33.20260927.4.1`). It confirmed that
+the 13 known analysis failures do not depend on the trim, and it checked the
+`filter="data"` extraction and the member-path checks.
+**Verdict: land after fixes; no blocker or major finding.**
+
+| # | Severity | Finding | Resolution (decided by orchestrator) |
+|---|---|---|---|
+| 1 | minor | `prune()` builds `…/content_addressable/sha256/<lock value>` from an unvalidated lock value and runs even after Bazel failed on a malformed lock: `''` would delete every cached download, `'../../..'` escapes the cache | Fixed: the value must be `[0-9a-f]{64}` and the entry must resolve inside `content_addressable/sha256/`, else `PruneError` and nothing is deleted; `scripts/bazel` warns. Tests: five malformed values, and a symlinked entry pointing outside |
+| 2 | minor | `check_sdk_files.py` ignores cquery's exit status and loading-phase errors | Fixed: every `ERROR:` line, skipped target (analysis or `Skipping '…'`) and exit status must be explained by `EXPECTED_ERRORS`; exit 0 on the final build; unit tests for each failure kind |
+| 3 | minor | `@fuchsia_idk` watches `overlay_profile.py`, so any profile edit (e.g. M3's KVM field) refetches 3 GB | Fixed: new `scripts/idk_trim.py` holds name resolution, profile → trim and `drop_reason`; the rule watches only it and `idk_extract.py`. Verified: editing the hosted budget in `overlay_profile.py` did not refetch (marker mtime unchanged, 2 s build). "For M3" updated |
+| 4 | minor | Peak disk during the IDK fetch is not measured | Recorded as a limitation with a measurement (10.81 GiB peak above the baseline, 1 s `df` samples); the tarball is already deleted from the repository directory right after extraction; M3 measures its own peak |
+| 5 | minor | Stale text: plan "Next session" and this file name only `695841e`; rebuild times differ between evidence and notebook | Fixed: both commits and the checkpoint named; notebook correction entry appended (two rebuilds: 116 s and 107 s) |
+| n1 | nit | Disk report misses `~/.cache/uv` and, from a worktree, the main clone's `.git` | Fixed: bucket `uv_cache`; `checkout` adds `git rev-parse --git-common-dir` when outside the checkout |
+| n2 | nit | `EXPECTED_ANALYSIS_ERRORS` matches targets only, by canonical repo name | Fixed: `EXPECTED_ERRORS` pairs targets with a reason regex; labels normalized to apparent names via `bazel mod dump_repo_mapping ''` |
+| n3 | nit | No test pins the `data` filter against symlinks escaping `dest` | Fixed: relative (`../../../../outside`) and absolute (`/etc/passwd`) links raise `tarfile.FilterError`, nothing written. (Writing it showed `../../outside` from `arch/x64/lib/` stays inside `dest`.) |
+| n4 | nit | Acceptance boxes ticked before the fixes | The boxes stand after re-running every check below |
+| b1 | backlog | `packages/realm_builder_server` has no HEAD variant in this IDK, so RealmBuilder / driver-test-realm tests at HEAD need another route (not caused by the trim) | Added to the plan backlog for M16 |
+
+**After the fixes** (all after expunging the output base and deleting the repository
+cache): the three `//...` builds with `--lockfile_mode=error` pass (167 s / 2 s / 1 s,
+lock unchanged); `uv run pytest` 135 passed; `uv run reuse lint` compliant;
+`disk_report.py` exit 0 (bazel 7.69/12, total 8.21/25 GiB); `check_sdk_files.py` exit 0
+(0 missing, 14 expected skips, 0 unexplained). The fixes are small and each is verified
+above, so the orchestrator did not ask for a second review round.
 
 ## Limitations and open items
 
-- **Refetch cost under hosted:** any refetch of `@fuchsia_idk` (lock change, script
-  change, profile change, `clean --expunge`) downloads 3 GB again (about 40 s here).
+- **Refetch cost under hosted:** any refetch of `@fuchsia_idk` (lock change, a change
+  to `idk_trim.py` or `idk_extract.py`, profile change, `clean --expunge`) downloads 3 GB
+  again (about 40 s here).
+- **Peak disk during a fresh IDK fetch is well above the steady state** (review finding
+  4, recorded). While `@fuchsia_idk` is fetched, Bazel holds the tarball in the
+  repository cache and in the repository directory, alongside the growing extraction and
+  the other toolchains: sampled every second with `df` during the final clean build,
+  use peaked 10.81 GiB above the empty-cache baseline, against 7.57 GiB once the build
+  and prune finished (so the budget's 25 GiB must leave about 3 GiB for that transient).
+  The tarball is already deleted from the repository directory as soon as extraction
+  returns; the cache copy lasts until `scripts/bazel` prunes after the command. M3
+  measures the peak during its own first fresh fetch.
 - **Prune depends on `scripts/bazel`** and on `bazel info repository_cache` naming the
   cache the command used; a command-line `--repository_cache` that differs from the
   `.bazelrc` default is not seen.

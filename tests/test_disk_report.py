@@ -8,6 +8,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import pytest
+
 import check_sdk_files as cs
 import disk_report as dr
 import overlay_profile as op
@@ -50,7 +52,19 @@ def test_bucket_paths(tmp_path):
         Path("/c/bazel/_bazel_root/install"), Path("/h/.cache/fuchsia-rust-sdk/bazel")]
     assert paths["emulator"] == [Path("/emu")]
     assert paths["scratch"] == [Path("/s0"), Path("/s1"), Path("/s2")]
+    assert paths["uv_cache"] == [Path("/h/.cache/uv")]
+    assert paths["checkout"] == [dr.ROOT]
     assert set(paths) == set(dr.BUCKETS)
+
+
+def test_bucket_paths_uv_cache_dir_and_worktree_git(tmp_path):
+    paths = dr.bucket_paths({}, {"HOME": "/h", "UV_CACHE_DIR": "/uvc"}, [],
+                            git_common_dir=tmp_path / "main" / ".git")
+    assert paths["uv_cache"] == [Path("/uvc")]
+    assert paths["checkout"] == [dr.ROOT, tmp_path / "main" / ".git"]
+    # A plain clone's .git is inside the checkout and is not added twice.
+    paths = dr.bucket_paths({}, {"HOME": "/h"}, [], git_common_dir=dr.ROOT / ".git")
+    assert paths["checkout"] == [dr.ROOT]
 
 
 def test_bucket_paths_without_emulator_or_scratch():
@@ -91,6 +105,25 @@ def test_prune_hosted_removes_only_the_idk_entry(tmp_path):
     assert "not in the repository cache" in dr.prune(tmp_path, SHA, op.PROFILES["hosted"])
 
 
+@pytest.mark.parametrize("bad", ["", "../../..", "0" * 63, "A" * 64, "0" * 64 + "/.."])
+def test_prune_refuses_malformed_hash(tmp_path, bad):
+    idk = blob(dr.idk_cache_entry(tmp_path, SHA) / "file", 1024)
+    with pytest.raises(dr.PruneError, match="not 64 lowercase hex"):
+        dr.prune(tmp_path, bad, op.PROFILES["hosted"])
+    assert idk.exists()
+
+
+def test_prune_refuses_entry_outside_the_cache(tmp_path):
+    # A symlinked entry that resolves elsewhere is not deleted.
+    outside = blob(tmp_path / "elsewhere" / "file", 16).parent
+    entry = dr.idk_cache_entry(tmp_path / "cache", SHA)
+    entry.parent.mkdir(parents=True)
+    entry.symlink_to(outside)
+    with pytest.raises(dr.PruneError, match="resolves outside"):
+        dr.prune(tmp_path / "cache", SHA, op.PROFILES["hosted"])
+    assert (outside / "file").exists()
+
+
 def test_prune_large_disk_is_skipped(tmp_path):
     idk = blob(dr.idk_cache_entry(tmp_path, SHA) / "file", 1024)
     msg = dr.prune(tmp_path, SHA, op.PROFILES["large-disk"])
@@ -113,15 +146,6 @@ def test_render_names_every_bucket_and_group(tmp_path):
 def test_parse_files_dedupes_and_sorts():
     out = "external/b/x.h\nexamples/a.rs\n\nexternal/b/x.h\n"
     assert cs.parse_files(out) == ["examples/a.rs", "external/b/x.h"]
-
-
-def test_parse_analysis_errors():
-    err = (
-        "WARNING: errors encountered while analyzing target '@@r//p:t', it will not be built.\n"
-        "WARNING: errors encountered while analyzing target '@@r//q:u', it will not be built.\n"
-        "INFO: other\n"
-    )
-    assert cs.parse_analysis_errors(err) == ["@@r//p:t", "@@r//q:u"]
 
 
 def test_find_missing_reports_dangling_symlinks(tmp_path):
@@ -149,8 +173,65 @@ def test_sdk_scope_excludes_whole_sdk_globs():
     assert cs.CONFIGS["host"] == (None, "//...")
 
 
-def test_unexpected_analysis_errors():
-    known = "@@+fuchsia_repos+fuchsia_sdk//pkg/vulkan_layers/riscv64:vulkan_layers"
-    new = "@@+fuchsia_repos+fuchsia_sdk//pkg/fdio:fdio"
-    assert cs.unexpected_errors([known, new]) == [new]
-    assert cs.unexpected_errors([known]) == []
+MAPPING = {"fuchsia_sdk": "+fuchsia_repos+fuchsia_sdk", "": ""}
+OB = Path("/ob")
+PKG_ERR = ("ERROR: /ob/external/+fuchsia_repos+fuchsia_sdk/packages/vkext-test/BUILD.bazel:586:6: "
+           'configurable attribute "actual" in @@+fuchsia_repos+fuchsia_sdk//packages/vkext-test:'
+           "vkext-test doesn't match this configuration. Would a default condition help?")
+PKG_SKIP = ("WARNING: errors encountered while analyzing target "
+            "'@@+fuchsia_repos+fuchsia_sdk//packages/vkext-test:vkext-test', it will not be built.")
+SUMMARY = ("ERROR: command succeeded, but not all targets were analyzed\n"
+           "ERROR: Build did NOT complete successfully")
+
+
+def judge(text: str, rc: int = 1):
+    return cs.judge(cs.normalize(text, MAPPING, OB), rc)
+
+
+def test_normalize_uses_apparent_names():
+    out = cs.normalize(PKG_ERR, MAPPING, OB)
+    assert "@@" not in out and "+fuchsia_repos+" not in out
+    assert "@fuchsia_sdk//packages/vkext-test:vkext-test" in out
+
+
+def test_judge_accepts_expected_errors():
+    skipped, problems = judge("\n".join([PKG_ERR, PKG_SKIP, SUMMARY]))
+    assert skipped == ["@fuchsia_sdk//packages/vkext-test:vkext-test"] and problems == []
+    assert judge("", rc=0) == ([], [])
+
+
+def test_judge_rejects_unexpected_analysis_failure():
+    err = ("ERROR: /ob/external/+fuchsia_repos+fuchsia_sdk/pkg/fdio/BUILD.bazel:25:10: no such "
+           "target '@@+fuchsia_repos+fuchsia_sdk//:arch/x64/lib/libfdio.so': gone")
+    skip = ("WARNING: errors encountered while analyzing target "
+            "'@@+fuchsia_repos+fuchsia_sdk//pkg/fdio:fdio', it will not be built.")
+    _, problems = judge("\n".join([err, skip, SUMMARY]))
+    assert any(p.startswith("unexpected error: ") for p in problems)
+    assert "unexpected skipped target: @fuchsia_sdk//pkg/fdio:fdio" in problems
+
+
+def test_judge_rejects_expected_target_with_another_reason():
+    other = ("ERROR: /ob/external/+fuchsia_repos+fuchsia_sdk/packages/vkext-test/BUILD.bazel:1:1: "
+             "no such target '@@+fuchsia_repos+fuchsia_sdk//:obj/x.so'")
+    _, problems = judge("\n".join([other, PKG_SKIP, SUMMARY]))
+    assert any("not for the expected reason" in p for p in problems)
+
+
+def test_judge_rejects_loading_errors_and_bad_exit_codes():
+    loading = ("ERROR: Skipping '//nope/...': no such package 'nope': BUILD file not found\n"
+               "ERROR: command succeeded, but there were loading phase errors")
+    _, problems = judge(loading)
+    assert "unexpected skipped target: //nope/..." in problems
+    assert any("no such package 'nope'" in p for p in problems)
+    assert judge("", rc=2)[1] == ["cquery exited with status 2"]
+    assert judge("", rc=1)[1] == ["cquery exited with status 1 but reported no error"]
+
+
+def test_trim_error_is_expected_only_for_riscv64_layers():
+    err = ("ERROR: x: no such target '@@+fuchsia_repos+fuchsia_sdk//:arch/riscv64/dist/"
+           "VkLayer_khronos_validation.so': t")
+    skip = ("WARNING: errors encountered while analyzing target "
+            "'@@+fuchsia_repos+fuchsia_sdk//pkg/vulkan_layers/riscv64:vulkan_layers', x")
+    assert judge("\n".join([err, skip, SUMMARY]))[1] == []
+    x64 = err.replace("riscv64", "x64")
+    assert judge("\n".join([x64, skip.replace("riscv64", "x64"), SUMMARY]))[1] != []

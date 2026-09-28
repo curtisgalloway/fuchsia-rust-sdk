@@ -3,39 +3,35 @@
 """Environment profiles (design C6): the resource limits of the machine the work runs on.
 
 The hosted profile (the Anthropic-hosted cloud container: about 30 GB of writable disk,
-4 vCPU, no KVM) is the default. Another environment declares its profile in one of two
-places, the first found wins:
+4 vCPU, no KVM) is the default. Another environment declares its profile by name in
+``$OVERLAY_PROFILE`` or in ``~/.config/fuchsia-rust-sdk/profile``; the rules for finding
+the name, and whether a profile trims the IDK, live in ``idk_trim.py``, because they are
+the only part of the profile the IDK fetch depends on. This module adds everything
+else, which may change without refetching the IDK:
 
-1. the environment variable ``OVERLAY_PROFILE``;
-2. the file ``$XDG_CONFIG_HOME/fuchsia-rust-sdk/profile`` (``~/.config/...`` when
-   ``XDG_CONFIG_HOME`` is unset): the first line that is not blank or a ``#`` comment.
-
-An unknown name is an error rather than a silent fallback to the default.
-
-The profile decides the disk policy that the IDK fetch (``toolchain/repositories.bzl``
-through ``scripts/idk_extract.py``) and ``scripts/disk_report.py`` apply:
-
-- ``trim_idk``: extract only what the overlay builds against (see ``idk_extract.py``);
-- ``cache_idk_archive``: keep the 3 GB IDK tarball in Bazel's repository cache;
+- ``trim_idk``: from ``idk_trim.TRIM_BY_PROFILE`` (extract only what the overlay builds
+  against; see ``idk_extract.py``);
+- ``cache_idk_archive``: keep the 3 GB IDK tarball in Bazel's repository cache
+  (``scripts/bazel`` and ``disk_report.py --prune`` remove it otherwise);
 - ``budgets``: disk budgets in bytes for groups of disk-report buckets (None: no limit).
 
-Run ``uv run scripts/overlay_profile.py [--json]`` to see the active profile. The Bazel
-repository rule runs it the same way with ``--json``.
+Run ``uv run scripts/overlay_profile.py [--json]`` to see the active profile.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
-from pathlib import Path
 
-ENV_VAR = "OVERLAY_PROFILE"
-CONFIG_RELPATH = Path("fuchsia-rust-sdk") / "profile"
-DEFAULT = "hosted"
+import idk_trim
+
+ENV_VAR = idk_trim.ENV_VAR
+DEFAULT = idk_trim.DEFAULT
+ProfileError = idk_trim.ProfileError
+config_path = idk_trim.config_path
 GIB = 1024**3
 
 
@@ -58,7 +54,7 @@ PROFILES: dict[str, Profile] = {
             description=(
                 "Anthropic-hosted cloud container: ~30 GB disk, 4 vCPU, no KVM (design C6)"
             ),
-            trim_idk=True,
+            trim_idk=idk_trim.TRIM_BY_PROFILE["hosted"],
             cache_idk_archive=False,
             # C6: total <= 25 GB (5 GB headroom). The Bazel caches get 12 of them (M2a),
             # leaving the rest for the emulator (M3), the checkout and scratch.
@@ -67,7 +63,7 @@ PROFILES: dict[str, Profile] = {
         Profile(
             name="large-disk",
             description="declared environment with ample disk: no trim, caches kept",
-            trim_idk=False,
+            trim_idk=idk_trim.TRIM_BY_PROFILE["large-disk"],
             cache_idk_archive=True,
             budgets={"total": None, "bazel": None},
         ),
@@ -75,49 +71,10 @@ PROFILES: dict[str, Profile] = {
 }
 
 
-class ProfileError(Exception):
-    pass
-
-
-def config_path(env: Mapping[str, str]) -> Path | None:
-    """The profile file's path, or None when neither XDG_CONFIG_HOME nor HOME is set."""
-    base = env.get("XDG_CONFIG_HOME") or (
-        str(Path(env["HOME"]) / ".config") if env.get("HOME") else None
-    )
-    return Path(base) / CONFIG_RELPATH if base else None
-
-
-def _read_config(path: Path) -> str | None:
-    try:
-        text = path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        return None
-    for line in text.splitlines():
-        line = line.strip()
-        if line and not line.startswith("#"):
-            return line
-    raise ProfileError(f"{path}: no profile name in the file")
-
-
-def _lookup(name: str, source: str) -> Profile:
-    if name not in PROFILES:
-        known = ", ".join(sorted(PROFILES))
-        raise ProfileError(f"{source}: unknown profile {name!r} (known: {known})")
-    return PROFILES[name]
-
-
 def resolve(env: Mapping[str, str] | None = None) -> tuple[Profile, str]:
     """Returns the active profile and where it came from (for reports)."""
-    env = os.environ if env is None else env
-    name = env.get(ENV_VAR, "").strip()
-    if name:
-        return _lookup(name, f"${ENV_VAR}"), f"${ENV_VAR}"
-    path = config_path(env)
-    if path is not None:
-        name = _read_config(path)
-        if name is not None:
-            return _lookup(name, str(path)), str(path)
-    return PROFILES[DEFAULT], "default"
+    name, source = idk_trim.resolve_name(env)
+    return PROFILES[name], source
 
 
 def as_json(profile: Profile, source: str) -> str:

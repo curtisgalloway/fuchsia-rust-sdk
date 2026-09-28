@@ -137,3 +137,47 @@ State: in progress, review pending. All five acceptance criteria verified (evide
 updated; README gained "Disk and environment profiles". Branch `ms/M2a`: wip
 `695841e`, later changes uncommitted. Next: the orchestrator's reviewer subagent, fixes,
 the evidence Review section, then the checkpoint commit.
+
+## 2026-09-27T20:16-07:00 — direction: review findings (orchestrator)
+A reviewer subagent (fresh context, launched by the orchestrator) reviewed `695841e`,
+`56dd031`: land after fixes. Five minor findings and four nits, with decisions: validate
+the lock hash in `prune()` and keep the path inside the cache; make
+`check_sdk_files.py` fail on cquery's exit code and loading errors; make
+`@fuchsia_idk` depend only on a small trim spec, so general profile edits (budgets,
+M3's KVM) do not refetch 3 GB; record peak fetch disk as a limitation; fix stale commit
+lists and the rebuild-time mismatch. Nits: count the uv cache and a worktree's main
+`.git`; match expected analysis errors on target and reason without the canonical repo
+name; a symlink-escape test; tick boxes after the fixes; M16 backlog note on
+`realm_builder_server`.
+
+## 2026-09-27T20:16-07:00 — correction of 2026-09-27T20:06-07:00 (rebuild times)
+That entry says "Rebuilt after both (107 s x64, …)". There were two rebuilds: after
+the tamper test (116 s x64, 1 s arm64, 1 s host) and after the `bogus` profile test
+(107 s, 1 s, 0 s). The evidence's figures are right.
+
+## 2026-09-27T20:24-07:00 — attempt: review fixes applied and verified
+- Findings 1–3 and nits done: `prune()` validates the hash and containment;
+  `check_sdk_files.py` judges every cquery ERROR line, skipped target and exit status
+  against `EXPECTED_ERRORS` (target + reason, apparent repo names through `bazel mod
+  dump_repo_mapping`); the name-resolution rules, profile→trim map and `drop_reason`
+  moved to `scripts/idk_trim.py`, the only profile code `@fuchsia_idk` watches;
+  disk report adds `uv_cache` and the worktree's shared `.git`.
+- Surprise while pinning the `data` filter: a symlink `arch/x64/lib/evil ->
+  ../../outside` is *inside* the destination (it resolves to `arch/outside`); the test
+  needs four levels, or an absolute target, to escape. Both are refused.
+- Expunged, cleared the repository cache, rebuilt: x64 167 s, arm64 2 s, host 1 s, all
+  `--lockfile_mode=error`, lock unchanged. **Peak** `df` use during that fetch, sampled
+  every second: 10.81 GiB above the empty-cache baseline (7.57 GiB at the end).
+- `check_sdk_files.py` exit 0 (14 skipped, 0 unexplained, 0 missing); disk report
+  bazel 7.69/12, total 8.21/25 GiB (now with uv cache 0.26 GiB).
+- No refetch on a general profile edit: changed the hosted `bazel` budget and appended a
+  comment to `overlay_profile.py`, rebuilt x64 `//...` in 2 s; the
+  `@+lock_repos+fuchsia_idk.marker` and `.overlay-idk-trim.json` mtimes were
+  unchanged and the log mentions no IDK fetch. Edit reverted. pytest 135.
+
+## 2026-09-27T20:25-07:00 — checkpoint (closing)
+State: complete. Review ran before the checkpoint; all findings resolved as the
+orchestrator decided and verified (evidence "Review"). Branch `ms/M2a`: wip
+`695841e`, `56dd031`, then the checkpoint commit
+`overlay: M2a — Fit the hosted disk budget`. Hosted: Bazel caches 7.69 GiB of 12,
+total 8.21 of 25; fresh-fetch peak 10.8 GiB. Next: M3 or M4, as the orchestrator names.

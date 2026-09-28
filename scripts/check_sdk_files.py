@@ -15,19 +15,28 @@ the transitive closure of
   runfiles of the `bazel run` wrappers `:ffx`, `:cmc` and `:funnel`) and the
   per-package glob filegroups `all_files` collects,
 
-then fails if any of those files is missing (a dangling symlink counts as missing), or
-if a target in scope fails analysis other than the known ones in
-EXPECTED_ANALYSIS_ERRORS (a target that fails analysis reaches no files at all).
+then fails if
+
+- any of those files is missing (a dangling symlink counts as missing); or
+- cquery reports an error (loading or analysis) that `EXPECTED_ERRORS` does not
+  explain, a target is skipped that no expected error names, or an expected error's
+  target is skipped for no expected reason. A target that fails to load or analyze
+  reaches no files at all, so an unexplained failure could hide a missing file (in the
+  SDK's root package a label to a vanished file is "no such target", not a missing
+  path); or
+- cquery exits with a status other than 0 or 1 (1 is its status for errors under
+  --keep_going, which the rules above judge).
 
     uv run scripts/check_sdk_files.py            # all three configurations
     uv run scripts/check_sdk_files.py --config fuchsia_x64
 
-Exit status: 0 when nothing is missing, 1 otherwise.
+Exit status: 0 when the check passes, 1 otherwise.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -44,33 +53,6 @@ SDK_SCOPE = (
     f"({SDK}//... - rdeps({SDK}//..., {SDK}//:all_files)"
     f' - attr(name, "^_EXPORT_SUBPACKAGE_FILEGROUP$", {SDK}//...))'
 )
-# Targets in the SDK scope that fail analysis under the Fuchsia configs. A target that
-# fails analysis contributes no files to the query, so it could hide a missing file; any
-# failure not listed here fails the check. The first 13 fail on the untrimmed IDK too
-# (measured in M2a): prebuilt packages exist only for numbered API levels, not HEAD, and
-# the rest need toolchains or packages the release's SDK does not provide. The last one
-# is the trim's own doing: its only input is a riscv64 library the trim drops, and the
-# name says it is riscv64-only.
-EXPECTED_ANALYSIS_ERRORS = frozenset(
-    f"@@+fuchsia_repos+fuchsia_sdk//{t}"
-    for t in (
-        ":fuchsia_platform_sdk",
-        ":fuchsia_toolchain_version_sdk",
-        "packages/cmd-buf-benchmark-test:cmd-buf-benchmark-test",
-        "packages/fake-build-info:fake-build-info",
-        "packages/heapdump-collector:heapdump-collector",
-        "packages/intl_property_manager:intl_property_manager",
-        "packages/realm_builder_server:realm_builder_server",
-        "packages/vkcopy-test:vkcopy-test",
-        "packages/vkext-test:vkext-test",
-        "packages/vkloop-test:vkloop-test",
-        "packages/vkproto-driver-test:vkproto-driver-test",
-        "packages/vkreadback_test:vkreadback_test",
-        "python/rtc_conformance_test/unversioned:rtc_conformance_test",
-        # trim: arch/riscv64/dist/VkLayer_*.so
-        "pkg/vulkan_layers/riscv64:vulkan_layers",
-    )
-)
 
 # config name -> the --config flag (None for the host) and the query scope.
 CONFIGS: dict[str, tuple[str | None, str]] = {
@@ -81,12 +63,83 @@ CONFIGS: dict[str, tuple[str | None, str]] = {
 }
 
 
+@dataclass(frozen=True)
+class ExpectedError:
+    """A known cquery error under the Fuchsia configs: which skipped targets it explains,
+    and the reason, as a regex over the error line after `normalize()`."""
+
+    why: str
+    targets: tuple[str, ...]
+    reason: str
+
+    def matches(self, line: str) -> bool:
+        return re.search(self.reason, line) is not None
+
+
+_PACKAGES = (
+    "cmd-buf-benchmark-test",
+    "fake-build-info",
+    "heapdump-collector",
+    "intl_property_manager",
+    "realm_builder_server",
+    "vkcopy-test",
+    "vkext-test",
+    "vkloop-test",
+    "vkproto-driver-test",
+    "vkreadback_test",
+)
+
+# All but the last fail on the untrimmed IDK too (reference cquery in M2a); the last is
+# the trim's own doing.
+EXPECTED_ERRORS: tuple[ExpectedError, ...] = (
+    *(
+        ExpectedError(
+            why="prebuilt package: variants only for numbered API levels, none for HEAD",
+            targets=(f"{SDK}//packages/{p}:{p}",),
+            reason=(
+                rf'configurable attribute "actual" in {re.escape(SDK)}//packages/'
+                rf"{re.escape(p)}:{re.escape(p)} doesn't match this configuration"
+            ),
+        )
+        for p in _PACKAGES
+    ),
+    ExpectedError(
+        why="the generated root BUILD file names a package the SDK does not contain",
+        targets=(f"{SDK}//:fuchsia_platform_sdk", f"{SDK}//:fuchsia_toolchain_version_sdk"),
+        reason=rf"no such package '{re.escape(SDK)}//fuchsia/constraints'",
+    ),
+    ExpectedError(
+        why="needs a Python toolchain the overlay does not register",
+        targets=(f"{SDK}//python/rtc_conformance_test/unversioned:rtc_conformance_test",),
+        reason=(
+            r"While resolving toolchains for target "
+            rf"{re.escape(SDK)}//python/rtc_conformance_test/unversioned:rtc_conformance_test"
+        ),
+    ),
+    ExpectedError(
+        why="trim: riscv64-only Vulkan layers, whose libraries the trim drops",
+        targets=(f"{SDK}//pkg/vulkan_layers/riscv64:vulkan_layers",),
+        reason=rf"no such target '{re.escape(SDK)}//:arch/riscv64/dist/VkLayer_\w+\.so'",
+    ),
+)
+
+# Summary lines Bazel prints after the real errors.
+_SUMMARY = re.compile(
+    r"^ERROR: (command succeeded, but .*|Build did NOT complete successfully"
+    r"|Analysis of target .* failed.*)$"
+)
+_SKIPPED = re.compile(
+    r"errors encountered while analyzing target '([^']+)'|Skipping '([^']+)'"
+)
+
+
 @dataclass
 class Result:
     config: str
     files: list[str]
     missing: list[str] = field(default_factory=list)
-    analysis_errors: list[str] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
+    problems: list[str] = field(default_factory=list)
 
 
 def query(scope: str) -> str:
@@ -98,16 +151,49 @@ def parse_files(stdout: str) -> list[str]:
     return sorted({line.strip() for line in stdout.splitlines() if line.strip()})
 
 
-_ERROR_TARGET = re.compile(r"errors encountered while analyzing target '([^']+)'")
+def normalize(text: str, mapping: dict[str, str], output_base: Path | None = None) -> str:
+    """Rewrites canonical repository names (`@@+ext+repo//`, `<output
+    base>/external/+ext+repo/`) to apparent ones (`@repo//`, `@repo/`), so the expected
+    errors do not depend on how Bazel spells the canonical name. `mapping` is the main
+    repository's mapping (`bazel mod dump_repo_mapping ''`), apparent -> canonical."""
+    for apparent, canonical in sorted(mapping.items(), key=lambda kv: -len(kv[1])):
+        if not apparent or not canonical:
+            continue
+        if output_base is not None:
+            text = text.replace(f"{output_base}/external/{canonical}/", f"@{apparent}/")
+        text = text.replace(f"@@{canonical}//", f"@{apparent}//")
+    return text
 
 
-def parse_analysis_errors(stderr: str) -> list[str]:
-    """Targets --keep_going skipped because their analysis failed."""
-    return sorted(set(_ERROR_TARGET.findall(stderr)))
-
-
-def unexpected_errors(errors: list[str]) -> list[str]:
-    return [t for t in errors if t not in EXPECTED_ANALYSIS_ERRORS]
+def judge(
+    stderr: str, returncode: int, expected: tuple[ExpectedError, ...] = EXPECTED_ERRORS
+) -> tuple[list[str], list[str]]:
+    """Returns (skipped targets, problems) for normalized cquery stderr."""
+    problems = []
+    if returncode not in (0, 1):
+        problems.append(f"cquery exited with status {returncode}")
+    skipped = sorted({a or b for a, b in _SKIPPED.findall(stderr)})
+    errors = [
+        line for line in stderr.splitlines()
+        if line.startswith("ERROR: ") and not _SUMMARY.match(line)
+    ]
+    matched: set[ExpectedError] = set()
+    for line in errors:
+        hits = [e for e in expected if e.matches(line)]
+        if not hits:
+            problems.append(f"unexpected error: {line}")
+        matched.update(hits)
+    explained = {t for e in expected for t in e.targets}
+    for t in skipped:
+        if t not in explained:
+            problems.append(f"unexpected skipped target: {t}")
+    for e in expected:
+        for t in e.targets:
+            if t in skipped and e not in matched:
+                problems.append(f"{t} skipped, but not for the expected reason ({e.why})")
+    if returncode == 1 and not errors:
+        problems.append("cquery exited with status 1 but reported no error")
+    return skipped, problems
 
 
 def resolve(path: str, workspace: Path, output_base: Path) -> Path:
@@ -129,7 +215,7 @@ def _bazel(args: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
-def check(name: str, output_base: Path) -> Result:
+def check(name: str, output_base: Path, mapping: dict[str, str]) -> Result:
     config, scope = CONFIGS[name]
     args = ["cquery", "--keep_going", "--output=files"]
     if config is not None:
@@ -138,11 +224,13 @@ def check(name: str, output_base: Path) -> Result:
     files = parse_files(proc.stdout)
     if not files:
         raise SystemExit(f"check_sdk_files: {name}: cquery returned no files:\n{proc.stderr}")
+    skipped, problems = judge(normalize(proc.stderr, mapping, output_base), proc.returncode)
     return Result(
         config=name,
         files=files,
         missing=find_missing(files, ROOT, output_base),
-        analysis_errors=parse_analysis_errors(proc.stderr),
+        skipped=skipped,
+        problems=problems,
     )
 
 
@@ -151,29 +239,32 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", action="append", choices=sorted(CONFIGS),
                         help="configuration to check (repeatable; default: all)")
     parser.add_argument("--list-errors", action="store_true",
-                        help="also list targets whose analysis failed (skipped by --keep_going)")
+                        help="also list the skipped targets that expected errors explain")
     args = parser.parse_args(argv)
     info = _bazel(["info", "output_base"])
-    if info.returncode != 0:
-        print(f"check_sdk_files: bazel info failed:\n{info.stderr}", file=sys.stderr)
+    mapping_proc = _bazel(["mod", "dump_repo_mapping", ""])
+    if info.returncode != 0 or mapping_proc.returncode != 0:
+        print(f"check_sdk_files: bazel failed:\n{info.stderr}{mapping_proc.stderr}",
+              file=sys.stderr)
         return 1
     output_base = Path(info.stdout.strip())
+    mapping = json.loads(mapping_proc.stdout)
+    sdk_dir = f"external/{mapping['fuchsia_sdk']}/"
     status = 0
     for name in args.config or list(CONFIGS):
-        r = check(name, output_base)
-        sdk = sum(1 for f in r.files if f.startswith("external/+fuchsia_repos+fuchsia_sdk/"))
+        r = check(name, output_base, mapping)
+        sdk = sum(1 for f in r.files if f.startswith(sdk_dir))
         print(f"{name}: {len(r.files)} source files reachable ({sdk} in {SDK}), "
-              f"{len(r.missing)} missing, {len(r.analysis_errors)} targets not analyzable")
+              f"{len(r.missing)} missing, {len(r.skipped)} targets skipped, "
+              f"{len(r.problems)} unexplained errors")
         for f in r.missing:
             print(f"  missing: {f}")
-        unexpected = unexpected_errors(r.analysis_errors)
-        for t in unexpected:
-            print(f"  not analyzable (unexpected): {t}")
+        for p in r.problems:
+            print(f"  {p}")
         if args.list_errors:
-            for t in r.analysis_errors:
-                if t not in unexpected:
-                    print(f"  not analyzable (expected): {t}")
-        if r.missing or unexpected:
+            for t in r.skipped:
+                print(f"  skipped: {t}")
+        if r.missing or r.problems:
             status = 1
     return status
 

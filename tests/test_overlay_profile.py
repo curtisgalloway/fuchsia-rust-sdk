@@ -11,9 +11,11 @@ from pathlib import Path
 
 import pytest
 
+import idk_trim as it
 import overlay_profile as op
 
-SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "overlay_profile.py"
+SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
+SCRIPT = SCRIPTS / "overlay_profile.py"
 
 
 def write_config(base: Path, text: str) -> Path:
@@ -111,3 +113,37 @@ def test_cli_json_is_what_the_repository_rule_reads(tmp_path):
 def test_cli_fails_on_unknown_profile(tmp_path):
     proc = run_cli({"HOME": str(tmp_path), "OVERLAY_PROFILE": "nope"}, "--json")
     assert proc.returncode == 1 and "unknown profile 'nope'" in proc.stderr
+
+
+def test_profiles_and_trim_spec_agree():
+    assert set(op.PROFILES) == set(it.TRIM_BY_PROFILE)
+    for name, profile in op.PROFILES.items():
+        assert profile.trim_idk == it.TRIM_BY_PROFILE[name]
+
+
+def test_trim_spec_cli_is_what_the_repository_rule_reads(tmp_path):
+    for env, expected in (
+        ({"HOME": str(tmp_path)}, {"profile": "hosted", "trim": True, "source": "default"}),
+        ({"HOME": str(tmp_path), "OVERLAY_PROFILE": "large-disk"},
+         {"profile": "large-disk", "trim": False, "source": "$OVERLAY_PROFILE"}),
+    ):
+        proc = subprocess.run([sys.executable, str(SCRIPTS / "idk_trim.py"), "--json"],
+                              env=env, capture_output=True, text=True, check=False)
+        assert proc.returncode == 0, proc.stderr
+        assert json.loads(proc.stdout) == expected
+
+
+def test_trim_spec_cli_fails_on_unknown_profile(tmp_path):
+    proc = subprocess.run([sys.executable, str(SCRIPTS / "idk_trim.py"), "--json"],
+                          env={"HOME": str(tmp_path), "OVERLAY_PROFILE": "nope"},
+                          capture_output=True, text=True, check=False)
+    assert proc.returncode == 1 and "unknown profile 'nope'" in proc.stderr
+
+
+def test_trim_spec_does_not_import_the_general_profile_module():
+    """@fuchsia_idk watches idk_trim.py and idk_extract.py only; if either imported
+    overlay_profile.py, an edit there would change the fetch without refetching."""
+    for name in ("idk_trim.py", "idk_extract.py"):
+        imports = [line for line in (SCRIPTS / name).read_text().splitlines()
+                   if line.startswith(("import ", "from "))]
+        assert not [line for line in imports if "overlay_profile" in line], name
