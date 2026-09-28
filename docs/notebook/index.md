@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T02:53-07:00
+Updated: 2026-09-28T03:15-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -121,6 +121,14 @@ Outcome: M8a complete — 23 libraries' `rust` crates build for x64/arm64; split
 - In-tree proc macro built as a Fuchsia `.so` under `//...`: `rustc_proc_macro` now host-only by default
 - Driver transport deferred (as upstream's Bazel rule); orchestrator: M9 takes it (10 overlay crates)
 
+### [M8b — FIDL Rust binding rule, `rust_next` flavor](M8b.md)
+Entries: 2026-09-28T02:56-07:00 through 2026-09-28T03:15-07:00
+Outcome: open — implemented and verified (17 / 17 both targets, 22 libraries built); review pending
+- `rules/fidl_rust_next.bzl` from `fidl_rust_next.gni`/`fidl.gni`; generator parity with M7's FLAVORS by diff test
+- GN's `fidl_rust_next_allowlist` visibility; regen maps upstream's load and checks the list against the revision
+- `fidl_next_protocol` test_deps name a label upstream Bazel lacks: unmappable test_deps are provisional + patch
+- Host: codec/protocol/loom compile; the rest incompatible via `fuchsia-async` (as M8a); driver libraries wait for M9
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
@@ -131,6 +139,7 @@ Outcome: M8a complete — 23 libraries' `rust` crates build for x64/arm64; split
   [M6b](M6b.md) adds 1.3 GiB (121 crates built for x64, arm64, host and exec; total 10.30 GiB).
   [M7](M7.md) adds about 1 GiB (the release's Go SDK, rules_go, the Go builds; total 11.29 GiB).
   [M8](M8.md) adds 0.4 GiB (bindings for three configs; total 11.71 GiB, Bazel 10.81 of 12).
+  [M8b](M8b.md) adds 0.14 GiB (`rust_next` bindings, 6 crates; total 11.85 GiB, Bazel 10.95 of 12).
 - **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
   Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
   [M4](M4.md) derives the Rust cfgs from that file and asserts the HEAD branch at build time.
@@ -149,5 +158,7 @@ Outcome: M8a complete — 23 libraries' `rust` crates build for x64/arm64; split
   and `fidlgen_rust` unpublished; [M7](M7.md) pins the first per release in the lock and
   builds the second from vendored Go with the release's Go SDK; both match upstream goldens.
   [M8](M8.md) runs them from `rules/fidl_rust.bzl` on IR from the IDK's `fidlc`.
+  [M8b](M8b.md) runs `fidlgen_rust_next` from `rules/fidl_rust_next.bzl`, diff-tested
+  against M7's genrules.
 - **Host vs Fuchsia API level:** [M4](M4.md) puts host cfgs at PLATFORM (rules_fuchsia's
   flag fails unset); [M8](M8.md) generates host FIDL at PLATFORM too, tested.

@@ -93,3 +93,11 @@ reuse compliant (1189); `regen.py --check` clean; three builds with explicit tar
 targets each (298 before); `bazel test //...` 54 + 3 skipped; `--config=fuchsia_x64
 //tests/vendor/...` 7 + 1 skipped before adding `fuchsia-loom`'s cap-lints test. Disk:
 Bazel 10.95 of 12 GiB (+0.14), total 11.85 of 25; 17.85 GiB free.
+
+## 2026-09-28T03:15-07:00 — checkpoint
+State: in progress, review pending. Implementation and verification done; evidence
+written except the Review section; plan status, backlog (3 items) and Next session
+updated (plan `## ` headings equal the base's). `fuchsia-loom`'s cap-lints test added
+after the checks entry: `bazel test //...` 58 (55 + 3 skipped), `--config=fuchsia_x64
+//tests/vendor/...` 8 + 1 skipped. Next: the orchestrator's review, fixes, Review section,
+checkpoint commit `overlay: M8b — FIDL Rust binding rule, rust_next flavor`.

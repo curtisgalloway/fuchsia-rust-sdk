@@ -81,7 +81,7 @@ in the cloud.
 | I2 | Prebuilt `fidlgen_rust` / `fidlgen_rust_next`: published or not | — | cloud | complete |
 | M7 | Both FIDL generators available as Bazel host tools (R5 tools) | I2, M6b | cloud | complete |
 | M8a | `fidl.bzl` + `fidl_rust.bzl`, `rust` flavor; pilot 1's 23 libraries compile for both targets (R5) | M7 | cloud | complete |
-| M8b | `rust_next` flavor for the 17 libraries without `contains_drivers` (R5) | M8a | cloud | pending |
+| M8b | `rust_next` flavor for the 17 libraries without `contains_drivers` (R5) | M8a | cloud | in_progress (review pending) |
 | M9 | Pilot 1's in-tree crates vendored; `fdf`, `fdf_component` build; FIDL driver transport (R6, R5) | M8b | cloud | pending |
 | M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9 | cloud | pending |
 | I3 | Emulator bind target for pilot 1 confirmed at this release | M3 | cloud (emulator) | pending |
@@ -477,7 +477,11 @@ libraries (M12).
 Split point if it grows: the flavor with `fidl_next*` first, `fuchsia-loom` users after.
 
 ### Evidence and findings
-Status: pending · Evidence: [M8b](evidence/M8b.md) · Notebook: [M8b](notebook/M8b.md)
+Status: in_progress: implemented and verified (17 / 17 for x64 and arm64, crate names,
+`regen.py --check` clean, all project checks; Bazel 10.95 of 12 GiB); review pending
+before the checkpoint commit. Evidence: [M8b](evidence/M8b.md) · Notebook: [M8b](notebook/M8b.md)
+Limitations: the two `contains_drivers` libraries' `rust_next` crates (M9); host
+`rust_next` crates generated, not compiled; FDomain and conversion crates not built.
 
 ---
 
@@ -1100,26 +1104,44 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 - **Bazel caches near their budget (found in M8a).** After M8a: Bazel 10.81 of 12 GiB
   (total 11.71 of 25). M8b and M9 add about 30 in-tree crates for three configs; watch
   the disk report, and consider pruning `bazel-out` configs (`-ST-` transition dirs) or
-  raising the Bazel group's share if it tips over.
+  raising the Bazel group's share if it tips over. After M8b: 10.95 of 12 GiB (total
+  11.85 of 25).
+- **Driver transport switch in two files (found in M8b; for M9).** `_DRIVER_TRANSPORT`
+  is in `rules/fidl_rust.bzl` (the `rust` flavor) and `rules/fidl_rust_next.bzl`
+  (`rust_next`; while off, a `contains_drivers` library gets no `rust_next` targets). M9
+  turns both on; the `rust_next` side then adds feature `driver` and
+  `sdk/lib/driver/runtime/rust/fidl` on Fuchsia, as `fidl_rust_next.gni`.
+- **`fidl_rust_next_allowlist` and the overlay's packages (found in M8b; for M10).** GN
+  limits `rust_next` bindings (and upstream Bazel the `fidl_next*` aliases) to a
+  phased-rollout allowlist; `rules/fidl_rust_next.bzl` holds upstream's list, mapped to
+  `//vendor/fuchsia/…` and checked against the revision by `regen.py`, plus
+  `_OVERLAY_ALLOWLIST` (`//rules`, `//tests/fidl`). The overlay's own driver packages need
+  an entry there if they use `rust_next` crates directly.
+- **Unmappable `test_deps` labels (found in M8b; for M16).** `fidl_next_protocol` names
+  `//third_party/rust_crates:futures` in `test_deps`, a target upstream's Bazel build does
+  not define. `regen.py` now keeps such a label provisionally and fails unless a patch
+  removes it; `fidl_next_protocol/0001-drop-test-deps.patch` does. M16 revisits it with
+  `fuchsia-async`'s.
 - **`regen.py` crate stage with no crates (found in M8a) — fixed in M8a.**
   `generate_crates` left `crates_json` unset when no crate is named at all
   (`UnboundLocalError`); only a test tree hit it.
 
 ## Next session
 
-- Current milestone and status: **M8a complete** (M8 split into M8a `rust` and M8b
-  `rust_next`, accepted in advance by the orchestrator). Branch `ms/M8` from `9a453a8`;
-  `wip` commits `5450c75`, `dca267a`, then the checkpoint commit
-  `overlay: M8a — FIDL Rust binding rule, rust flavor`, after the reviewer subagent's
-  review and fixes.
-- Completed work and evidence: [M8 evidence](evidence/M8.md), including the review.
-- Uncommitted state: none.
-- Remaining work, blockers, and decisions: the orchestrator amends design D7/R5 for
-  `fuchsia.sys2` (FIDL sources from fuchsia.git). Unchanged: the R7 reading for pilot 1
-  (before M10); M17 placement.
+- Current milestone and status: **M8b in_progress, review pending** (implementation and
+  verification done). Branch `ms/M8b` from `5b9f58f`; `wip` commits `e3e7b5f` (rule,
+  regen.py, runtime crates, bindings, tests) and the evidence/plan/notebook commit that
+  follows it.
+- Completed work and evidence: [M8b evidence](evidence/M8b.md) (all but the review).
+- Uncommitted state: none after the second `wip` commit.
+- Remaining work, blockers, and decisions: the orchestrator's review; fix its findings,
+  fill in the evidence's Review section, then the checkpoint commit
+  `overlay: M8b — FIDL Rust binding rule, rust_next flavor`. Unchanged: the R7 reading
+  for pilot 1 (before M10); M17 placement.
 - Context boundary: normal.
-- Resume action: begin **M8b** (I3 can run beside it).
-- Read first for M8b: the M8b entry, [M8 evidence](evidence/M8.md) ("Findings for later
-  milestones"), `rules/fidl.bzl`, `rules/fidl_rust.bzl`, `tests/fidlgen/fidlgen.bzl`,
-  `tests/fidl/BUILD.bazel`, the backlog item "Host FIDL runtime not built",
-  [notebook index](notebook/index.md).
+- Resume action: finish **M8b** (review, fixes, checkpoint); then begin **M9** (I3 can
+  run beside it).
+- Read first for M9: the M9 entry, [M8b evidence](evidence/M8b.md) ("Findings for later
+  milestones"), [M8 evidence](evidence/M8.md), `rules/fidl_rust.bzl`,
+  `rules/fidl_rust_next.bzl`, the backlog items "Driver transport switch in two files" and
+  "Host FIDL runtime not built", [notebook index](notebook/index.md).
