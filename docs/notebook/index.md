@@ -168,6 +168,10 @@ Outcome: complete — pilot 1 packages for x64/arm64; exports only the registrat
 - Manifest shards checked in the packaged `.cm` (cmc records includes); negative checks all fail as they should
 - Review: land after fixes; HEAD's u32 in `.bazelrc` now tested; packaged runtime libs = bundle's but for build IDs
 
+### [I3 — Emulator bind target for pilot 1](I3.md)
+Entries: 2026-09-28T07:33-07:00 through 2026-09-28T07:33-07:00
+Outcome: open
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
