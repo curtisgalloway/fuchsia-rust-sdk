@@ -13,5 +13,11 @@ build --incompatible_enable_cc_toolchain_resolution
 # FIDL is @available(added=HEAD) (design C3).
 build --default_fuchsia_api_level=HEAD
 
+# Fuchsia targets. rules_fuchsia's packaging rules pick the API level up from the default
+# above through a transition; bare rules_rust targets have no such transition, so the
+# configs set it directly. Same level, so packaged and unpackaged builds agree.
+build:fuchsia --override_fuchsia_api_level=HEAD
+build:fuchsia_x64 --config=fuchsia
 build:fuchsia_x64 --platforms=@rules_fuchsia//fuchsia/constraints/platforms:fuchsia_x64
+build:fuchsia_arm64 --config=fuchsia
 build:fuchsia_arm64 --platforms=@rules_fuchsia//fuchsia/constraints/platforms:fuchsia_arm64

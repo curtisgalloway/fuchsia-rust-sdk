@@ -4,11 +4,14 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_proc_macro")
 
 # Host targets: built with the pinned host toolchain (linux-x64 host std from the lock's
-# rust_host_std package). Proc macros always build for the exec (host) platform.
+# rust_host_std package). Through proc_macro_deps a proc macro builds for the exec (host)
+# platform; requested directly under a Fuchsia config it would build for Fuchsia, so it
+# is marked host-only and `//...` skips it there.
 rust_proc_macro(
     name = "greeting",
     srcs = ["greeting/lib.rs"],
     edition = "2024",
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 rust_binary(
