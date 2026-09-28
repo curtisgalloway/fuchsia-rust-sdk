@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_proc_macro")
+
+# Host targets: built with the pinned host toolchain (linux-x64 host std from the lock's
+# rust_host_std package). Proc macros always build for the exec (host) platform.
+rust_proc_macro(
+    name = "greeting",
+    srcs = ["greeting/lib.rs"],
+    edition = "2024",
+)
+
+rust_binary(
+    name = "hello_host",
+    srcs = ["src/main.rs"],
+    edition = "2024",
+    proc_macro_deps = [":greeting"],
+    target_compatible_with = ["@platforms//os:linux"],
+)

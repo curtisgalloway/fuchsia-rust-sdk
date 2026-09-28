@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+# Builds for Fuchsia with --config=fuchsia_x64 or --config=fuchsia_arm64.
+rust_binary(
+    name = "hello_rust",
+    srcs = ["src/main.rs"],
+    edition = "2024",
+    target_compatible_with = ["@platforms//os:fuchsia"],
+    deps = ["@fuchsia_sdk//pkg/fdio"],
+)

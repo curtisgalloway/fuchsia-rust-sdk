@@ -20,6 +20,9 @@ Git sources read "<repo> <revision>:<path>", a revspec for `git cat-file -p`.
   integration_revision  integration commit; the builds and the IDK's CIPD tag agree
   rust_host             CIPD instance (hex SHA-256), host toolchain, linux-amd64
   rust_target           CIPD instance, Fuchsia target std libraries
+  rust_host_std         CIPD instance, x86_64-unknown-linux-gnu std (the host package
+                        has none; proc macros and host tools need it)
+  clang                 CIPD instance, clang for linux-amd64 (@fuchsia_clang)
   bazel_sdk             SHA-256 of the release's IDK core.tar.gz (linux-amd64);
                         "url" is where to download it
   rules_fuchsia         CIPD instance of fuchsia/development/rules_fuchsia at the
@@ -54,8 +57,16 @@ FUCHSIA_GIT = "https://fuchsia.googlesource.com/fuchsia"
 HOST_PLATFORM = "linux-amd64"  # C5
 
 IDK_CIPD_PACKAGE = f"fuchsia/sdk/core/{HOST_PLATFORM}"
-RUST_HOST_MANIFEST_NAME = "fuchsia/third_party/rust/host/${platform}"
-RUST_TARGET_MANIFEST_NAME = "fuchsia/third_party/rust/target/fuchsia"
+# Lock field -> package name as manifests/toolchain spells it. All are resolved for
+# HOST_PLATFORM. The Rust packages must share one pin: std must come from the same
+# compiler build as rustc.
+TOOLCHAIN_PACKAGES = (
+    ("rust_host", "fuchsia/third_party/rust/host/${platform}"),
+    ("rust_target", "fuchsia/third_party/rust/target/fuchsia"),
+    ("rust_host_std", "fuchsia/third_party/rust/target/x86_64-unknown-linux-gnu"),
+    ("clang", "fuchsia/third_party/clang/${platform}"),
+)
+RUST_FIELDS = ("rust_host", "rust_target", "rust_host_std")
 RULES_FUCHSIA_PACKAGE = "fuchsia/development/rules_fuchsia"
 TOOLCHAIN_MANIFEST = "manifests/toolchain"
 CARGO_LOCK = "third_party/rust_crates/Cargo.lock"
@@ -352,7 +363,7 @@ def resolve_revisions(up: Upstream, version: str) -> dict:
 
 
 def parse_toolchain_manifest(text: bytes) -> dict[str, str]:
-    """Map Rust package names in manifests/toolchain to their pinned version tag."""
+    """Map each TOOLCHAIN_PACKAGES field to its pinned version tag in manifests/toolchain."""
     try:
         root = ET.fromstring(text)
     except ET.ParseError as e:
@@ -361,7 +372,7 @@ def parse_toolchain_manifest(text: bytes) -> dict[str, str]:
     for pkg in root.iter("package"):
         found.setdefault(pkg.get("name", ""), []).append(pkg)
     pins = {}
-    for field, name in (("rust_host", RUST_HOST_MANIFEST_NAME), ("rust_target", RUST_TARGET_MANIFEST_NAME)):
+    for field, name in TOOLCHAIN_PACKAGES:
         entries = found.get(name, [])
         if len(entries) != 1:
             raise ResolveError(field, f"{TOOLCHAIN_MANIFEST}: expected one package {name}, found {len(entries)}")
@@ -371,6 +382,10 @@ def parse_toolchain_manifest(text: bytes) -> dict[str, str]:
         if not pkg.get("version"):
             raise ResolveError(field, f"{TOOLCHAIN_MANIFEST}: {name} has no version")
         pins[field] = pkg.get("version")
+    for field in RUST_FIELDS[1:]:
+        if pins[field] != pins["rust_host"]:
+            raise ResolveError(field, f"{TOOLCHAIN_MANIFEST}: pinned at {pins[field]}, "
+                                      f"but rust_host is pinned at {pins['rust_host']}")
     return pins
 
 
@@ -392,7 +407,7 @@ def read_git_file(up: Upstream, field: str, path: str, revision: str) -> bytes:
 def resolve_toolchain(up: Upstream, manifest: bytes, revision: str) -> dict:
     pins = parse_toolchain_manifest(manifest)
     out = {}
-    for field, name in (("rust_host", RUST_HOST_MANIFEST_NAME), ("rust_target", RUST_TARGET_MANIFEST_NAME)):
+    for field, name in TOOLCHAIN_PACKAGES:
         package = name.replace("${platform}", HOST_PLATFORM)
         out[field] = {
             "package": package,
@@ -444,7 +459,7 @@ def resolve(up: Upstream, version: str) -> dict:
         raise ResolveError("sdk_version", f"not an SDK version: {version!r}")
     lock = resolve_revisions(up, version)
     revision = lock["fuchsia_revision"]["value"]
-    # manifests/toolchain serves rust_host and rust_target; rust_host is resolved first.
+    # manifests/toolchain serves every TOOLCHAIN_PACKAGES field; rust_host is resolved first.
     manifest = read_git_file(up, "rust_host", TOOLCHAIN_MANIFEST, revision)
     lock.update(resolve_toolchain(up, manifest, revision))
     cargo_lock = read_git_file(up, "cargo_lock_sha256", CARGO_LOCK, revision)

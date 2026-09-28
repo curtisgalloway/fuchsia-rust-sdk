@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+# The lock is read by the module extensions in //toolchain.
+exports_files(["overlay.lock.json"])

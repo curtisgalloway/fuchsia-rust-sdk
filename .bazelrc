@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+common --enable_bzlmod
+common --noenable_workspace
+
+# Fuchsia flag aliases (as fuchsia-infra-bazel-rules config/common_config.bazelrc).
+build --flag_alias=override_fuchsia_api_level=@fuchsia_sdk//flags:fuchsia_api_level
+build --flag_alias=default_fuchsia_api_level=@fuchsia_sdk//flags:repository_default_fuchsia_api_level
+build --incompatible_enable_cc_toolchain_resolution
+
+# Target the release's in-development API level, as sdk-samples/drivers does: hardware
+# FIDL is @available(added=HEAD) (design C3).
+build --default_fuchsia_api_level=HEAD
+
+build:fuchsia_x64 --platforms=@rules_fuchsia//fuchsia/constraints/platforms:fuchsia_x64
+build:fuchsia_arm64 --platforms=@rules_fuchsia//fuchsia/constraints/platforms:fuchsia_arm64

@@ -5,7 +5,22 @@ version = 1
 
 # Generated files whose formats cannot carry a comment header.
 [[annotations]]
-path = ["overlay.lock.json", "uv.lock"]
+path = ["overlay.lock.json", "uv.lock", "MODULE.bazel.lock"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Curtis Galloway"
 SPDX-License-Identifier = "Apache-2.0"
+
+# Bazel reads this file whole; it cannot carry a comment.
+[[annotations]]
+path = [".bazelversion"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Curtis Galloway"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Copied unchanged from fuchsia.git build/bazel/vendor_patches/rules_rust-0.69.0/ at the
+# lock's fuchsia_revision (C4). Fuchsia's LICENSE is LICENSES/BSD-3-Clause.txt.
+[[annotations]]
+path = ["patches/rules_rust/*.patch"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 The Fuchsia Authors"
+SPDX-License-Identifier = "BSD-3-Clause"

@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+"""The overlay: out-of-tree Rust drivers for a Fuchsia release (docs/design.md).
+
+Every per-release input comes from overlay.lock.json through the two module extensions
+in //toolchain; nothing in this file names a release. Bazel's own version is pinned by
+.bazelversion (run it with scripts/bazel).
+"""
+
+module(
+    name = "fuchsia_rust_sdk",
+    version = "0.0.0",
+)
+
+# BCR dependencies that rules_fuchsia and the generated @fuchsia_sdk load from. Versions
+# follow fuchsia-infra-bazel-rules, which sdk-samples/drivers uses at this release.
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_cc", version = "0.2.14")
+bazel_dep(name = "rules_license", version = "1.0.0")
+bazel_dep(name = "rules_python", version = "1.1.0")
+
+# Cloud containers run as root; rules_python's hermetic interpreter refuses root unless
+# told otherwise (fuchsia-cloud-dev README, container workaround 4).
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    ignore_root_user_error = True,
+    is_default = True,
+    python_version = "3.11",
+)
+
+# rules_rust at upstream's version, with upstream's one patch (design F4), applied as
+# fuchsia.git's build/bazel/toplevel.MODULE.bazel applies it.
+bazel_dep(name = "rules_rust", version = "0.69.0")
+single_version_override(
+    module_name = "rules_rust",
+    patch_strip = 4,
+    patches = ["//patches/rules_rust:0001-rules_rust-workaround-bazelbuild-issues-28286.patch"],
+    version = "0.69.0",
+)
+
+# Pinned by overlay.lock.json: rules_fuchsia, the IDK and the Rust toolchain.
+lock_repos = use_extension("//toolchain:repositories.bzl", "lock_repos")
+use_repo(lock_repos, "fuchsia_idk", "fuchsia_rust_toolchain", "rules_fuchsia")
+
+# Generated with rules_fuchsia's own rules: @fuchsia_sdk (from the IDK) and @fuchsia_clang.
+fuchsia_repos = use_extension("//toolchain:fuchsia.bzl", "fuchsia_repos")
+use_repo(fuchsia_repos, "fuchsia_clang", "fuchsia_sdk", "fuchsia_sdk_toolchain")
+
+register_toolchains("@fuchsia_sdk_toolchain//:all")
+register_toolchains("@fuchsia_clang//:all")
+
+# The release's Rust toolchains (toolchain/rust.BUILD.bazel): linux-x64 host, x64 and
+# arm64 Fuchsia. Registered by the root module, so they take precedence over the default
+# toolchains rules_rust registers (which download from static.rust-lang.org).
+register_toolchains("@fuchsia_rust_toolchain//:all")
