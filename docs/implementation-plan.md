@@ -60,7 +60,7 @@ in the cloud.
 
 | ID | Outcome | Dependencies | Where | Status |
 |----|---------|--------------|-------|--------|
-| I1 | Documented anonymous lookup: SDK version → `fuchsia.git` revision | — | cloud | pending |
+| I1 | Documented anonymous lookup: SDK version → `fuchsia.git` revision | — | cloud | complete |
 | M1 | Repo scaffold + `resolve_pins.py` writes `overlay.lock.json` (R1) | I1 | cloud | pending |
 | M2 | Bazel workspace + Fuchsia Rust toolchains; a Rust binary links for x64 and arm64 (I5, R2) | M1 | cloud | pending |
 | M3 | Emulator harness at the lock's release; the M2 binary runs on it (R2) | M2 | cloud (emulator) | pending |
@@ -123,30 +123,17 @@ Confirm or amend this reading before M10 closes.
 
 ## I1 — SDK version → release revision
 
-**Design coverage:** I1 (blocks R1). **Dependencies:** none.
-**Question:** which published, anonymously readable artifact maps `33.20260927.4.1` to
-a `fuchsia.git` commit?
-**Evidence to collect (in order; stop at the first that works for two releases):**
-1. The IDK's `meta/manifest.json`. Stream it without downloading 3 GB:
-   `curl -sS https://storage.googleapis.com/fuchsia/development/33.20260927.4.1/sdk/linux-amd64/core.tar.gz | tar -xzf - meta/manifest.json`.
-   Look for a revision or `jiri` snapshot field.
-2. The GCS release directory: list `gs://fuchsia/development/33.20260927.4.1/` over
-   the JSON API (`https://storage.googleapis.com/storage/v1/b/fuchsia/o?prefix=development/33.20260927.4.1/&delimiter=/`),
-   and look for `jiri.snapshot`, `source_manifest.json` or similar.
-3. The Bazel SDK CIPD package: `fuchsia-cloud-dev` pins
-   `fuchsia/sdk/core/fuchsia-bazel-rules/linux-amd64` by `git_revision:`. Check
-   whether the SDK packages' CIPD tags (`git_revision`, `version`) link the version
-   string to a commit.
-4. Git tags or refs on `fuchsia.googlesource.com/fuchsia` named after the release
-   (`git ls-remote … | grep 20260927`).
-5. The Buildbucket recipes in `fuchsia-ci`'s `fuchsia-release-artifacts-ci-handoff.md`
-   (needs that private repo attached).
-
-**Exit:** a lookup that returns the revision for `33.20260927.4.1` and one earlier
-release, documented in `docs/evidence/I1.md` with the exact requests. If none works
-anonymously, stop and report. R1 and everything after it are blocked.
-**Sizing:** half a session. If it resolves early, begin M1 in the same session only
-with the owner's go-ahead (the one-milestone boundary still applies).
+**Design coverage:** I1 (blocks R1). **Dependencies:** none. **Status:** complete.
+**Outcome:** `product_bundles.json` for the version → each product build's public
+`source_manifest.json` (`fuchsia-public-artifacts-release/builds/<id>/`) gives the
+`fuchsia.git` revision; the IDK's CIPD instance (`fuchsia/sdk/core/linux-amd64`,
+`version:<V>`) carries `git_revision:<integration commit>`, which must equal every
+build's integration commit. `33.20260927.4.1` → `b5274053cc0f…`; `33.20260919.6.1` →
+`71dec18ae968…`. IDK FIDL content matches both.
+**Evidence:** [I1](evidence/I1.md) · **Notebook:** [I1](notebook/I1.md)
+**Open limitations:** fails closed when builds disagree (seen for `20.20240404.1.1`) or
+when a release has no product bundles. CIPD `git_revision` tags are *integration*
+commits, not `fuchsia.git`.
 
 ---
 
@@ -162,7 +149,8 @@ with the owner's go-ahead (the one-milestone boundary still applies).
    design/plan), `.gitignore` (`bazel-*`, `.dev/`, `__pycache__`), and `pyproject.toml`
    for `uv` with `pytest` as a dev dependency. All carry SPDX headers.
 2. `scripts/resolve_pins.py <sdk-version> [--out overlay.lock.json]`, with these steps:
-   1. Get the revision by the I1 method.
+   1. Get the revision by the I1 method (`evidence/I1.md` "Method"; keep its
+      agreement check, and record the integration commit too).
    2. Fetch `manifests/toolchain` at that revision: `git fetch --depth 1` of that
       commit with a sparse, blobless checkout, or `git archive`-style reads through
       git. Never gitiles.
@@ -170,7 +158,11 @@ with the owner's go-ahead (the one-milestone boundary still applies).
    4. Resolve instance IDs with CIPD `ResolveVersion` (brief App. B step 3). The host
       package is resolved for `linux-amd64`.
    5. Record the Bazel SDK / `rules_fuchsia` CIPD identifiers for that release; the
-      method follows I1 step 3 and `fuchsia-cloud-dev/manifests/*.ensure`.
+      method follows I1 step 3 and `fuchsia-cloud-dev/manifests/*.ensure`. Their
+      `git_revision:` tag is the integration commit. At `33.20260927.4.1`,
+      `rules_fuchsia` resolves by it but `fuchsia-bazel-rules/linux-amd64` does not
+      (no tagged instance; see I1 evidence, "Limitations"). Decide and record how
+      to pin it.
    6. Take the SHA-256 of `third_party/rust_crates/Cargo.lock` at the revision.
    7. Write the lock with sorted keys and a trailing newline, via temp file then
       `os.replace`.
@@ -987,16 +979,20 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: none started; the plan is derived (draft 1) and awaits
-  the owner's read.
-- Completed work and evidence: design approved; this plan.
-- Commits: the plan commit on `claude/quirky-mayer-b1vuym` (message
-  `docs: derive implementation plan from approved design`).
+- Current milestone and status: **I1 complete** (branch `ms/I1`, checkpoint
+  `overlay: I1 — SDK version to release revision`).
+- Completed work and evidence: [I1 evidence](evidence/I1.md). Anonymous lookup via
+  `product_bundles.json` → build `source_manifest.json`, cross-checked with the IDK's
+  CIPD `git_revision` (integration commit) and IDK FIDL content.
+  `33.20260927.4.1` → `b5274053cc0f1ba03cd0902a3da575ac9c31c152`.
+- Commits: the I1 checkpoint commit only; no uncommitted state.
 - Remaining decisions:
+  - how M1 pins the Bazel SDK when `fuchsia-bazel-rules` has no instance tagged for
+    the release (M1 step 2.5);
   - the R7 reading for pilot 1 (see Design coverage gap), needed before M10 closes;
   - the M17 placement, needed before M17.
 - Context boundary: normal.
-- Resume action: **start I1**. First command:
-  `curl -sS https://storage.googleapis.com/fuchsia/development/33.20260927.4.1/sdk/linux-amd64/core.tar.gz | tar -xzf - meta/manifest.json && grep -n -i -E 'revision|snapshot|commit' meta/manifest.json`.
-- Read first: this plan's I1 and M1 entries, [design](design.md) §4.2 "Pin resolution"
-  and §8.1 I1, and the [notebook index](notebook/index.md).
+- Resume action: **begin M1** (needs the owner's go-ahead).
+- Read first: this plan's M1 entry, [I1 evidence](evidence/I1.md) "Method" and
+  "Limitations", [design](design.md) §4.2 "Pin resolution", and the
+  [notebook index](notebook/index.md).
