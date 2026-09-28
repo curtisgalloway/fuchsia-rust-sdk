@@ -7,7 +7,10 @@ SPDX-License-Identifier: Apache-2.0
 
 Design: [design](design.md), revision "2026-09-27, draft 1", approved 2026-09-27
 including D6 (approval recorded in commit `2ced23a`; file unchanged since).
-Brief: [brief](brief.md) (evidence and upstream paths; the design wins where they differ).
+Brief: `docs/drivers/rust-driver-oot-plan.md` in the private `curtisgalloway/fuchsia-ci`
+repo at `b061204`, not published (a copy lived at `docs/brief.md` until `909cc07`, in this
+repo's history; see the design's header) (evidence and upstream paths; the design wins
+where they differ).
 Notebook: [index](notebook/index.md); process log: [process log](process-log.md)
 Target release for milestone 1: `33.20260927.4.1` (`LATEST_LINUX` on 2026-09-27).
 
@@ -833,7 +836,7 @@ Status: pending · Evidence: [M16](evidence/M16.md) · Notebook: [M16](notebook/
 ## M17 — CI job in `fuchsia-ci`
 
 **Design coverage:** R11. **Dependencies:** M15; the placement of the C++ out-of-tree
-job (design §8.3). **Repository:** `curtisgalloway/fuchsia-ci`, attached for this
+job (design §8.3). **Repository:** `curtisgalloway/fuchsia-ci` (private), attached for this
 milestone.
 **Steps:**
 1. A job that, for each newly mirrored release, runs `regen.py <version>` in a scratch

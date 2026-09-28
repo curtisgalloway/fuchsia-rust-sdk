@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # design — Design and planning
 
-Goal: turn the brief ([`../brief.md`](../brief.md), from `fuchsia-ci` `b061204`)
+Goal: turn the brief (`docs/brief.md` at `909cc07`, from `fuchsia-ci` `b061204`)
 into an approved design and an implementation plan for this repo.
 Verdict record: [design](../design.md), then `../implementation-plan.md`.
 
@@ -74,3 +74,13 @@ owner, not silently changed.
 ## 2026-09-27T17:46-07:00 — checkpoint
 State: plan draft 1 written ([plan](../implementation-plan.md)). Design unchanged.
 Next: owner reads the plan; then start I1 (first command in the plan's Next session).
+
+## 2026-09-28T09:18-07:00 — correction of the chapter's goal line (brief link)
+The goal line linked `../brief.md`. The owner decided on 2026-09-28 (publication
+decision 1B) to remove `docs/brief.md` from the tree before the repository is made
+public: it copies a document from the owner's private `curtisgalloway/fuchsia-ci` repo,
+which is not published. The file stays in git history (last present at `909cc07`).
+The goal line was edited in place: the link became the plain text "`docs/brief.md` at
+`909cc07`". No other word of this chapter changed; this is the one deliberate exception
+to append-only in this chapter. The "brief" in the entries above still means that
+document; see the design's header.
