@@ -1,0 +1,95 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+# Pilot 1 (milestone M10): examples/drivers/simple/rust from fuchsia.git at the lock's
+# fuchsia_revision, built out of tree. src/lib.rs and meta/simple_rust_driver.cml are
+# upstream's, unchanged; this file translates its BUILD.gn:
+#   - fuchsia_rust_driver("driver"): the same deps, mapped to the overlay's labels
+#     (fuchsia.test_rust: //drivers/bind). anyhow, fdf and zx are unused by the source;
+#     GN allows that for Rust drivers and so does fuchsia_rust_driver.
+#   - driver_bind_rules("bind"): upstream's rule names gizmo.example, which the IDK does
+#     not ship, so meta/placeholder.bind stands in until I3 (M11). The bytecode keeps
+#     GN's name, rust.bindbc, which the manifest names.
+#   - fuchsia_driver_component("component"): the checked-in manifest (GN compiles the
+#     same output from meta/rust-driver.dml with dmlc). GN's `info` (component-info.json)
+#     has no Bazel counterpart.
+#   - fuchsia_driver_package("pkg"): package simple_rust_driver.
+# Not translated: with_unit_tests and test_deps (the unit test), and the realm test (M16).
+
+load(
+    "@rules_fuchsia//fuchsia:defs.bzl",
+    "fuchsia_driver_bind_bytecode",
+    "fuchsia_driver_component",
+    "fuchsia_package",
+)
+load("//rules:fuchsia_rust_driver.bzl", "fuchsia_driver_elf_test", "fuchsia_driver_manifest_test", "fuchsia_rust_driver")
+
+fuchsia_rust_driver(
+    name = "driver",
+    srcs = ["src/lib.rs"],
+    edition = "2024",
+    output_name = "simple_rust_driver",
+    deps = [
+        "//drivers/bind:fuchsia.test_rust",
+        "//vendor/fuchsia/sdk/fidl/fuchsia.driver.framework:fuchsia.driver.framework_rust",
+        "//vendor/fuchsia/sdk/lib/driver/component/rust",
+        "//vendor/fuchsia/sdk/lib/driver/runtime/rust",
+        "//vendor/fuchsia/sdk/rust/zx",
+        "//vendor/fuchsia/src/lib/fidl/rust/fidl",
+        "@rust_crates//vendor:anyhow",
+        "@rust_crates//vendor:log",
+    ],
+)
+
+fuchsia_driver_bind_bytecode(
+    name = "bind",
+    output = "rust.bindbc",
+    rules = "meta/placeholder.bind",
+    deps = ["@fuchsia_sdk//bind/fuchsia.test"],
+)
+
+fuchsia_driver_component(
+    name = "component",
+    bind_bytecode = ":bind",
+    driver_lib = ":driver",
+    manifest = "meta/simple_rust_driver.cml",
+)
+
+fuchsia_package(
+    name = "pkg",
+    package_name = "simple_rust_driver",
+    components = [":component"],
+    tags = ["manual"],
+)
+
+# Design R7: only __fuchsia_driver_registration__ is exported, and the driver's DT_NEEDED
+# set is within that of the pure-Rust drivers the lock's core.x64 bundle ships
+# (virtio-gpu-display-rust.so, usb-vsock-service.so; docs/evidence/M10.md) minus the two
+# GN links dynamically and rules_rust statically (libstd-<hash>.so, libvfs_rust.so).
+fuchsia_driver_elf_test(
+    name = "elf_test",
+    allowed_needed = [
+        "libasync-default.so",
+        "libc.so",
+        "libdriver_runtime.so",
+        "libfdio.so",
+        "libzircon.so",
+    ],
+    driver = "driver/simple_rust_driver.so",
+    package = ":pkg",
+    size = "small",
+    # Built for the Fuchsia configs only: the package's transition would otherwise build
+    # the driver for x64 in host builds too.
+    target_compatible_with = ["@platforms//os:fuchsia"],
+)
+
+# The syslog and inspect client shards, which GN's expect_includes enforce (M9b, M9c).
+fuchsia_driver_manifest_test(
+    name = "manifest_test",
+    component = "meta/simple_rust_driver.cm",
+    package = ":pkg",
+    size = "small",
+    # Built for the Fuchsia configs only: the package's transition would otherwise build
+    # the driver for x64 in host builds too.
+    target_compatible_with = ["@platforms//os:fuchsia"],
+)

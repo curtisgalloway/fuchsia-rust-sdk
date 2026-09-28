@@ -6,6 +6,7 @@
 load("@api_levels_testdata_idk//:args.bzl", idk_all_numbered = "all_numbered_api_levels", idk_buildable = "idk_buildable_api_levels")
 load("@api_levels_testdata_sdk//:args.bzl", sdk_all_numbered = "all_numbered_api_levels", sdk_buildable = "idk_buildable_api_levels")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@fuchsia_sdk//:api_version.bzl", SDK_API_LEVELS = "INTERNAL_ONLY_SUPPORTED_API_LEVELS")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_rust//rust:defs.bzl", "rust_test")
 load("//rules:rustc.bzl", "rustc_binary", "rustc_library", "rustc_proc_macro")
@@ -140,4 +141,34 @@ cap_lints_test(
     name = "first_party_cap_lints_test",
     expected = "deny",
     target_under_test = ":first_party_lint",
+)
+
+# --- .bazelrc's -ffuchsia-api-level (milestone M10) -------------------------------------
+#
+# The Fuchsia configs pass --copt=-ffuchsia-api-level=<u32 of HEAD>, the value
+# fuchsia_package's transition sets, so that the transition is a no-op. This checks the
+# number against the table that transition reads it from: @fuchsia_sdk//:api_version.bzl,
+# which rules_fuchsia generates from the lock's IDK version_history.json
+# (special_api_levels.HEAD.as_u32; nothing is fetched). The genrule fails if .bazelrc has
+# no number, so the diff cannot pass on an empty file.
+_HEAD_U32 = [str(level.as_u32) for level in SDK_API_LEVELS if level.api_level == "HEAD"]
+
+write_file(
+    name = "sdk_head_u32",
+    out = "sdk_head_u32.txt",
+    content = _HEAD_U32 + [""],
+    newline = "unix",
+)
+
+genrule(
+    name = "bazelrc_head_u32",
+    srcs = ["//:.bazelrc"],
+    outs = ["bazelrc_head_u32.txt"],
+    cmd = "sed -n 's/^build:fuchsia --copt=-ffuchsia-api-level=//p' $< > $@ && grep -qx '[0-9][0-9]*' $@",
+)
+
+diff_test(
+    name = "bazelrc_head_u32_test",
+    file1 = ":sdk_head_u32",
+    file2 = ":bazelrc_head_u32",
 )

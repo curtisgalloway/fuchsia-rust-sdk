@@ -3,3 +3,7 @@
 
 # The lock is read by the module extensions in //toolchain.
 exports_files(["overlay.lock.json"])
+
+# //tests/api_level:bazelrc_head_u32_test checks the API level .bazelrc gives the Fuchsia
+# configs (M10).
+exports_files([".bazelrc"])

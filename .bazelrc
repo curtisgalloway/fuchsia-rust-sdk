@@ -24,3 +24,16 @@ build:fuchsia_x64 --config=fuchsia
 build:fuchsia_x64 --platforms=@rules_fuchsia//fuchsia/constraints/platforms:fuchsia_x64
 build:fuchsia_arm64 --config=fuchsia
 build:fuchsia_arm64 --platforms=@rules_fuchsia//fuchsia/constraints/platforms:fuchsia_arm64
+
+# rules_fuchsia's fuchsia_package transition (fuchsia/private/fuchsia_transition.bzl)
+# takes the target CPU from --cpu, not --platforms, so without these an arm64 build
+# packages x64 binaries (M10). It also sets the options below; giving the configs the same
+# values makes the transition a no-op, so a package holds the very targets the config
+# builds instead of a second copy in a "-ST-" output directory. 4292870144 is the u32 of
+# API level HEAD (special_api_levels.HEAD.as_u32 in the IDK's version_history.json), the
+# level both configs target; //tests/api_level:bazelrc_head_u32_test checks it.
+build:fuchsia --copt=--debug
+build:fuchsia --copt=-ffuchsia-api-level=4292870144
+build:fuchsia --strip=never
+build:fuchsia_x64 --cpu=x86_64
+build:fuchsia_arm64 --cpu=aarch64

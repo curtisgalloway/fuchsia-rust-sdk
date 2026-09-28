@@ -127,3 +127,28 @@ rust_lint_config(
         "unused_results": "deny",
     },
 )
+
+# Overlay (milestone M10): the lints GN gives Rust drivers. set_defaults("fuchsia_rust_driver")
+# (build/drivers/fuchsia_driver.gni) is rustc_cdylib's defaults plus the config
+# //build/config/rust/lints:allow_unused_crate_dependencies (fxbug.dev/42055130: "The build
+# fails if unused crates are removed at call sites"); rustc_* targets default to
+# clippy_warn_production, so this is clippy_warn_production with that one lint allowed.
+# //rules:fuchsia_rust_driver.bzl uses it as fuchsia_rust_driver's default lint_config.
+rust_lint_config(
+    name = "fuchsia_rust_driver",
+    clippy = _CLIPPY_WARN_PRODUCTION,
+    rustc = _RUSTC_LINT_CONFIGS | {
+        "unused_crate_dependencies": "allow",
+    },
+)
+
+# Overlay (milestone M10): the lints GN gives a bind library's Rust crate
+# (build/bind/bind.gni, _bind_library_rust: rustc_library's defaults plus the config
+# //build/config/rust/lints:deny_unused_results). //rules:bind_rust.bzl uses it.
+rust_lint_config(
+    name = "bind_rust",
+    clippy = _CLIPPY_WARN_PRODUCTION,
+    rustc = _RUSTC_LINT_CONFIGS | {
+        "unused_results": "deny",
+    },
+)

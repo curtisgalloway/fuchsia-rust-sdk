@@ -482,3 +482,27 @@ Chapter: [M9c](notebook/M9c.md)
 The 13:12 entry's "13:03 checkpoint" and "26 minutes" should read 13:02 and 25 minutes
 (12:37–13:02).
 Status: open (same as the 13:12 entry)
+
+## 2026-09-28T07:08-07:00 — environment: container restart killed M10's first implementer
+Chapter: [M10](notebook/M10.md)
+What happened: the session was killed mid-work (after 06:27); the filesystem survived,
+with no commits on `ms/M10` and two untested rule drafts. A new session resumed from the
+notebook and the files and committed the recovered state first.
+Cost: re-orientation (reading the plan, notebook and drafts again); the drafts had two
+defects found only by building (a `data` provider list, an excluded
+`libdriver_runtime.so` the references ship).
+Prevention: WIP commits at each coherent step, including before a first build of new files.
+Fix belongs in: agent habit (the orchestrator now asks for it)
+Status: open
+
+## 2026-09-28T07:08-07:00 — tool: Bash unavailable for about 3 minutes (classifier gave no verdict)
+Chapter: [M10](notebook/M10.md)
+What happened: five Bash calls in a row returned "auto mode classifier gave no verdict";
+one of them was a notebook append plus WIP commit, which did not run. Work continued with
+Read/Write (the evidence draft); the append was redone at 07:07 with a note that it was
+written late.
+Cost: about 3 minutes; notebook entries stamped a few minutes after the events.
+Prevention: none on the agent side; keep notebook appends separate from long commands so
+a refused call loses less.
+Fix belongs in: tool (harness)
+Status: open
