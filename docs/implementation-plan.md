@@ -87,7 +87,7 @@ in the cloud.
 | M9a | Pilot 1's driver runtime vendored (11 overlays); FIDL driver transport on (R6, R5) | M8b | cloud | complete |
 | M9b | 28 upstream-Bazel in-tree crates + 7 overlays (incl. `fuchsia-component`) (R6) | M9a | cloud | complete |
 | M9c | The last 6 overlays, ending in `fdf_component` (R6) | M9b | cloud | complete |
-| M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | in review |
+| M10 | `fuchsia_rust_driver` rule; pilot 1 packages and passes symbol checks (R7) | M9c | cloud | complete |
 | I3 | Emulator bind target for pilot 1 confirmed at this release | M3 | cloud (emulator) | pending |
 | M11 | Pilot 1 binds on the emulator (R8a) | M10, I3 | cloud (emulator) | pending |
 | G1 | **Milestone 1 gate**: R1–R7 + R8a from a clean clone | M11 | cloud (emulator) | pending |
@@ -554,8 +554,10 @@ also need `libstd-<hash>.so` and `libvfs_rust.so` (GN links both dynamically). `
 visible to `//drivers` (patch `0002`); the Fuchsia configs set `--cpu` so
 `fuchsia_package`'s transition packages the configured CPU (it packaged x64 under arm64).
 **Design coverage:** R7, F3, A3. **Dependencies:** M9c.
-**Status:** in review — implementation, checks and evidence done; the orchestrator's
-reviewer runs before the checkpoint commit. The detailed entry is in the evidence file.
+**Status:** complete. An independent reviewer subagent (launched by the orchestrator)
+reviewed before the checkpoint: land after fixes (4 minor, 4 nits; all resolved, including
+tests that `.bazelrc`'s `-ffuchsia-api-level` is HEAD's u32). The detailed entry is in the
+evidence file.
 **Evidence:** [M10](evidence/M10.md) · **Notebook:** [M10](notebook/M10.md)
 **Open limitations:** placeholder bind rule (I3); not loaded on a target (M11); unit and
 realm tests not built (M16); the reference `DT_NEEDED` sets are x64's.
@@ -1183,17 +1185,17 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M10 in review.** Branch `ms/M10` from `cd83c70`; `wip`
+- Current milestone and status: **M10 complete.** Branch `ms/M10` from `cd83c70`; `wip`
   commits `5b79a3d` (state recovered after a container restart), `f06cdee`, `d083ca9`,
-  `0b6fd93`, `7009f95` and the plan/index one; implementation, project checks and the
-  evidence (all but Review) are done.
-- Completed work and evidence: [M10 evidence](evidence/M10.md).
+  `0b6fd93`, `7009f95`, `99435d2`, `06d0d5c`, then the checkpoint commit `overlay: M10 —
+  fuchsia_rust_driver rule; pilot 1 packages`, after the reviewer subagent's review and
+  fixes.
+- Completed work and evidence: [M10 evidence](evidence/M10.md), including the review.
 - Uncommitted state: none.
-- Remaining work, blockers, and decisions: the orchestrator's review, fixes, the Review
-  section, then the checkpoint commit `overlay: M10 — fuchsia_rust_driver rule; pilot 1
-  packages`. The R7 reading is decided (owner, 2026-09-28). Unchanged: M17 placement.
+- Remaining work, blockers, and decisions: the R7 reading is decided (owner, 2026-09-28).
+  Unchanged: M17 placement.
 - Context boundary: normal (one container restart, recovered from files; process log).
-- Resume action: finish M10's review and checkpoint; then **I3** (emulator bind target),
-  then **M11**.
+- Resume action: after M10's checkpoint, **I3** (emulator bind target), then **M11**.
 - Read first for M11: the I3 and M11 entries, [M10 evidence](evidence/M10.md) ("Findings for
-  later milestones"), `drivers/simple_rust/BUILD.bazel`, [notebook index](notebook/index.md).
+  later milestones": the packaged `libdriver_runtime.so`), `drivers/simple_rust/BUILD.bazel`,
+  [notebook index](notebook/index.md).

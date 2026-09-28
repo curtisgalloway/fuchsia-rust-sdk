@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-28T07:09-07:00
+Updated: 2026-09-28T07:31-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -159,13 +159,14 @@ Outcome: complete — 6 overlays, no patches; all 68 in-tree crates but the driv
 - Review: stronger REMOVED_DEPS test; M10 entry carries the unused-crate allowance and both manifest shards
 
 ### [M10 — `fuchsia_rust_driver` rule; pilot 1 packages](M10.md)
-Entries: 2026-09-28T06:21-07:00 through 2026-09-28T07:09-07:00
-Outcome: open (in review) — pilot 1 packages for x64/arm64; exports only the registration symbol; `DT_NEEDED` within the `core.x64` pure-Rust drivers' (they add libstd, libvfs_rust)
+Entries: 2026-09-28T06:21-07:00 through 2026-09-28T07:31-07:00
+Outcome: complete — pilot 1 packages for x64/arm64; exports only the registration symbol; `DT_NEEDED` within the `core.x64` pure-Rust drivers' (they add libstd, libvfs_rust)
 - Container restart at 06:27–06:36; resumed from files; untested drafts fixed by building (`data` providers; `libdriver_runtime.so` now packaged, as the Rust references ship it)
 - `fuchsia_package`'s transition uses `--cpu`: arm64 builds packaged x64 until `.bazelrc` set it (and the transition's options, ending `-ST-` rebuilds)
 - Rust references carry soname = file name; rule now links `-soname`; A3 holds (no restricted import)
 - `fidl` visible to `//drivers` by patch 0002; bind crate rule `rules/bind_rust.bzl`
 - Manifest shards checked in the packaged `.cm` (cmc records includes); negative checks all fail as they should
+- Review: land after fixes; HEAD's u32 in `.bazelrc` now tested; packaged runtime libs = bundle's but for build IDs
 
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
@@ -181,7 +182,7 @@ Outcome: open (in review) — pilot 1 packages for x64/arm64; exports only the r
   [M9](M9.md) (M9a) adds 0.04 GiB (11 driver runtime crates; total 11.90 GiB, Bazel 10.99 of 12).
   [M9b](M9b.md) adds 0.37 GiB (35 crates, two Fuchsia configs, exec proc macros; total 12.27 GiB, Bazel 11.36 of 12).
   [M9c](M9c.md) adds 0.11 GiB (6 crates; total 12.39 GiB, Bazel 11.47 of 15).
-  [M10](M10.md) adds 0.7 GiB (the pilot for two configs; total 13.09 GiB, Bazel 12.17 of 15),
+  [M10](M10.md) adds 0.7 GiB (the pilot for two configs; total 13.09 GiB, Bazel 12.18 of 15),
   after reclaiming 1.2 GiB the package transition's `-ST-` rebuilds had used.
 - **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
   Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
