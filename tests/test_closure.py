@@ -365,7 +365,9 @@ def test_fidl_and_bind_libraries(upstream, idk):
 
 def test_native_and_unresolved(upstream):
     data = run(upstream)
-    assert [(n["label"], n["gn_template"]) for n in data["native"]] == [("//native/c", "source_set")]
+    assert [(n["label"], n["gn_template"], n["deps_not_followed"]) for n in data["native"]] == [
+        ("//native/c", "source_set", 0)]
+    assert data["counts"]["native_deps_not_followed"] == 0
     assert [(u["label"], u["reason"], u["used_by"]) for u in data["unresolved"]] == [
         ("//lib/missing:nope", "no BUILD.gn", ["//lib/a/sub"])]
 
@@ -459,6 +461,21 @@ def test_real_vfs_build_file():
     assert trace.targets["trace"].scope["deps"] == ["//src/lib/trace/rust:trace"]
     assert trace.targets["trace"].scope["name"] == "storage_trace"
     assert r.gaps == [] and trace.gaps == []
+
+
+def test_imported_template_leaf_counts_its_deps(upstream):
+    """M6a re-review: an imported template's deps are not followed, but counted."""
+    (upstream / "native/c/BUILD.gn").write_text('''\
+my_imported_rust("c") {
+  deps = [ "//q", "$unknown:x" ]
+  public_deps = [ "//r" ]
+}
+''')
+    data = run(upstream)
+    assert [(n["label"], n["gn_template"], n["deps_not_followed"]) for n in data["native"]] == [
+        ("//native/c", "my_imported_rust", 3)]
+    assert data["counts"]["native_deps_not_followed"] == 3
+    assert "q" not in by_path(data)
 
 
 def test_crates_io_direct_and_transitive(upstream):

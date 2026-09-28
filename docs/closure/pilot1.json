@@ -28,6 +28,7 @@
   "fidl_libraries_not_in_idk": 1,
   "bind_libraries": 1,
   "native_targets": 9,
+  "native_deps_not_followed": 28,
   "unresolved": 0,
   "unknown_deps": 0,
   "evaluation_gaps": 0
@@ -5180,7 +5181,8 @@
     "//sdk/lib/async/rust/dispatcher",
     "//sdk/lib/driver/runtime/rust/channel",
     "//sdk/lib/driver/runtime/rust/core"
-   ]
+   ],
+   "deps_not_followed": 5
   },
   {
    "label": "//sdk/lib/async-default",
@@ -5190,7 +5192,8 @@
    ],
    "used_by": [
     "//sdk/lib/async/rust/dispatcher"
-   ]
+   ],
+   "deps_not_followed": 1
   },
   {
    "label": "//sdk/lib/fdio",
@@ -5201,7 +5204,8 @@
    "used_by": [
     "//src/lib/fdio/rust:fdio",
     "//src/lib/fuchsia-async"
-   ]
+   ],
+   "deps_not_followed": 16
   },
   {
    "label": "//sdk/lib/inspect:client_includes",
@@ -5211,7 +5215,8 @@
    ],
    "used_by": [
     "//sdk/lib/driver/component/rust"
-   ]
+   ],
+   "deps_not_followed": 0
   },
   {
    "label": "//sdk/lib/syslog:client_includes",
@@ -5221,7 +5226,8 @@
    ],
    "used_by": [
     "//src/lib/diagnostics/log/rust:no_startup_handle"
-   ]
+   ],
+   "deps_not_followed": 0
   },
   {
    "label": "//src/devices/bin/driver_runtime",
@@ -5232,7 +5238,8 @@
    "used_by": [
     "//sdk/lib/driver/runtime/rust/env",
     "//sdk/lib/driver/runtime/rust/fidl"
-   ]
+   ],
+   "deps_not_followed": 1
   },
   {
    "label": "//src/devices/lib/driver:driver_runtime",
@@ -5243,7 +5250,8 @@
    "used_by": [
     "//sdk/lib/driver/runtime/rust/channel",
     "//sdk/lib/driver/runtime/rust/core"
-   ]
+   ],
+   "deps_not_followed": 0
   },
   {
    "label": "//zircon/system/ulib/sync",
@@ -5253,7 +5261,8 @@
    ],
    "used_by": [
     "//src/lib/fuchsia-sync"
-   ]
+   ],
+   "deps_not_followed": 1
   },
   {
    "label": "//zircon/system/ulib/trace-engine",
@@ -5264,7 +5273,8 @@
    "used_by": [
     "//src/lib/trace/rust:trace",
     "//src/storage/lib/vfs/rust:vfs"
-   ]
+   ],
+   "deps_not_followed": 4
   }
  ],
  "unresolved": [],

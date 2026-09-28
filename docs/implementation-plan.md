@@ -295,7 +295,9 @@ crates by hand.
 
 **Design coverage:** D8, R12 (closure data first produced). **Dependencies:** M5.
 **Status:** complete. An independent review ran before the checkpoint (1 blocker,
-1 major, 3 minor findings, 2 nits, all resolved as the orchestrator decided). Split from
+1 major, 3 minor findings, 2 nits, all resolved as the orchestrator decided); a second
+round after the checkpoint (verdict land: 1 minor, 1 record, 2 nits) was fixed in a
+follow-up commit. Split from
 M6 (accepted by the orchestrator): the transitive crate count and the new patched-crate
 mechanism; criteria 2–4 moved to M6b. The detailed M6 entry is in the evidence file.
 **Outcome:** `scripts/closure.py` walks GN deps by evaluating BUILD.gn
@@ -311,7 +313,7 @@ resolves crates.io aliases through upstream's crate_universe BUILD files.
 patched: `ask2patch/byteorder`, `ask2patch/memchr`, `forks/libc-0.2.189`,
 `forks/zeroize`), 23 FIDL libraries (`fuchsia.sys2` not in the IDK), 1 bind library;
 0 gaps, 0 unknown deps, 0 UNKNOWN conditions; upper bound 72 / 50 / 145 / 24. Brief
-(dw-spi roots): 67 / 44 / 34. Two fresh runs are byte-identical. pytest 312, reuse lint,
+(dw-spi roots): 67 / 44 / 34. Two fresh runs are byte-identical. pytest 313, reuse lint,
 three builds, `bazel test //...` (25), `regen.py --check` pass; disk 8.99 / 25 GiB.
 **Evidence:** [M6](evidence/M6.md) · **Notebook:** [M6](notebook/M6.md) (M6a used the
 chapter and evidence named `M6`; M6b uses `M6b`)

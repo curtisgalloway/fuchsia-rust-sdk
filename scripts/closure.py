@@ -28,6 +28,9 @@ Differences from the brief's walker:
     treats every condition as UNKNOWN, as the brief's walker did.
   * FIDL dependencies of FIDL libraries are followed, per binding flavor.
   * test_deps and test targets are not followed (D5: production builds only).
+  * A target made by an imported template other than the Rust and FIDL ones is a leaf
+    ("native"); its deps are not followed but counted (`deps_not_followed`, and
+    `native_deps_not_followed` in counts), so nothing is dropped silently.
 
 Inputs: overlay.lock.json (fuchsia_revision); fuchsia.git over anonymous HTTPS through
 regen.py's GitSource (C1; depth-1 blobless fetch, blobs by ID). --idk names an
@@ -368,7 +371,14 @@ def walk(tree: Tree, roots: list[str], mode: str = "fuchsia") -> Report:
             elif target.kind == "fidl":
                 nxt += _fidl(rep, res, path, name, target, None, ctx, via, lab)
             else:
-                rec = rep.native.setdefault(lab, {"gn_template": target.kind, "contexts": [], "used_by": []})
+                # A leaf: an imported template (C/C++ library, or anything else the walk
+                # does not treat as Rust). Its deps are not followed; say how many there
+                # were, so an imported template wrapping Rust cannot lose deps silently.
+                rec = rep.native.setdefault(lab, {
+                    "gn_template": target.kind, "contexts": [], "used_by": [],
+                    "deps_not_followed": sum(len(_strings(target.scope.get(v))) + _unknowns(target.scope.get(v))
+                                             for v in ("deps", "public_deps")),
+                })
                 _add(rec, "contexts", ctx)
                 _add(rec, "used_by", via)
         frontier = nxt
@@ -677,6 +687,8 @@ def report(tree: Tree, roots: list[str], revision: str, idk: Path | None, name: 
         "fidl_libraries_not_in_idk": sum(1 for f in fidl if f["in_idk"] is False),
         "bind_libraries": len(bind),
         "native_targets": len(rep.native),
+        # deps/public_deps entries of native (imported-template) leaves, not followed.
+        "native_deps_not_followed": sum(n["deps_not_followed"] for n in rep.native.values()),
         "unresolved": len(rep.unresolved),
         "unknown_deps": sum(c["unknown_deps"] for c in rep.crates.values()),
         "evaluation_gaps": len(gaps),

@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T23:20-07:00
+Updated: 2026-09-27T23:34-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -78,7 +78,7 @@ Outcome: complete — `regen.py vendor`/`--check`; `zx-types`, `zx-sys`, `zx-sta
 - Git: depth-1 blobless fetch, then one by-ID fetch of the needed blobs (~16 s per run)
 
 ### [M6 — Pilot 1 closure measured (M6a; M6b uses M6b.md)](M6.md)
-Entries: 2026-09-27T22:23-07:00 through 2026-09-27T23:20-07:00
+Entries: 2026-09-27T22:23-07:00 through 2026-09-27T23:34-07:00
 Outcome: complete (M6a) — `closure.py` + `gn_eval.py`; `pilot1.json`: 69 in-tree, 44 direct / 121 crates.io (4 patched), 23 FIDL; M6b (crates build) planned
 - Brief's regex walker misses bazel2gn variable deps, relative labels, proc_macro_deps: GN is now evaluated
 - Review blocker: scope literals, forward_variables_from, foreach, same-file templates were dropped silently (lost vfs's deps); now evaluated, anything else is a recorded gap
