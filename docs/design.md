@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 # Rust drivers out of tree (the overlay) — Design
 
 Revision: 2026-09-27, draft 1 — approved by the owner 2026-09-27, including D6;
-amended 2026-09-27 per owner direction and M2/M3 findings (C6, A2, R1, R2, §4.1, §4.2)
+amended 2026-09-27 per owner direction and M2/M3 findings (C6, A2, R1, R2, §4.1, §4.2 toolchain and Rust rules)
 
 Source brief: [`brief.md`](brief.md), copied from `curtisgalloway/fuchsia-ci` at `b061204`
 (`docs/drivers/rust-driver-oot-plan.md`) (the
@@ -279,8 +279,10 @@ package and serves proc macros and host tools.
 
 **Rust rules (`rules/rustc.bzl`, R3).** Thin wrappers over `rules_rust`, ported
 from upstream's `build/bazel/rules/rust/`, adding `--cap-lints` for vendored
-code and the API-level cfg list from `rustc_api_level.bzl`, fed by the IDK's
-`version_history.json`.
+code and upstream's lint configs. The API-level cfg list from
+`rustc_api_level.bzl`, fed by the IDK's `version_history.json`, is applied by the
+Rust toolchains, as upstream does: the Fuchsia toolchains at the configured level
+(HEAD), the host toolchain at PLATFORM (amended after M4).
 
 **Third-party crates (`third_party/crates/`, R4).** `crate_universe` run over
 the release's `Cargo.toml`/`Cargo.lock`, restricted to the crates the closure

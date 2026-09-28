@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-27T21:11-07:00
+Updated: 2026-09-27T21:38-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through".
 
@@ -59,7 +59,20 @@ Outcome: complete — `scripts/emu` boots the lock's core.x64 (TCG ~51 s), hello
 - Build-info product "minimal" on core.x64 is normal (reviewer); Rust packaging needs `@fuchsia_sdk//pkg/fdio:dist`
 - Dead end: probing plain-HTTP apt mirrors through a CONNECT-only proxy; apt hosts left out of the preflight
 
+### [M4 — `rustc_*` rules with API-level cfgs](M4.md)
+Entries: 2026-09-27T21:17-07:00 through 2026-09-27T21:38-07:00
+Outcome: complete — cfgs at the toolchain level as upstream; wrappers add cap-lints
+- Upstream generator is `build/bazel/versioning/rustc_api_level.bzl`; golden made by running it unmodified; GN emitter agrees
+- IDK `version_history.json` is key-sorted (`10…32, 4…9`); upstream's script rejects it; port sorts numerically
+- Dead end: select() on rules_fuchsia's API level fails host analysis when unset; host gets PLATFORM directly
+- New repository rule in its own file so the 3 GB IDK is not refetched
+- M3 checkpoint had deleted the plan's M4–M10/I2 entries; restored
+
 ## Threads
 - **Disk budget (C6):** [M2](M2.md) measured 20 GB of Bazel caches (9 GB free);
   [M2a](M2a.md) trims the IDK and prunes the cached tarball (7.7 GiB); [M3](M3.md) adds the
   emulator bucket (0.5 GiB; total 8.8 GiB, clean-slate peak about 9.6 GiB).
+  [M4](M4.md) adds 0.06 GiB (total 8.82 GiB).
+- **Targeting HEAD (C3, R3):** [M2](M2.md) sets `--override_fuchsia_api_level=HEAD` in the
+  Fuchsia configs; [M2a](M2a.md) trims non-HEAD `obj/` but keeps `version_history.json`;
+  [M4](M4.md) derives the Rust cfgs from that file and asserts the HEAD branch at build time.
