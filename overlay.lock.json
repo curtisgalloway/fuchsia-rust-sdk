@@ -1,0 +1,71 @@
+{
+  "bazel_sdk": {
+    "source": [
+      "https://storage.googleapis.com/fuchsia/development/33.20260927.4.1/sdk/linux-amd64/core.tar.gz"
+    ],
+    "url": "https://storage.googleapis.com/fuchsia/development/33.20260927.4.1/sdk/linux-amd64/core.tar.gz",
+    "value": "043104bab236c808c3d53bfa7d36dc8d2150a662fb8a6f772693529c5a7078f6"
+  },
+  "cargo_lock_sha256": {
+    "source": [
+      "https://fuchsia.googlesource.com/fuchsia b5274053cc0f1ba03cd0902a3da575ac9c31c152:third_party/rust_crates/Cargo.lock"
+    ],
+    "value": "691ef394eb82571dd18eb489c5526b00b236aa33aecc5baf91a5358286ab3a20"
+  },
+  "fuchsia_revision": {
+    "source": [
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913697/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913713/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913729/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913745/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913761/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913777/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913825/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913841/source_manifest.json"
+    ],
+    "value": "b5274053cc0f1ba03cd0902a3da575ac9c31c152"
+  },
+  "integration_revision": {
+    "source": [
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913697/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913713/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913729/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913745/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913761/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913777/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913825/source_manifest.json",
+      "https://storage.googleapis.com/fuchsia-public-artifacts-release/builds/8669503301662913841/source_manifest.json",
+      "https://chrome-infra-packages.appspot.com/p/fuchsia/sdk/core/linux-amd64/+/version:33.20260927.4.1"
+    ],
+    "value": "1463df67e630ab75428ad5731ab1c24dd5dce1a9"
+  },
+  "rules_fuchsia": {
+    "package": "fuchsia/development/rules_fuchsia",
+    "source": [
+      "https://chrome-infra-packages.appspot.com/p/fuchsia/development/rules_fuchsia/+/git_revision:1463df67e630ab75428ad5731ab1c24dd5dce1a9"
+    ],
+    "value": "8d346b9a21a6c3c0d4e6ffc40e9ef0f81e9545dd75040b068d4fa09d74f54845"
+  },
+  "rust_host": {
+    "package": "fuchsia/third_party/rust/host/linux-amd64",
+    "source": [
+      "https://fuchsia.googlesource.com/fuchsia b5274053cc0f1ba03cd0902a3da575ac9c31c152:manifests/toolchain",
+      "https://chrome-infra-packages.appspot.com/p/fuchsia/third_party/rust/host/linux-amd64/+/git_revisions:c26ce708de5d14682647895d2f3caf38f70b5aa6,3493720eca95cf844a8d7e58fdd12e0e5644e7d0"
+    ],
+    "value": "3a8ffdbed3f78ba359e5e9a4677a5d27c8e13d9c4822243bf78b16a57acb225f"
+  },
+  "rust_target": {
+    "package": "fuchsia/third_party/rust/target/fuchsia",
+    "source": [
+      "https://fuchsia.googlesource.com/fuchsia b5274053cc0f1ba03cd0902a3da575ac9c31c152:manifests/toolchain",
+      "https://chrome-infra-packages.appspot.com/p/fuchsia/third_party/rust/target/fuchsia/+/git_revisions:c26ce708de5d14682647895d2f3caf38f70b5aa6,3493720eca95cf844a8d7e58fdd12e0e5644e7d0"
+    ],
+    "value": "4fe0f40e20ce02113705648c7123afcee4294c7d5e98459bf1e5c0204f07d603"
+  },
+  "sdk_version": {
+    "source": [
+      "https://storage.googleapis.com/fuchsia/development/33.20260927.4.1/product_bundles.json"
+    ],
+    "value": "33.20260927.4.1"
+  }
+}

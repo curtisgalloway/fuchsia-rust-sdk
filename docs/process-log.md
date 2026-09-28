@@ -73,3 +73,24 @@ happens. Append the entry in the same tool call as the step that triggers it, ra
 than after several steps.
 Fix belongs in: skill `lab-notebook` (a concrete "same call" rule) / agent habit
 Status: open
+
+## 2026-09-27T18:16-07:00 — surprise: `reuse lint` reports gitignored files in untracked directories
+Chapter: [M1](notebook/M1.md)
+What happened: before the first commit, `uv run reuse lint` failed on
+`scripts/__pycache__/*.pyc` and `tests/__pycache__/*.pyc` although `.gitignore`
+lists `__pycache__/`. reuse's git query (`ls-files --ignored --others --directory
+--no-empty-directory`) does not list ignored directories nested in untracked ones.
+Cost: three tool calls reading reuse's source to rule out a real header gap.
+Prevention: when a license linter reports generated files, first check whether the
+files around them are tracked; lint a copy with everything added to a fresh index.
+Fix belongs in: tool (reuse/git behavior); nothing to change in the project
+Status: open
+
+## 2026-09-27T18:18-07:00 — failed command: `/usr/bin/time` is not installed
+Chapter: [M1](notebook/M1.md)
+What happened: the two-live-runs loop used `/usr/bin/time -f`; the container has no
+`time` binary (exit 127), so both iterations failed before resolving anything.
+Cost: one retried step (seconds; no network work lost).
+Prevention: time commands with `date +%s` arithmetic or the shell's `time` keyword.
+Fix belongs in: agent habit (no project change)
+Status: open

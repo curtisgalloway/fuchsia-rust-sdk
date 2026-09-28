@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+
+version = 1
+
+# Generated files whose formats cannot carry a comment header.
+[[annotations]]
+path = ["overlay.lock.json", "uv.lock"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Curtis Galloway"
+SPDX-License-Identifier = "Apache-2.0"

@@ -11,7 +11,7 @@ Brief: [brief](brief.md) (evidence and upstream paths; the design wins where the
 Notebook: [index](notebook/index.md); process log: [process log](process-log.md)
 Target release for milestone 1: `33.20260927.4.1` (`LATEST_LINUX` on 2026-09-27).
 
-**Project checks** (none exist yet; each is created by the milestone named):
+**Project checks** (each is created by the milestone named; M1's two exist):
 
 | Check | Command | Created in |
 |---|---|---|
@@ -20,7 +20,7 @@ Target release for milestone 1: `33.20260927.4.1` (`LATEST_LINUX` on 2026-09-27)
 | Build, arm64 | `bazel build --config=fuchsia_arm64 //...` | M2 |
 | Binary checks | `bazel test //...` (symbol and `DT_NEEDED` tests) | M10 |
 | Vendor drift | `scripts/regen.py --check` | M5 |
-| License headers | `reuse lint` or an equivalent SPDX check (to be chosen in M1) | M1 |
+| License headers | `uv run reuse lint` (chosen in M1; `REUSE.toml` covers files without comments) | M1 |
 
 **Where work runs.** Unless marked, a milestone runs in a Claude Code cloud container.
 Its measured limits: 4 vCPU, no KVM, about 30 GB free disk. The container reaches CIPD,
@@ -61,7 +61,7 @@ in the cloud.
 | ID | Outcome | Dependencies | Where | Status |
 |----|---------|--------------|-------|--------|
 | I1 | Documented anonymous lookup: SDK version → `fuchsia.git` revision | — | cloud | complete |
-| M1 | Repo scaffold + `resolve_pins.py` writes `overlay.lock.json` (R1) | I1 | cloud | pending |
+| M1 | Repo scaffold + `resolve_pins.py` writes `overlay.lock.json` (R1) | I1 | cloud | complete |
 | M2 | Bazel workspace + Fuchsia Rust toolchains; a Rust binary links for x64 and arm64 (I5, R2) | M1 | cloud | pending |
 | M3 | Emulator harness at the lock's release; the M2 binary runs on it (R2) | M2 | cloud (emulator) | pending |
 | M4 | `rustc_*` rules with API-level cfgs (R3) | M2 | cloud | pending |
@@ -141,75 +141,19 @@ evidence.
 
 ## M1 — Repo scaffold and pinned release lock
 
-**Design coverage:** R1, C1, C4. **Dependencies:** I1.
-**In scope:** repo basics; `scripts/resolve_pins.py`; `overlay.lock.json` for
-`33.20260927.4.1`; pytest suite.
-**Out of scope:** any Bazel file; `regen.py`.
-
-### Implementation steps
-1. Add `LICENSE` (Apache-2.0), `README.md` (one paragraph plus a link to
-   design/plan), `.gitignore` (`bazel-*`, `.dev/`, `__pycache__`), and `pyproject.toml`
-   for `uv` with `pytest` as a dev dependency. All carry SPDX headers.
-2. `scripts/resolve_pins.py <sdk-version> [--out overlay.lock.json]`, with these steps:
-   1. Get the revision by the I1 method (`evidence/I1.md` "Method"), and record the
-      integration commit too. Keep the all-builds-agree check. One integration
-      commit does not fix `fuchsia.git` (`20.20240404.1.1`), and the IDK's own build
-      is not among those checked, so the FIDL-blob cross-check in I1 is the only
-      direct evidence about the IDK itself.
-   2. Fetch `manifests/toolchain` at that revision: `git fetch --depth 1` of that
-      commit with a sparse, blobless checkout, or `git archive`-style reads through
-      git. Never gitiles.
-   3. Parse the two Rust packages and their `git_revisions:` version.
-   4. Resolve instance IDs with CIPD `ResolveVersion` (brief App. B step 3). The host
-      package is resolved for `linux-amd64`.
-   5. Pin the Bazel SDK from this release's own artifacts (decided by the
-      orchestrator 2026-09-27):
-      - the IDK `core.tar.gz` from `gs://fuchsia/development/<V>/sdk/linux-amd64/`,
-        pinned by SHA-256;
-      - `fuchsia/development/rules_fuchsia` from CIPD, resolved by
-        `git_revision:<integration_revision>`.
-
-      Never pin a Bazel SDK instance from another release (C3). At
-      `33.20260927.4.1`, `fuchsia/sdk/core/fuchsia-bazel-rules/linux-amd64` has no
-      instance (a publishing gap; see I1 evidence). If that package later gains
-      `version:<V>` for the same release, M1 may use it instead and record why.
-   6. Take the SHA-256 of `third_party/rust_crates/Cargo.lock` at the revision.
-   7. Write the lock with sorted keys and a trailing newline, via temp file then
-      `os.replace`.
-3. The lock schema has one object per field, each with `value` and `source` (the URL
-   or git path it came from, per R1). Proposed keys: `sdk_version`, `fuchsia_revision`,
-   `integration_revision`, `rust_host`, `rust_target`, `bazel_sdk`, `rules_fuchsia`,
-   `cargo_lock_sha256`.
-4. `tests/test_resolve_pins.py`: HTTP and git are stubbed behind one small interface.
-5. Commit `overlay.lock.json` for `33.20260927.4.1`.
-
-### Acceptance criteria
-- [ ] Two consecutive live runs produce byte-identical `overlay.lock.json`.
-- [ ] Every field has a `source` naming its upstream artifact.
-- [ ] If any lookup fails (stubbed 404 for CIPD, unknown version), the script exits
-  non-zero naming the field, and an existing lock file is unchanged.
-- [ ] `rust_host`/`rust_target` instance IDs match the brief's `3a8ffdbe…`/`4fe0f40e…`
-  if the release still pins `c26ce708…,3493720e…`. Otherwise the difference is
-  explained in evidence.
-- [ ] `uv run pytest` passes; SPDX check passes.
-
-### Testing and review
-- Tests: happy path, each field's failure path, determinism (same stubs → same bytes),
-  atomic write (simulate failure between temp write and replace).
-- Verify with: `uv run pytest`; `uv run scripts/resolve_pins.py 33.20260927.4.1 && git diff --exit-code overlay.lock.json` (second run).
-- Review focus: C1 (no credentials, no gitiles), the lock as the only per-release
-  input, and a readable schema for M14.
-- Review method: inherit.
-
-### Session sizing
-Starts from the design §4.2 "Pin resolution", brief §3.5–3.6 and App. B, and
-`evidence/I1.md`. The main uncertainty is fetching one file at a commit without a
-full clone; brief App. B's sparse clone is the fallback. Split point: land the lock
-schema, the stubbed tests and the fields other than the Bazel SDK first, and add
-`bazel_sdk`/`rules_fuchsia` in a follow-up.
-
-### Evidence and findings
-Status: pending · Evidence: [M1](evidence/M1.md) · Notebook: [M1](notebook/M1.md)
+**Design coverage:** R1, C1, C4. **Dependencies:** I1. **Status:** complete.
+**Outcome:** `uv run scripts/resolve_pins.py <V>` writes `overlay.lock.json` with
+`sdk_version`, `fuchsia_revision`, `integration_revision`, `rust_host`, `rust_target`,
+`bazel_sdk` (the release's IDK `core.tar.gz` SHA-256, plus `url`), `rules_fuchsia` (CIPD
+instance at the integration revision) and `cargo_lock_sha256`, each `{value, source[]}`
+(CIPD fields add `package`). git runs isolated from user and system config (C1). Two live
+runs for `33.20260927.4.1` were byte-identical (`c4e031a8…`); `uv run pytest` (68) and
+`uv run reuse lint` pass. An independent review ran before the checkpoint: 1 major and
+4 minor findings fixed.
+**Evidence:** [M1](evidence/M1.md) · **Notebook:** [M1](notebook/M1.md)
+**Open limitations:** I1's limitation stands (the IDK's own build is unchecked); each run
+streams the 3 GB IDK to hash it (about 50–85 s per run); `rules_fuchsia` instances are shared by
+neighboring releases whose rules did not change.
 
 ---
 
@@ -987,25 +931,32 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
   harness should share code. Not needed for milestone 1.
 - **Other Rust drivers (design F10).** `aml-rtc` and `virtio-gpu-display` are
   candidates for a third pilot or for R7 reference comparisons (see M10).
+- **Making `fuchsia-cloud-dev` more useful (owner interest, 2026-09-27).** Its README
+  now lists its limits (x64 only, prebuilt image, `edu` only, SDK pin not published for
+  every release, C++ only). Follow-ups this project could feed:
+  - Follow the newest release by pinning the IDK and `rules_fuchsia` as M1 does,
+    instead of the `fuchsia-bazel-rules` CIPD package.
+  - Offer this overlay as a Bazel module there for Rust, after G1.
+  - Add QEMU devices beyond `edu` for driver work (one `-device` argument each).
+  - Unverified: a `core.arm64` product bundle under TCG for arm64 at run time;
+    in-container product assembly for replacing shipped drivers (disk may not allow).
 
 ## Next session
 
-- Current milestone and status: **I1 complete** (branch `ms/I1`, checkpoint
-  `overlay: I1 — SDK version to release revision`).
-- Completed work and evidence: [I1 evidence](evidence/I1.md). Anonymous lookup via
-  `product_bundles.json` → build `source_manifest.json`, cross-checked with the IDK's
-  CIPD `git_revision` (integration commit) and IDK FIDL content.
-  `33.20260927.4.1` → `b5274053cc0f1ba03cd0902a3da575ac9c31c152`.
-- Decided since I1: M1 pins the Bazel SDK from the release's own IDK `core.tar.gz`
-  (SHA-256) plus `rules_fuchsia` by integration `git_revision` (M1 step 2.5).
-- Commits: the I1 checkpoint commit, then `overlay: I1 — address review findings`
-  (independent review, run after the checkpoint; see I1 evidence "Review"). No
-  uncommitted state.
-- Remaining decisions:
+- Current milestone and status: **M1 complete** (branch `ms/M1`, from `e0a9bdb`;
+  checkpoint `overlay: M1 — Repo scaffold and pinned release lock`).
+- Completed work and evidence: [M1 evidence](evidence/M1.md). `overlay.lock.json` for
+  `33.20260927.4.1` (fuchsia.git `b5274053…`, integration `1463df67…`, Rust host
+  `3a8ffdbe…`/target `4fe0f40e…`, IDK `043104ba…`, `rules_fuchsia` `8d346b9a…`).
+  Independent review (reviewer subagent, before the checkpoint): findings fixed, listed
+  in the evidence.
+- Commits: the M1 checkpoint commit only. No uncommitted state.
+- Remaining decisions (unchanged):
   - the R7 reading for pilot 1 (see Design coverage gap), needed before M10 closes;
   - the M17 placement, needed before M17.
 - Context boundary: normal.
-- Resume action: **begin M1** (needs the owner's go-ahead).
-- Read first: this plan's M1 entry, [I1 evidence](evidence/I1.md) "Method" and
-  "Limitations", [design](design.md) §4.2 "Pin resolution", and the
-  [notebook index](notebook/index.md).
+- Resume action: **begin M2** (needs the owner's go-ahead). M2 reads only
+  `overlay.lock.json`: `rust_host`/`rust_target` (`package` + instance), `bazel_sdk`
+  (`url` + SHA-256) and `rules_fuchsia`.
+- Read first: this plan's M2 entry, [M1 evidence](evidence/M1.md) "The lock", design
+  §4.2 "Toolchain", and the [notebook index](notebook/index.md).
