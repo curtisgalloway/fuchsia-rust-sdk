@@ -18,9 +18,10 @@ SPDX-FileCopyrightText = "2026 Curtis Galloway"
 SPDX-License-Identifier = "Apache-2.0"
 
 # Copied unchanged from fuchsia.git build/bazel/vendor_patches/rules_rust-0.69.0/ at the
-# lock's fuchsia_revision (C4). Fuchsia's LICENSE is LICENSES/BSD-3-Clause.txt.
+# lock's fuchsia_revision (C4). The added lines are Fuchsia's (BSD-3-Clause, Fuchsia's
+# LICENSE is LICENSES/BSD-3-Clause.txt); the context lines are rules_rust's (Apache-2.0).
 [[annotations]]
 path = ["patches/rules_rust/*.patch"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2026 The Fuchsia Authors"
-SPDX-License-Identifier = "BSD-3-Clause"
+SPDX-FileCopyrightText = ["2026 The Fuchsia Authors", "2018 The Bazel Authors"]
+SPDX-License-Identifier = "Apache-2.0 AND BSD-3-Clause"

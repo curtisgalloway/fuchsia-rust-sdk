@@ -19,7 +19,7 @@ Target release for milestone 1: `33.20260927.4.1` (`LATEST_LINUX` on 2026-09-27)
 | Build, x64 | `scripts/bazel build --config=fuchsia_x64 //...` | M2 |
 | Build, arm64 | `scripts/bazel build --config=fuchsia_arm64 //...` | M2 |
 | Build, host | `scripts/bazel build //...` | M2 |
-| Binary checks | `bazel test //...` (symbol and `DT_NEEDED` tests) | M10 |
+| Binary checks | `scripts/bazel test //...` (symbol and `DT_NEEDED` tests) | M10 |
 | Vendor drift | `scripts/regen.py --check` | M5 |
 | License headers | `uv run reuse lint` (chosen in M1; `REUSE.toml` covers files without comments) | M1 |
 
@@ -63,7 +63,7 @@ in the cloud.
 |----|---------|--------------|-------|--------|
 | I1 | Documented anonymous lookup: SDK version → `fuchsia.git` revision | — | cloud | complete |
 | M1 | Repo scaffold + `resolve_pins.py` writes `overlay.lock.json` (R1) | I1 | cloud | complete |
-| M2 | Bazel workspace + Fuchsia Rust toolchains; a Rust binary links for x64 and arm64 (I5, R2) | M1 | cloud | in_progress (implemented; review pending) |
+| M2 | Bazel workspace + Fuchsia Rust toolchains; a Rust binary links for x64 and arm64 (I5, R2) | M1 | cloud | complete |
 | M3 | Emulator harness at the lock's release; the M2 binary runs on it (R2) | M2 | cloud (emulator) | pending |
 | M4 | `rustc_*` rules with API-level cfgs (R3) | M2 | cloud | pending |
 | M5 | Vendor stage of `regen.py` + `--check`; `zx-types`, `zx-sys`, `zx` build (R6 mechanism, R2) | M4 | cloud | pending |
@@ -161,8 +161,9 @@ neighboring releases whose rules did not change.
 ## M2 — Bazel workspace and Fuchsia Rust toolchains
 
 **Design coverage:** I5, R2 (link half), D3, D4, C5, A2. **Dependencies:** M1.
-**Status:** in_progress: implemented and verified; independent review pending, then the
-checkpoint commit. The detailed entry is in the evidence file.
+**Status:** complete. An independent review ran before the checkpoint (5 minor findings
+and 9 nits, all resolved as the orchestrator decided). The detailed entry is in the
+evidence file.
 **Outcome:** Bazel 8.5.1 (`scripts/bazel`, `.bazelversion`) with `rules_fuchsia`,
 `@fuchsia_sdk` (generated from the release's IDK), `@fuchsia_clang` and the release's
 CIPD Rust toolchain, all from `overlay.lock.json` through two module extensions in
@@ -171,9 +172,10 @@ CIPD Rust toolchain, all from `overlay.lock.json` through two module extensions 
 output base; `examples/hello_host` (binary + proc macro) builds with the host toolchain.
 The lock gained `rust_host_std` and `clang`.
 **Evidence:** [M2](evidence/M2.md) · **Notebook:** [M2](notebook/M2.md)
-**Open limitations:** Bazel version deviates from design §4.1 (question for the owner in
-the evidence); Bazel caches take about 20 GB, leaving 9 GB free (M3 needs about 15 GB);
-host linking uses the system gcc.
+**Open limitations:** Bazel version deviates from design §4.1 (the orchestrator amends the
+design); Bazel caches take about 20 GB, leaving 9 GB free (M3 needs about 15 GB; the IDK
+trim is the orchestrator's new M2a under C6); host linking uses the system gcc; no default
+build-flags toolchain (M4 may revisit); no Fuchsia proc-macro use yet (M6).
 
 ---
 
@@ -919,23 +921,20 @@ Status: pending · Evidence: [M17](evidence/M17.md) · Notebook: [M17](notebook/
 
 ## Next session
 
-- Current milestone and status: **M2 in_progress** (implemented and verified; waiting
-  for the orchestrator's independent review), branch `ms/M2` from `722dc81`.
-- Completed work and evidence: [M2 evidence](evidence/M2.md) (all sections but Review).
-  Both Fuchsia configs and the host build pass from a clean output base with a download
-  allowlist; tamper tests fail as required; `uv run pytest` (75) and `uv run reuse lint`
-  pass.
-- Commits: three `wip: M2 — …` commits (crash insurance; the first two are `8975e53`,
-  `6b71b8b`, the third carries the evidence, plan and notebook). No uncommitted state.
-  The checkpoint commit `overlay: M2 — Bazel workspace and Fuchsia Rust toolchains`
-  follows the review.
+- Current milestone and status: **M2 complete** (branch `ms/M2` from `722dc81`;
+  checkpoint `overlay: M2 — Bazel workspace and Fuchsia Rust toolchains` on top of
+  three `wip: M2 — …` commits).
+- Completed work and evidence: [M2 evidence](evidence/M2.md), including the review
+  findings and resolutions. Both Fuchsia configs and the host build pass from a clean
+  output base; pytest (75) and `reuse lint` pass.
+- Commits: `8975e53`, `6b71b8b`, `cca5d08` (wip) and the checkpoint. No uncommitted state.
 - Remaining work, blockers, and decisions:
-  - review findings, then fill the evidence Review section and commit;
-  - **owner:** accept the Bazel-version amendment (design §4.1/A2: fuchsia.git's pin,
-    not sdk-samples/drivers'), or say otherwise;
-  - **before M3:** the disk decision (backlog);
+  - the orchestrator's docs commit: design amendments (Bazel version, host-std package
+    and five pins, new constraint C6) and the new milestone M2a (IDK trim);
+  - **before M3:** disk (9 GB free after M2), which M2a addresses;
   - unchanged: the R7 reading for pilot 1 (before M10 closes); M17 placement.
 - Context boundary: normal.
-- Resume action: finish M2 (review → checkpoint). Then M3 or M4 (both depend only on M2).
+- Resume action: begin the next eligible milestone the orchestrator names (M2a, then M3
+  or M4).
 - Read first: [M2 evidence](evidence/M2.md), [notebook index](notebook/index.md),
   `MODULE.bazel`, `toolchain/`.

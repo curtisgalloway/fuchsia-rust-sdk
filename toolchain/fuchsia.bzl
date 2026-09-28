@@ -20,7 +20,25 @@ load(":lock.bzl", "cipd_instance_id", "cipd_package", "read_lock")
 # rules_fuchsia builds the clang URL from this package for a linux-amd64 host (C5).
 _CLANG_PACKAGE = "fuchsia/third_party/clang/linux-amd64"
 
+# rules_fuchsia's repository rules replace the pinned IDK or clang with a local tree when
+# one of these is set. That would silently build against another release (C3), so the
+# overlay refuses to run with them. module_ctx.getenv also re-runs this extension when
+# one of them changes.
+_LOCAL_OVERRIDE_ENV = [
+    "LOCAL_FUCHSIA_SDK_DIRECTORY",
+    "LOCAL_FUCHSIA_IDK_DIRECTORY",
+    "LOCAL_FUCHSIA_PLATFORM_BUILD",
+]
+
+def _refuse_local_overrides(module_ctx):
+    found = [v for v in _LOCAL_OVERRIDE_ENV if module_ctx.getenv(v)]
+    if found:
+        fail(("%s set: rules_fuchsia would replace the IDK or clang pinned by " +
+              "overlay.lock.json with a local tree (design C3). Unset it; to build another " +
+              "release, regenerate the lock with scripts/resolve_pins.py.") % ", ".join(found))
+
 def _fuchsia_repos_impl(module_ctx):
+    _refuse_local_overrides(module_ctx)
     lock = read_lock(module_ctx)
     clang = cipd_package(lock, "clang")
     if clang.package != _CLANG_PACKAGE:

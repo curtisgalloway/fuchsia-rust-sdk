@@ -15,8 +15,9 @@ module(
 
 # BCR dependencies that rules_fuchsia and the generated @fuchsia_sdk load from. Versions
 # follow fuchsia-infra-bazel-rules, which sdk-samples/drivers uses at this release,
-# except rules_cc: this release's generated @fuchsia_sdk uses cc_import attributes that
-# 0.2.14 lacks, so it follows fuchsia.git's build/bazel/toplevel.MODULE.bazel (0.2.19).
+# except rules_cc, which matches fuchsia.git's pin at the lock revision
+# (build/bazel/toplevel.MODULE.bazel). Under Bazel 8 rules_cc's cc_* rules are the
+# native ones, so the choice has no functional effect here.
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "rules_cc", version = "0.2.19")

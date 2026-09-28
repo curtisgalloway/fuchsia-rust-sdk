@@ -16,9 +16,15 @@
 #     fuchsia_rules_common inside it; upstream has a separate @fuchsia_rules_common.
 #   - No API-level cfg flags yet (upstream: get_rustc_api_level_flags()); milestone M4
 #     adds them (design R3).
+#   - No toolchain is registered for
+#     @rules_fuchsia//fuchsia_rules_common/build_flags:toolchain_type (upstream registers
+#     @fuchsia_build_info//default_build_flags:all), so rust_toolchain_with_build_flags
+#     adds no GN-derived default flags; only the flags written below apply. M4 may
+#     revisit this when porting the rustc_* rules.
 
 """Top level BUILD.bazel in the @fuchsia_rust_toolchain repository."""
 
+# Overlay: upstream loads this from @fuchsia_rules_common//build_flags:toolchain.bzl.
 load("@rules_fuchsia//fuchsia_rules_common/build_flags:toolchain.bzl", "rust_toolchain_with_build_flags")
 load("@rules_rust//rust:toolchain.bzl", "rust_stdlib_filegroup", "rust_toolchain")
 

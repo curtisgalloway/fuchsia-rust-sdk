@@ -7,7 +7,10 @@ common --noenable_workspace
 # Fuchsia flag aliases (as fuchsia-infra-bazel-rules config/common_config.bazelrc).
 build --flag_alias=override_fuchsia_api_level=@fuchsia_sdk//flags:fuchsia_api_level
 build --flag_alias=default_fuchsia_api_level=@fuchsia_sdk//flags:repository_default_fuchsia_api_level
-build --incompatible_enable_cc_toolchain_resolution
+
+# Give each target platform its own output directory (as upstream's template.bazelrc
+# does), so x64, arm64 and host outputs do not overwrite each other in bazel-out/.
+common --experimental_platform_in_output_dir=True
 
 # Target the release's in-development API level, as sdk-samples/drivers does: hardware
 # FIDL is @available(added=HEAD) (design C3).
