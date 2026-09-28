@@ -308,7 +308,7 @@ crates.io aliases through upstream's crate_universe BUILD files. `docs/closure/p
 patched: `ask2patch/byteorder`, `ask2patch/memchr`, `forks/libc-0.2.189`, `forks/zeroize`,
 `forks/tracing-mutex-0.3.2`), 24 FIDL libraries (`fuchsia.sys2` not in the IDK), 1 bind
 library; upper bound 69 / 50 / 145 / 25. Brief (dw-spi roots): 67 / 44 / 34. Two
-fresh runs are byte-identical. pytest 302, reuse lint, three builds, `bazel test //...`
+fresh runs are byte-identical. pytest 303, reuse lint, three builds, `bazel test //...`
 (25), `regen.py --check` pass; disk 8.99 / 25 GiB.
 **Evidence:** [M6](evidence/M6.md) · **Notebook:** [M6](notebook/M6.md)
 **Open limitations:** one direct crate (`tracing-mutex-0.3.2`) depends on the build

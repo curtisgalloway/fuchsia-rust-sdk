@@ -270,7 +270,9 @@ def walk(tree: Tree, roots: list[str], mode: str = "fuchsia") -> Report:
         ev.prefetch(paths)
         nxt = []
         for path, name, ctx, flavor, via in frontier:
-            key = (path, name, ctx, flavor)
+            # Once per requester, so every record's used_by is complete; a target's own
+            # deps are pushed with the same requester (itself) each time, so this ends.
+            key = (path, name, ctx, flavor, via)
             if key in seen:
                 continue
             seen.add(key)
@@ -335,14 +337,15 @@ def walk(tree: Tree, roots: list[str], mode: str = "fuchsia") -> Report:
                     "crate_name": crate_name if isinstance(crate_name, str) else name.replace("-", "_"),
                     "edition": s.get("edition") if isinstance(s.get("edition"), str) else None,
                     "features": _strings(s.get("features")),
-                    "contexts": [], "used_by": [], "unknown_deps": 0,
+                    "contexts": [], "used_by": [],
+                    # Dep list entries the evaluator could not know (never followed).
+                    "unknown_deps": sum(_unknowns(s.get(v)) for v in DEP_VARS + PROC_MACRO_VARS),
                 })
                 _add(rec, "contexts", ctx)
                 _add(rec, "used_by", via)
                 host = target.kind == "rustc_macro"
                 for var in DEP_VARS + PROC_MACRO_VARS:
                     value = s.get(var)
-                    rec["unknown_deps"] += _unknowns(value)
                     for dep in _strings(value):
                         p, n, tc = parse_label(dep, path)
                         nxt.append((p, n, ctx_for(ctx, host or tc or var in PROC_MACRO_VARS), None, lab))

@@ -140,7 +140,10 @@ rustc_library("sub") {
     "lib/a/BUILD.bazel": "# upstream Bazel build\n",
     "lib/dylib/BUILD.gn": '''\
 rustc_dylib("dylib") {
-  deps = [ "//third_party/rust_crates:libc" ]
+  deps = [
+    "//third_party/rust_crates:libc",
+    "//lib/maybe",
+  ]
 }
 ''',
     "lib/mac/BUILD.gn": '''\
@@ -152,7 +155,7 @@ rustc_macro("mac") {
 }
 ''',
     "lib/hostonly/BUILD.gn": 'rustc_library("hostonly") {\n}\n',
-    "lib/maybe/BUILD.gn": 'rustc_library("maybe") {\n}\n',
+    "lib/maybe/BUILD.gn": 'rustc_library("maybe") {\n  deps = [ "$some_dir:x" ]\n}\n',
     "lib/testonly/BUILD.gn": 'rustc_library("testonly") {\n}\n',
     "native/c/BUILD.gn": 'source_set("c") {\n}\n',
     "fidl/fuchsia.foo/BUILD.gn": '''\
@@ -266,6 +269,14 @@ def test_rustc_dylib_is_followed(upstream):
     assert (t["gn_template"], t["crate_type"]) == ("rustc_dylib", "dylib")
     # Reached through a group, which is not itself a crate.
     assert t["used_by"] == ["//lib/a"]
+
+
+def test_used_by_lists_every_requester(upstream):
+    crates = by_path(run(upstream))
+    maybe = crates["lib/maybe"]["targets"][0]
+    assert maybe["used_by"] == ["//lib/a", "//lib/dylib"]
+    # A dep the evaluator cannot know is counted, not followed.
+    assert maybe["unknown_deps"] == 1 and crates["lib/a"]["targets"][0]["unknown_deps"] == 0
 
 
 def test_proc_macros_and_their_deps_are_host(upstream):
